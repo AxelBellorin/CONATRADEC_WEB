@@ -147,36 +147,11 @@
     private readonly LoginRequest modelo = new();
 
     private bool procesando;
-    private bool navegando;
     private string? error;
-
-    protected override async Task OnAfterRenderAsync(
-        bool firstRender)
-    {
-        if (!firstRender)
-            return;
-
-        /*
-         * Cuando se abre directamente /login después de
-         * refrescar, se intenta restaurar primero la sesión.
-         */
-        await AuthState.InicializarAsync();
-
-        if (AuthState.IsAuthenticated &&
-            !navegando)
-        {
-            navegando = true;
-
-            Navigation.NavigateTo(
-                "/",
-                forceLoad: true,
-                replace: true);
-        }
-    }
 
     private async Task IniciarSesionAsync()
     {
-        if (procesando || navegando)
+        if (procesando)
             return;
 
         procesando = true;
@@ -194,28 +169,14 @@
                 return;
             }
 
-            /*
-             * La sesión ya quedó almacenada en localStorage.
-             * Se fuerza una carga completa para iniciar un
-             * circuito limpio y restaurarla antes de crear
-             * el dashboard.
-             */
-            navegando = true;
-
             Navigation.NavigateTo(
                 "/",
-                forceLoad: true,
+                forceLoad: false,
                 replace: true);
-        }
-        catch (Exception ex)
-        {
-            error =
-                $"No fue posible completar el inicio de sesión. {ex.Message}";
         }
         finally
         {
-            if (!navegando)
-                procesando = false;
+            procesando = false;
         }
     }
 }

@@ -25,6 +25,7 @@ public sealed class AuthStateService
 
     public bool IsAuthenticated =>
         Usuario is not null &&
+        Usuario.Activo &&
         !string.IsNullOrWhiteSpace(Usuario.Token);
 
     public bool EsAdministrador =>
@@ -46,28 +47,33 @@ public sealed class AuthStateService
 
         try
         {
-            UsuarioSesion? usuarioGuardado =
+            UsuarioSesion? restaurado =
                 await browserSession.LeerAsync();
 
-            if (usuarioGuardado is null ||
-                !usuarioGuardado.Activo ||
+            if (restaurado is null ||
+                !restaurado.Activo ||
                 string.IsNullOrWhiteSpace(
-                    usuarioGuardado.Token))
+                    restaurado.Token))
             {
                 Usuario = null;
                 apiClient.ConfigurarToken(null);
                 return;
             }
 
-            Usuario = usuarioGuardado;
+            Usuario = restaurado;
 
             apiClient.ConfigurarToken(
-                usuarioGuardado.Token);
+                restaurado.Token);
 
-            if (!PuedeEntrarPortal)
-            {
-                await LimpiarSesionAsync();
-            }
+            /*
+             * No se elimina la sesión automáticamente si falta
+             * el permiso en el objeto restaurado. La autorización
+             * de entrada ya se validó en el login y los permisos
+             * individuales siguen controlando el menú.
+             *
+             * Esto evita un bucle de login si la API cambia la
+             * lista o el navegador restaura una sesión válida.
+             */
         }
         finally
         {
@@ -104,7 +110,7 @@ public sealed class AuthStateService
                     "El usuario está inactivo.");
             }
 
-            bool puedeEntrar =
+            bool accesoPortal =
                 usuario.Permisos.Any(
                     permiso =>
                         string.Equals(
@@ -113,7 +119,7 @@ public sealed class AuthStateService
                             StringComparison.OrdinalIgnoreCase) &&
                         permiso.Leer == true);
 
-            if (!puedeEntrar)
+            if (!accesoPortal)
             {
                 return ResultadoOperacion.Fallido(
                     "Tu usuario no tiene habilitado el acceso al portal administrativo.");
@@ -147,10 +153,10 @@ public sealed class AuthStateService
             return ResultadoOperacion.Fallido(
                 "La API tardó demasiado en responder.");
         }
-        catch
+        catch (Exception ex)
         {
             return ResultadoOperacion.Fallido(
-                "Ocurrió un error inesperado al iniciar sesión.");
+                $"Ocurrió un error inesperado al iniciar sesión. {ex.Message}");
         }
     }
 
@@ -182,16 +188,6 @@ public sealed class AuthStateService
         string interfaz,
         Func<PermisoInterfaz, bool> selector)
     {
-        if (string.Equals(
-                interfaz,
-                PermisosWeb.Portal,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return TienePermisoDirecto(
-                interfaz,
-                selector);
-        }
-
         if (EsAdministrador)
             return true;
 
@@ -213,7 +209,10 @@ public sealed class AuthStateService
 
     public async Task CerrarSesionAsync()
     {
-        await LimpiarSesionAsync();
+        Usuario = null;
+        apiClient.ConfigurarToken(null);
+
+        await browserSession.EliminarAsync();
 
         Inicializado = true;
         NotificarCambio();
@@ -221,15 +220,6 @@ public sealed class AuthStateService
 
     public Task CerrarSesion() =>
         CerrarSesionAsync();
-
-    private async Task LimpiarSesionAsync()
-    {
-        Usuario = null;
-
-        apiClient.ConfigurarToken(null);
-
-        await browserSession.EliminarAsync();
-    }
 
     private void NotificarCambio()
     {

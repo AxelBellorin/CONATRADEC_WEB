@@ -53,7 +53,7 @@ else
 
         await AuthState.InicializarAsync();
 
-        string rutaRelativa =
+        string ruta =
             Navigation
                 .ToBaseRelativePath(
                     Navigation.Uri)
@@ -61,7 +61,7 @@ else
 
         bool estaEnLogin =
             string.Equals(
-                rutaRelativa,
+                ruta,
                 "login",
                 StringComparison.OrdinalIgnoreCase);
 
@@ -70,7 +70,7 @@ else
         {
             Navigation.NavigateTo(
                 "/login",
-                forceLoad: true,
+                forceLoad: false,
                 replace: true);
 
             return;
@@ -81,7 +81,7 @@ else
         {
             Navigation.NavigateTo(
                 "/",
-                forceLoad: true,
+                forceLoad: false,
                 replace: true);
 
             return;

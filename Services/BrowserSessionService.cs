@@ -7,11 +7,11 @@ namespace CONATRADEC.AdminWeb.Services;
 public sealed class BrowserSessionService
 {
     private const string ClaveSesion =
-        "conatradec.portal.session";
+        "conatradec.portal.session.v3";
 
     private readonly IJSRuntime jsRuntime;
 
-    private readonly JsonSerializerOptions jsonOptions =
+    private readonly JsonSerializerOptions opciones =
         new(JsonSerializerDefaults.Web);
 
     public BrowserSessionService(
@@ -25,10 +25,13 @@ public sealed class BrowserSessionService
     {
         ArgumentNullException.ThrowIfNull(usuario);
 
+        SesionPersistida sesion =
+            SesionPersistida.DesdeUsuario(usuario);
+
         string json =
             JsonSerializer.Serialize(
-                usuario,
-                jsonOptions);
+                sesion,
+                opciones);
 
         await jsRuntime.InvokeVoidAsync(
             "localStorage.setItem",
@@ -48,9 +51,16 @@ public sealed class BrowserSessionService
 
         try
         {
-            return JsonSerializer.Deserialize<UsuarioSesion>(
-                json,
-                jsonOptions);
+            SesionPersistida? sesion =
+                JsonSerializer.Deserialize<
+                    SesionPersistida>(
+                    json,
+                    opciones);
+
+            if (sesion is null)
+                return null;
+
+            return sesion.AUsuarioSesion();
         }
         catch (JsonException)
         {
