@@ -1,0 +1,189 @@
+@page "/mapa"
+@implements IAsyncDisposable
+@inject AuthStateService AuthState
+@inject MapaService MapaService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Mapa de terrenos | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Geolocalización</p>
+        <h1>Mapa de terrenos</h1>
+        <p>Visualiza y filtra las ubicaciones registradas.</p>
+    </div>
+    <div class="page-header-actions">
+        <button class="btn-secondary" @onclick="CargarTerrenos" disabled="@cargando">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(aviso))
+{
+    <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>@aviso</span>
+    </div>
+}
+
+<section class="map-layout">
+    <aside class="map-filters panel">
+        <div class="panel-header">
+            <div>
+                <h2>Filtros</h2>
+                <p>Refina los puntos visibles</p>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="busqueda">Buscar terreno</label>
+            <InputText id="busqueda"
+                       class="form-control"
+                       @bind-Value="filtro.Texto"
+                       placeholder="Código, nombre o productor" />
+        </div>
+
+        <div class="form-group">
+            <label for="departamento">Departamento</label>
+            <InputSelect id="departamento"
+                         class="form-control"
+                         @bind-Value="filtro.Departamento">
+                <option value="">Todos</option>
+                @foreach (var departamento in departamentos)
+                {
+                    <option value="@departamento">@departamento</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="filter-actions">
+            <button class="btn-primary" @onclick="AplicarFiltros">
+                <i class="fa-solid fa-filter"></i>
+                Aplicar filtros
+            </button>
+            <button class="btn-link" @onclick="LimpiarFiltros">
+                Limpiar
+            </button>
+        </div>
+
+        <div class="map-summary">
+            <strong>@terrenosFiltrados.Count</strong>
+            <span>terrenos visibles</span>
+        </div>
+
+        <div class="legend">
+            <h3>Leyenda</h3>
+            <span><i class="legend-dot normal"></i> Estado normal</span>
+            <span><i class="legend-dot attention"></i> Requiere atención</span>
+            <span><i class="legend-dot critical"></i> Estado crítico</span>
+        </div>
+    </aside>
+
+    <article class="map-container panel">
+        @if (cargando)
+        {
+            <LoadingState Mensaje="Cargando terrenos..." />
+        }
+        <div id="mapaTerrenos" class="leaflet-map"></div>
+    </article>
+</section>
+
+@code {
+    private readonly MapaFiltro filtro = new();
+    private List<TerrenoMapaItem> terrenos = [];
+    private List<TerrenoMapaItem> terrenosFiltrados = [];
+    private List<string> departamentos = [];
+    private bool cargando = true;
+    private bool mapaInicializado;
+    private string? aviso;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await CargarTerrenos();
+        StateHasChanged();
+    }
+
+    private async Task CargarTerrenos()
+    {
+        cargando = true;
+        aviso = null;
+
+        var resultado = await MapaService.ObtenerTerrenosAsync();
+        terrenos = resultado.Datos;
+        aviso = resultado.Mensaje;
+
+        departamentos = terrenos
+            .Where(item => !string.IsNullOrWhiteSpace(item.Departamento))
+            .Select(item => item.Departamento!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(item => item)
+            .ToList();
+
+        terrenosFiltrados = terrenos.ToList();
+        cargando = false;
+
+        await DibujarMapa();
+    }
+
+    private async Task AplicarFiltros()
+    {
+        terrenosFiltrados = terrenos
+            .Where(item =>
+                string.IsNullOrWhiteSpace(filtro.Texto) ||
+                item.Codigo.Contains(filtro.Texto, StringComparison.OrdinalIgnoreCase) ||
+                item.Nombre.Contains(filtro.Texto, StringComparison.OrdinalIgnoreCase) ||
+                item.Productor.Contains(filtro.Texto, StringComparison.OrdinalIgnoreCase))
+            .Where(item =>
+                string.IsNullOrWhiteSpace(filtro.Departamento) ||
+                string.Equals(
+                    item.Departamento,
+                    filtro.Departamento,
+                    StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        await DibujarMapa();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        filtro.Texto = string.Empty;
+        filtro.Departamento = string.Empty;
+        terrenosFiltrados = terrenos.ToList();
+        await DibujarMapa();
+    }
+
+    private async Task DibujarMapa()
+    {
+        if (cargando)
+            return;
+
+        if (!mapaInicializado)
+        {
+            await JS.InvokeVoidAsync("conatradecMapa.inicializar", "mapaTerrenos");
+            mapaInicializado = true;
+        }
+
+        await JS.InvokeVoidAsync(
+            "conatradecMapa.mostrarTerrenos",
+            "mapaTerrenos",
+            terrenosFiltrados);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (mapaInicializado)
+            await JS.InvokeVoidAsync("conatradecMapa.destruir", "mapaTerrenos");
+    }
+}

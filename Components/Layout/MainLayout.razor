@@ -1,0 +1,143 @@
+@inherits LayoutComponentBase
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+
+@if (!AuthState.IsAuthenticated)
+{
+    <main class="public-layout">
+        @Body
+    </main>
+}
+else
+{
+    <div class="admin-shell">
+        <aside class="sidebar @(menuAbierto ? "open" : string.Empty)">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-seedling"></i>
+                </div>
+                <div>
+                    <strong>CONATRADEC</strong>
+                    <span>Portal administrativo</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu" @onclick="CerrarMenuMovil">
+                <NavLink href="/" Match="NavLinkMatch.All">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </NavLink>
+
+                @if (AuthState.TienePermisoLectura("TerrenoPage") ||
+                     AuthState.TienePermisoLectura("MapaTerrenosWeb") ||
+                     AuthState.EsAdministrador)
+                {
+                    <NavLink href="/mapa">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                        <span>Mapa de terrenos</span>
+                    </NavLink>
+                }
+
+                <div class="nav-section">Administración</div>
+
+                @if (AuthState.TienePermisoLectura("UsuarioPage") ||
+                     AuthState.EsAdministrador)
+                {
+                    <NavLink href="/usuarios">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Usuarios</span>
+                    </NavLink>
+                }
+
+                @if (AuthState.TienePermisoLectura("BitacoraPage") ||
+                     AuthState.EsAdministrador)
+                {
+                    <NavLink href="/bitacora">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <span>Bitácora</span>
+                    </NavLink>
+                }
+
+                <NavLink href="/configuracion">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Configuración</span>
+                </NavLink>
+            </nav>
+
+            <div class="sidebar-user">
+                <div class="avatar">
+                    @ObtenerIniciales()
+                </div>
+                <div class="sidebar-user-data">
+                    <strong>@AuthState.Usuario?.NombreCompletoUsuario</strong>
+                    <span>@AuthState.Usuario?.RolNombre</span>
+                </div>
+                <button class="icon-button"
+                        title="Cerrar sesión"
+                        @onclick="CerrarSesion">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        @if (menuAbierto)
+        {
+            <button class="sidebar-overlay"
+                    aria-label="Cerrar menú"
+                    @onclick="ToggleMenu"></button>
+        }
+
+        <section class="content-shell">
+            <header class="topbar">
+                <button class="menu-button"
+                        @onclick="ToggleMenu"
+                        aria-label="Abrir menú">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <div class="topbar-title">
+                    <span>Administración y monitoreo</span>
+                </div>
+
+                <div class="topbar-user">
+                    <i class="fa-regular fa-circle-user"></i>
+                    <span>@AuthState.Usuario?.NombreUsuario</span>
+                </div>
+            </header>
+
+            <main class="page-content">
+                @Body
+            </main>
+        </section>
+    </div>
+}
+
+@code {
+    private bool menuAbierto;
+
+    private void ToggleMenu() => menuAbierto = !menuAbierto;
+
+    private void CerrarMenuMovil()
+    {
+        menuAbierto = false;
+    }
+
+    private string ObtenerIniciales()
+    {
+        var nombre = AuthState.Usuario?.NombreCompletoUsuario;
+
+        if (string.IsNullOrWhiteSpace(nombre))
+            return "U";
+
+        return string.Concat(
+            nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Take(2)
+                .Select(item => char.ToUpperInvariant(item[0])));
+    }
+
+    private void CerrarSesion()
+    {
+        AuthState.CerrarSesion();
+        Navigation.NavigateTo("/login", forceLoad: false);
+    }
+}

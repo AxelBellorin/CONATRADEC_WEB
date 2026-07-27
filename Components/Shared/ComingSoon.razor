@@ -1,0 +1,17 @@
+<section class="empty-state panel">
+    <i class="@Icono"></i>
+    <h2>@Titulo</h2>
+    <p>@Descripcion</p>
+    <span class="badge">Próxima etapa</span>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Icono { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Titulo { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Descripcion { get; set; } = string.Empty;
+}

@@ -1,0 +1,12 @@
+<div class="detail-item">
+    <span>@Etiqueta</span>
+    <strong>@(string.IsNullOrWhiteSpace(Valor) ? "No disponible" : Valor)</strong>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Etiqueta { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Valor { get; set; }
+}

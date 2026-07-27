@@ -1,0 +1,176 @@
+@page "/usuarios"
+@inject AuthStateService AuthState
+@inject UsuarioService UsuarioService
+@inject NavigationManager Navigation
+
+<PageTitle>Usuarios | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Administración</p>
+        <h1>Usuarios</h1>
+        <p>Consulta los usuarios activos, sus roles y procedencia.</p>
+    </div>
+    <div class="page-header-actions">
+        <button class="btn-secondary" @onclick="CargarUsuarios" disabled="@cargando">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+<section class="panel toolbar-panel">
+    <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <InputText class="form-control"
+                   @bind-Value="buscar"
+                   @bind-Value:event="oninput"
+                   placeholder="Buscar por nombre, usuario, correo, identificación o rol" />
+    </div>
+    <div class="toolbar-summary">
+        <strong>@UsuariosFiltrados.Count</strong>
+        <span>usuarios visibles</span>
+    </div>
+</section>
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Cargando usuarios..." />
+}
+else if (UsuariosFiltrados.Count == 0)
+{
+    <section class="empty-state panel compact-empty">
+        <i class="fa-solid fa-users-slash"></i>
+        <h2>No se encontraron usuarios</h2>
+        <p>Cambia el texto de búsqueda o actualiza la información.</p>
+    </section>
+}
+else
+{
+    <section class="user-grid">
+        @foreach (var usuario in UsuariosFiltrados)
+        {
+            <article class="user-card panel">
+                <div class="user-card-top">
+                    @if (!string.IsNullOrWhiteSpace(usuario.UrlImagenUsuario))
+                    {
+                        <img class="user-photo"
+                             src="@UsuarioService.ConstruirUrlImagen(usuario.UrlImagenUsuario)"
+                             alt="Imagen de @usuario.NombreCompletoUsuario"
+                             onerror="this.style.display='none';this.nextElementSibling.style.display='grid';" />
+                        <div class="user-initials" style="display:none">@Iniciales(usuario.NombreCompletoUsuario)</div>
+                    }
+                    else
+                    {
+                        <div class="user-initials">@Iniciales(usuario.NombreCompletoUsuario)</div>
+                    }
+
+                    <div class="user-main-data">
+                        <h2>@usuario.NombreCompletoUsuario</h2>
+                        <span>@@@usuario.NombreUsuario</span>
+                    </div>
+
+                    <span class="status-label success">Activo</span>
+                </div>
+
+                <div class="user-tags">
+                    <span class="badge">@usuario.RolNombre</span>
+                    <span class="badge badge-neutral">@usuario.ProcedenciaNombre</span>
+                </div>
+
+                <div class="user-details">
+                    <span>
+                        <i class="fa-regular fa-envelope"></i>
+                        @usuario.CorreoUsuario
+                    </span>
+                    <span>
+                        <i class="fa-regular fa-id-card"></i>
+                        @usuario.IdentificacionUsuario
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(usuario.TelefonoUsuario))
+                    {
+                        <span>
+                            <i class="fa-solid fa-phone"></i>
+                            @usuario.TelefonoUsuario
+                        </span>
+                    }
+                </div>
+            </article>
+        }
+    </section>
+}
+
+@code {
+    private List<UsuarioListadoItem> usuarios = [];
+    private bool cargando = true;
+    private string buscar = string.Empty;
+    private string? error;
+
+    private List<UsuarioListadoItem> UsuariosFiltrados => usuarios
+        .Where(usuario =>
+            string.IsNullOrWhiteSpace(buscar) ||
+            Contiene(usuario.NombreCompletoUsuario, buscar) ||
+            Contiene(usuario.NombreUsuario, buscar) ||
+            Contiene(usuario.CorreoUsuario, buscar) ||
+            Contiene(usuario.IdentificacionUsuario, buscar) ||
+            Contiene(usuario.RolNombre, buscar) ||
+            Contiene(usuario.ProcedenciaNombre, buscar))
+        .ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await CargarUsuarios();
+        StateHasChanged();
+    }
+
+    private async Task CargarUsuarios()
+    {
+        cargando = true;
+        error = null;
+
+        try
+        {
+            usuarios = await UsuarioService.ListarAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"No fue posible cargar los usuarios. {ex.Message}";
+            usuarios = [];
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private static bool Contiene(string? valor, string texto) =>
+        valor?.Contains(texto.Trim(), StringComparison.OrdinalIgnoreCase) == true;
+
+    private static string Iniciales(string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return "U";
+
+        return string.Concat(nombre
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(2)
+            .Select(item => char.ToUpperInvariant(item[0])));
+    }
+}

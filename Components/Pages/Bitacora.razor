@@ -1,0 +1,343 @@
+@page "/bitacora"
+@inject AuthStateService AuthState
+@inject BitacoraService BitacoraService
+@inject NavigationManager Navigation
+
+<PageTitle>Bitácora | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Auditoría</p>
+        <h1>Bitácora</h1>
+        <p>Consulta las acciones realizadas dentro del sistema.</p>
+    </div>
+    <div class="page-header-actions">
+        <button class="btn-secondary" @onclick="Cargar" disabled="@cargando">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+<section class="panel audit-filters">
+    <div class="form-group filter-search-wide">
+        <label>Búsqueda general</label>
+        <InputText class="form-control" @bind-Value="filtro.Buscar"
+                   placeholder="Usuario, descripción, endpoint, página o correlación" />
+    </div>
+
+    <div class="form-group">
+        <label>Usuario</label>
+        <InputSelect class="form-control" @bind-Value="filtro.UsuarioId">
+            <option value="">Todos</option>
+            @foreach (var usuario in catalogos.Usuarios)
+            {
+                <option value="@usuario.UsuarioId">@usuario.Nombre</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Módulo</label>
+        <InputSelect class="form-control" @bind-Value="filtro.Modulo">
+            <option value="">Todos</option>
+            @foreach (var modulo in catalogos.Modulos)
+            {
+                <option value="@modulo">@modulo</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Acción</label>
+        <InputSelect class="form-control" @bind-Value="filtro.Accion">
+            <option value="">Todas</option>
+            @foreach (var accion in catalogos.Acciones)
+            {
+                <option value="@accion">@accion</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Resultado</label>
+        <InputSelect class="form-control" @bind-Value="filtro.Estado">
+            <option value="">Todos</option>
+            <option value="exitoso">Exitosos</option>
+            <option value="fallido">Fallidos</option>
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Desde</label>
+        <InputDate class="form-control" @bind-Value="filtro.FechaDesde" />
+    </div>
+
+    <div class="form-group">
+        <label>Hasta</label>
+        <InputDate class="form-control" @bind-Value="filtro.FechaHasta" />
+    </div>
+
+    <div class="audit-filter-actions">
+        <button class="btn-primary" @onclick="AplicarFiltros">
+            <i class="fa-solid fa-filter"></i>
+            Aplicar
+        </button>
+        <button class="btn-link" @onclick="LimpiarFiltros">Limpiar</button>
+    </div>
+</section>
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Cargando bitácora..." />
+}
+else
+{
+    <section class="panel table-panel">
+        <div class="table-summary">
+            <span>Registros encontrados</span>
+            <strong>@resultado.TotalRegistros</strong>
+        </div>
+
+        <div class="responsive-table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Módulo</th>
+                        <th>Acción</th>
+                        <th>Descripción</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (resultado.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7" class="table-empty">No hay registros para los filtros seleccionados.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in resultado.Items)
+                        {
+                            <tr>
+                                <td data-label="Fecha">@FechaLocal(item.FechaHoraUtc)</td>
+                                <td data-label="Usuario">
+                                    <strong>@NombreUsuario(item)</strong>
+                                    <small>@item.RolNombre</small>
+                                </td>
+                                <td data-label="Módulo">@item.Modulo</td>
+                                <td data-label="Acción"><span class="badge badge-neutral">@item.Accion</span></td>
+                                <td data-label="Descripción" class="description-cell">@item.Descripcion</td>
+                                <td data-label="Estado">
+                                    <span class="status-label @(item.Exitoso ? "success" : "danger")">
+                                        @(item.Exitoso ? "Exitoso" : "Fallido")
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="table-action" @onclick="() => VerDetalle(item.BitacoraId)" title="Ver detalle">
+                                        <i class="fa-regular fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-bar">
+            <button class="btn-secondary" disabled="@(resultado.Pagina <= 1)" @onclick="PaginaAnterior">
+                <i class="fa-solid fa-chevron-left"></i>
+                Anterior
+            </button>
+            <span>Página <strong>@resultado.Pagina</strong> de <strong>@resultado.TotalPaginas</strong></span>
+            <button class="btn-secondary" disabled="@(resultado.Pagina >= resultado.TotalPaginas)" @onclick="PaginaSiguiente">
+                Siguiente
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+    </section>
+}
+
+@if (detalle is not null)
+{
+    <div class="modal-backdrop" @onclick="CerrarDetalle">
+        <article class="modal-card audit-detail" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Detalle de auditoría</p>
+                    <h2>@detalle.Accion · @detalle.Modulo</h2>
+                </div>
+                <button class="modal-close" @onclick="CerrarDetalle"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="detail-grid">
+                <DetailItem Etiqueta="Fecha" Valor="@FechaLocal(detalle.FechaHoraUtc)" />
+                <DetailItem Etiqueta="Usuario" Valor="@NombreUsuario(detalle)" />
+                <DetailItem Etiqueta="Método" Valor="@detalle.MetodoHttp" />
+                <DetailItem Etiqueta="Código HTTP" Valor="@detalle.CodigoEstado.ToString()" />
+                <DetailItem Etiqueta="Duración" Valor="@($"{detalle.DuracionMs} ms")" />
+                <DetailItem Etiqueta="IP" Valor="@detalle.DireccionIp" />
+                <DetailItem Etiqueta="Plataforma" Valor="@detalle.Plataforma" />
+                <DetailItem Etiqueta="Dispositivo" Valor="@detalle.Dispositivo" />
+            </div>
+
+            <div class="detail-block">
+                <strong>Endpoint</strong>
+                <code>@detalle.Endpoint</code>
+            </div>
+
+            <div class="detail-block">
+                <strong>Descripción</strong>
+                <p>@detalle.Descripcion</p>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(detalle.Error))
+            {
+                <div class="detail-block error-block">
+                    <strong>Error</strong>
+                    <p>@detalle.Error</p>
+                </div>
+            }
+
+            @if (detalle.Cambios.Count > 0)
+            {
+                <div class="detail-block">
+                    <strong>Cambios registrados (@detalle.Cambios.Count)</strong>
+                    <div class="change-list">
+                        @foreach (var cambio in detalle.Cambios)
+                        {
+                            <article class="change-item">
+                                <div><strong>@cambio.Entidad</strong> · @cambio.Operacion</div>
+                                <small>ID: @cambio.EntidadId</small>
+                                @if (!string.IsNullOrWhiteSpace(cambio.PropiedadesModificadas))
+                                {
+                                    <p>Propiedades: @cambio.PropiedadesModificadas</p>
+                                }
+                            </article>
+                        }
+                    </div>
+                </div>
+            }
+        </article>
+    </div>
+}
+
+@code {
+    private BitacoraFiltro filtro = new();
+    private BitacoraPaginada resultado = new();
+    private BitacoraCatalogos catalogos = new();
+    private BitacoraDetalle? detalle;
+    private bool cargando = true;
+    private string? error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await Inicializar();
+        StateHasChanged();
+    }
+
+    private async Task Inicializar()
+    {
+        try
+        {
+            catalogos = await BitacoraService.ObtenerCatalogosAsync();
+            await Cargar();
+        }
+        catch (Exception ex)
+        {
+            error = $"No fue posible abrir la bitácora. {ex.Message}";
+            cargando = false;
+        }
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        error = null;
+        try
+        {
+            resultado = await BitacoraService.ListarAsync(filtro);
+        }
+        catch (Exception ex)
+        {
+            error = $"No fue posible cargar la bitácora. {ex.Message}";
+            resultado = new BitacoraPaginada();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AplicarFiltros()
+    {
+        filtro.Pagina = 1;
+        await Cargar();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        filtro = new BitacoraFiltro();
+        await Cargar();
+    }
+
+    private async Task PaginaAnterior()
+    {
+        if (filtro.Pagina <= 1) return;
+        filtro.Pagina--;
+        await Cargar();
+    }
+
+    private async Task PaginaSiguiente()
+    {
+        if (filtro.Pagina >= resultado.TotalPaginas) return;
+        filtro.Pagina++;
+        await Cargar();
+    }
+
+    private async Task VerDetalle(Guid id)
+    {
+        try
+        {
+            detalle = await BitacoraService.ObtenerDetalleAsync(id);
+        }
+        catch (Exception ex)
+        {
+            error = $"No fue posible consultar el detalle. {ex.Message}";
+        }
+    }
+
+    private void CerrarDetalle() => detalle = null;
+
+    private static string FechaLocal(DateTime fechaUtc) =>
+        DateTime.SpecifyKind(fechaUtc, DateTimeKind.Utc)
+            .ToLocalTime()
+            .ToString("dd/MM/yyyy hh:mm:ss tt");
+
+    private static string NombreUsuario(BitacoraListadoItem item) =>
+        string.IsNullOrWhiteSpace(item.UsuarioNombre)
+            ? item.UsuarioId.HasValue ? $"Usuario #{item.UsuarioId}" : "Sistema"
+            : item.UsuarioNombre;
+}

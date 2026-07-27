@@ -1,0 +1,6 @@
+wwwroot\css\app.css
+wwwroot\favicon.svg
+wwwroot\js\mapa.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\app.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\favicon.svg
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\mapa.js

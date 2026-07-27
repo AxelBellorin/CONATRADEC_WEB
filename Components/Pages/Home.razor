@@ -1,0 +1,203 @@
+@page "/"
+@inject AuthStateService AuthState
+@inject DashboardService DashboardService
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard | CONATRADEC</PageTitle>
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Cargando indicadores..." />
+}
+else if (!AuthState.IsAuthenticated)
+{
+    <div></div>
+}
+else
+{
+    <div class="page-header">
+        <div>
+            <p class="eyebrow">Resumen general</p>
+            <h1>Dashboard</h1>
+            <p>Bienvenido, @AuthState.Usuario?.NombreCompletoUsuario.</p>
+        </div>
+        <div class="page-header-actions">
+            <button class="btn-secondary" @onclick="CargarDatos">
+                <i class="fa-solid fa-rotate"></i>
+                Actualizar
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(aviso))
+    {
+        <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>@aviso</span>
+        </div>
+    }
+
+    <section class="stats-grid">
+        <StatCard Titulo="Terrenos registrados"
+                  Valor="@resumen.TotalTerrenos.ToString("N0")"
+                  Icono="fa-solid fa-map-location-dot"
+                  Descripcion="Total disponible en el sistema" />
+
+        <StatCard Titulo="Análisis de suelo"
+                  Valor="@resumen.TotalAnalisis.ToString("N0")"
+                  Icono="fa-solid fa-flask"
+                  Descripcion="Análisis registrados" />
+
+        <StatCard Titulo="Usuarios activos"
+                  Valor="@resumen.UsuariosActivos.ToString("N0")"
+                  Icono="fa-solid fa-users"
+                  Descripcion="Usuarios habilitados" />
+
+        <StatCard Titulo="Diagnósticos IA"
+                  Valor="@resumen.TotalDiagnosticos.ToString("N0")"
+                  Icono="fa-solid fa-leaf"
+                  Descripcion="Diagnósticos realizados" />
+    </section>
+
+    <section class="dashboard-grid">
+        <article class="panel panel-large">
+            <div class="panel-header">
+                <div>
+                    <h2>Actividad de análisis</h2>
+                    <p>Comportamiento mensual</p>
+                </div>
+                <span class="badge">Últimos 6 meses</span>
+            </div>
+
+            <div class="bar-chart" role="img" aria-label="Gráfico demostrativo de análisis por mes">
+                @foreach (var item in resumen.AnalisisPorMes)
+                {
+                    <div class="bar-item">
+                        <div class="bar-value">@item.Cantidad</div>
+                        <div class="bar-track">
+                            <div class="bar-fill"
+                                 style="height:@CalcularAltura(item.Cantidad)%"></div>
+                        </div>
+                        <span>@item.Mes</span>
+                    </div>
+                }
+            </div>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Accesos rápidos</h2>
+                    <p>Herramientas administrativas</p>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <a href="/mapa" class="quick-action">
+                    <i class="fa-solid fa-map"></i>
+                    <div>
+                        <strong>Mapa de terrenos</strong>
+                        <span>Consultar ubicaciones</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+
+                <a href="/usuarios" class="quick-action">
+                    <i class="fa-solid fa-user-gear"></i>
+                    <div>
+                        <strong>Usuarios</strong>
+                        <span>Administrar accesos</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+
+                <a href="/bitacora" class="quick-action">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <div>
+                        <strong>Bitácora</strong>
+                        <span>Revisar actividad</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            </div>
+        </article>
+
+        <article class="panel panel-wide">
+            <div class="panel-header">
+                <div>
+                    <h2>Estado del sistema</h2>
+                    <p>Servicios principales</p>
+                </div>
+            </div>
+
+            <div class="status-list">
+                <div class="status-item">
+                    <span class="status-dot online"></span>
+                    <div>
+                        <strong>Portal administrativo</strong>
+                        <span>Funcionando correctamente</span>
+                    </div>
+                    <span class="status-label success">Disponible</span>
+                </div>
+
+                <div class="status-item">
+                    <span class="status-dot @(resumen.ApiDisponible ? "online" : "warning")"></span>
+                    <div>
+                        <strong>API CONATRADEC</strong>
+                        <span>@(resumen.ApiDisponible ? "Conexión establecida" : "Pendiente de endpoint de dashboard")</span>
+                    </div>
+                    <span class="status-label @(resumen.ApiDisponible ? "success" : "warning")">
+                        @(resumen.ApiDisponible ? "Conectada" : "En preparación")
+                    </span>
+                </div>
+
+                <div class="status-item">
+                    <span class="status-dot warning"></span>
+                    <div>
+                        <strong>Seguridad JWT</strong>
+                        <span>Debe implementarse antes de producción</span>
+                    </div>
+                    <span class="status-label warning">Pendiente</span>
+                </div>
+            </div>
+        </article>
+    </section>
+}
+
+@code {
+    private bool cargando = true;
+    private DashboardResumen resumen = DashboardResumen.CrearDemostracion();
+    private string? aviso;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await CargarDatos();
+        StateHasChanged();
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        aviso = null;
+
+        var resultado = await DashboardService.ObtenerResumenAsync();
+        resumen = resultado.Datos;
+        aviso = resultado.Mensaje;
+        cargando = false;
+    }
+
+    private double CalcularAltura(int cantidad)
+    {
+        var maximo = Math.Max(1, resumen.AnalisisPorMes.Max(item => item.Cantidad));
+        return Math.Max(8, cantidad * 100d / maximo);
+    }
+}
