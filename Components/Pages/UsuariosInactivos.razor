@@ -1,0 +1,240 @@
+@page "/usuarios/inactivos"
+@inject AuthStateService AuthState
+@inject UsuariosInactivosService InactivosService
+@inject NavigationManager Navigation
+
+<PageTitle>Usuarios inactivos | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Administración</p>
+        <h1>Usuarios inactivos</h1>
+        <p>Consulta y reactiva usuarios eliminados lógicamente.</p>
+    </div>
+
+    <div class="page-header-actions">
+        <button class="btn-secondary" @onclick="Volver">
+            <i class="fa-solid fa-arrow-left"></i>
+            Usuarios activos
+        </button>
+
+        <button class="btn-primary"
+                @onclick="Cargar"
+                disabled="@cargando">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert alert-success-custom">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensaje</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+<section class="panel toolbar-panel">
+    <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <InputText class="form-control"
+                   @bind-Value="buscar"
+                   @bind-Value:event="oninput"
+                   placeholder="Buscar por nombre, usuario, correo o identificación" />
+    </div>
+    <div class="toolbar-summary">
+        <strong>@Filtrados.Count</strong>
+        <span>usuarios inactivos</span>
+    </div>
+</section>
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Cargando usuarios inactivos..." />
+}
+else if (Filtrados.Count == 0)
+{
+    <section class="empty-state panel compact-empty">
+        <i class="fa-solid fa-user-check"></i>
+        <h2>No hay usuarios inactivos</h2>
+        <p>No existen registros eliminados que coincidan con la búsqueda.</p>
+    </section>
+}
+else
+{
+    <section class="user-grid">
+        @foreach (CatalogoEliminadoItem item in Filtrados)
+        {
+            <article class="user-card panel inactive-user-card">
+                <div class="user-card-top">
+                    <div class="user-initials inactive-avatar">
+                        @Iniciales(item.Titulo)
+                    </div>
+                    <div class="user-main-data">
+                        <h2>@item.Titulo</h2>
+                        <span>@item.Subtitulo</span>
+                    </div>
+                    <span class="status-label danger">Inactivo</span>
+                </div>
+
+                <div class="user-details inactive-details">
+                    <span>
+                        <i class="fa-regular fa-id-card"></i>
+                        @(string.IsNullOrWhiteSpace(item.Codigo)
+                            ? "Sin identificación"
+                            : item.Codigo)
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(item.Detalle))
+                    {
+                        <span>
+                            <i class="fa-solid fa-circle-info"></i>
+                            @item.Detalle
+                        </span>
+                    }
+                </div>
+
+                <div class="user-card-actions">
+                    <button class="btn-reactivate"
+                            @onclick="() => AbrirConfirmacion(item)">
+                        <i class="fa-solid fa-user-check"></i>
+                        Reactivar
+                    </button>
+                </div>
+            </article>
+        }
+    </section>
+}
+
+@if (confirmar is not null)
+{
+    <div class="modal-backdrop">
+        <article class="modal-card confirm-modal">
+            <div class="confirm-icon reactivate-icon">
+                <i class="fa-solid fa-user-check"></i>
+            </div>
+            <h2>¿Reactivar usuario?</h2>
+            <p>
+                <strong>@confirmar.Titulo</strong> volverá a estar activo
+                y podrá iniciar sesión nuevamente.
+            </p>
+            <div class="confirm-actions">
+                <button class="btn-secondary" @onclick="CerrarConfirmacion">
+                    Cancelar
+                </button>
+                <button class="btn-primary"
+                        @onclick="ConfirmarReactivacion"
+                        disabled="@procesando">
+                    @(procesando ? "Reactivando..." : "Sí, reactivar")
+                </button>
+            </div>
+        </article>
+    </div>
+}
+
+@code {
+    private List<CatalogoEliminadoItem> items = [];
+    private CatalogoEliminadoItem? confirmar;
+    private bool cargando = true;
+    private bool procesando;
+    private string buscar = string.Empty;
+    private string? mensaje;
+    private string? error;
+
+    private List<CatalogoEliminadoItem> Filtrados =>
+        items.Where(item =>
+            string.IsNullOrWhiteSpace(buscar) ||
+            Contiene(item.Titulo, buscar) ||
+            Contiene(item.Subtitulo, buscar) ||
+            Contiene(item.Codigo, buscar))
+        .ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await Cargar();
+        StateHasChanged();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        error = null;
+
+        try
+        {
+            items = await InactivosService.ListarAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"No fue posible cargar los usuarios inactivos. {ex.Message}";
+            items = [];
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AbrirConfirmacion(CatalogoEliminadoItem item) =>
+        confirmar = item;
+
+    private void CerrarConfirmacion() =>
+        confirmar = null;
+
+    private async Task ConfirmarReactivacion()
+    {
+        if (confirmar is null || procesando)
+            return;
+
+        procesando = true;
+        error = null;
+        mensaje = null;
+
+        try
+        {
+            await InactivosService.ReactivarAsync(confirmar.Id);
+            mensaje = "Usuario reactivado correctamente.";
+            confirmar = null;
+            await Cargar();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private void Volver() =>
+        Navigation.NavigateTo("/usuarios");
+
+    private static bool Contiene(string? valor, string texto) =>
+        valor?.Contains(texto.Trim(), StringComparison.OrdinalIgnoreCase) == true;
+
+    private static string Iniciales(string nombre) =>
+        string.IsNullOrWhiteSpace(nombre)
+            ? "U"
+            : string.Concat(nombre
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Take(2)
+                .Select(x => char.ToUpperInvariant(x[0])));
+}

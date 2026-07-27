@@ -7,42 +7,25 @@ builder.Services
     .AddRazorComponents()
     .AddInteractiveServerComponents();
 
-var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"]?.Trim();
-
-if (string.IsNullOrWhiteSpace(apiBaseUrl))
+builder.Services.AddHttpClient<ApiClientService>((serviceProvider, client) =>
 {
-    throw new InvalidOperationException(
-        "No se encontró la configuración ApiSettings:BaseUrl.");
-}
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var baseUrl = configuration["ApiSettings:BaseUrl"]
+        ?? throw new InvalidOperationException(
+            "No se encontró ApiSettings:BaseUrl en appsettings.json.");
 
-var apiBaseUrlNormalizada = apiBaseUrl.EndsWith('/')
-    ? apiBaseUrl
-    : $"{apiBaseUrl}/";
-
-if (!Uri.TryCreate(
-        apiBaseUrlNormalizada,
-        UriKind.Absolute,
-        out var apiBaseUri) ||
-    (apiBaseUri.Scheme != Uri.UriSchemeHttp &&
-     apiBaseUri.Scheme != Uri.UriSchemeHttps))
-{
-    throw new InvalidOperationException(
-        "ApiSettings:BaseUrl debe contener una dirección HTTP o HTTPS válida.");
-}
-
-builder.Services
-    .AddHttpClient<ApiClientService>(client =>
-    {
-        client.BaseAddress = apiBaseUri;
-        client.Timeout = TimeSpan.FromSeconds(60);
-    })
-    .SetHandlerLifetime(TimeSpan.FromMinutes(5));
+    client.BaseAddress = new Uri(
+        baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 builder.Services.AddScoped<AuthStateService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<MapaService>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<BitacoraService>();
+builder.Services.AddScoped<UsuariosInactivosService>();
+builder.Services.AddScoped<DispositivosConexionService>();
 
 var app = builder.Build();
 
@@ -54,7 +37,6 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAntiforgery();
-
 app.MapStaticAssets();
 
 app.MapRazorComponents<App>()

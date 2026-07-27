@@ -77,6 +77,22 @@ public sealed class ApiClientService
         return await LeerJsonAsync<TResponse>(response, cancellationToken);
     }
 
+
+public async Task PutSinContenidoAsync(
+    string ruta,
+    IReadOnlyDictionary<string, string>? encabezados = null,
+    CancellationToken cancellationToken = default)
+{
+    using var request = new HttpRequestMessage(HttpMethod.Put, ruta);
+    AgregarEncabezados(request, encabezados);
+
+    using var response = await httpClient.SendAsync(
+        request,
+        cancellationToken);
+
+    await ValidarRespuestaAsync(response, cancellationToken);
+}
+
     public async Task EliminarAsync(
         string ruta,
         CancellationToken cancellationToken = default)

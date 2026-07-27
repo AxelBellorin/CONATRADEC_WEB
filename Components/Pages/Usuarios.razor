@@ -14,6 +14,12 @@
 
     <div class="page-header-actions">
         <button class="btn-secondary"
+                @onclick="AbrirUsuariosInactivos">
+            <i class="fa-solid fa-user-clock"></i>
+            Usuarios inactivos
+        </button>
+
+        <button class="btn-secondary"
                 @onclick="CargarTodo"
                 disabled="@procesando">
             <i class="fa-solid fa-rotate"></i>
@@ -344,6 +350,9 @@ else
             cargando = false;
         }
     }
+
+    private void AbrirUsuariosInactivos() =>
+        Navigation.NavigateTo("/usuarios/inactivos");
 
     private void AbrirCrear()
     {

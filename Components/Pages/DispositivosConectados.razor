@@ -1,0 +1,604 @@
+@page "/dispositivos-conectados"
+@inject AuthStateService AuthState
+@inject DispositivosConexionService DispositivosService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Dispositivos conectados | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Monitoreo</p>
+        <h1>Dispositivos conectados</h1>
+        <p>Monitorea los equipos Android y Windows que reportan conexión a la API.</p>
+    </div>
+    <div class="page-header-actions">
+        <button class="btn-secondary"
+                @onclick="CargarTodo"
+                disabled="@cargando">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+<section class="device-stat-grid">
+    <article class="metric-card device-stat">
+        <span>Conectados ahora</span>
+        <strong>@resumen.TotalConectados</strong>
+        <small>Tolerancia: @resumen.MinutosTolerancia min</small>
+    </article>
+    <article class="metric-card device-stat">
+        <span>Usuarios conectados</span>
+        <strong>@resumen.UsuariosConectados</strong>
+        <small>Usuarios únicos</small>
+    </article>
+    <article class="metric-card device-stat">
+        <span>Android</span>
+        <strong>@resumen.AndroidConectados</strong>
+        <small>Conectados ahora</small>
+    </article>
+    <article class="metric-card device-stat">
+        <span>Windows</span>
+        <strong>@resumen.WindowsConectados</strong>
+        <small>Conectados ahora</small>
+    </article>
+    <article class="metric-card device-stat">
+        <span>Registrados</span>
+        <strong>@resumen.TotalDispositivosRegistrados</strong>
+        <small>@resumen.TotalSesionesRegistradas sesiones</small>
+    </article>
+    <article class="metric-card device-stat">
+        <span>Activos en 24 h</span>
+        <strong>@resumen.DispositivosActivosUltimas24Horas</strong>
+        <small>@resumen.ConectadosConUbicacion con ubicación</small>
+    </article>
+</section>
+
+
+<section class="device-view-selector" aria-label="Vista de dispositivos">
+    <button class="device-view-button @(vistaActual == "lista" ? "active" : string.Empty)"
+            @onclick='() => CambiarVista("lista")'>
+        <i class="fa-solid fa-list"></i>
+        Listado
+    </button>
+
+    <button class="device-view-button @(vistaActual == "mapa" ? "active" : string.Empty)"
+            @onclick='() => CambiarVista("mapa")'>
+        <i class="fa-solid fa-map-location-dot"></i>
+        Mapa de ubicaciones
+        <span class="device-view-count">@dispositivosMapa.Count</span>
+    </button>
+</section>
+
+<section class="panel device-filters">
+    <div class="form-group device-search-wide">
+        <label>Búsqueda</label>
+        <InputText class="form-control"
+                   @bind-Value="filtro.Buscar"
+                   placeholder="Usuario, correo, dispositivo, modelo, IP o instalación" />
+    </div>
+
+    <div class="form-group">
+        <label>Estado</label>
+        <InputSelect class="form-control" @bind-Value="filtro.Estado">
+            <option value="">Todos</option>
+            <option value="conectados">Conectados</option>
+            <option value="desconectados">Desconectados</option>
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Plataforma</label>
+        <InputSelect class="form-control" @bind-Value="filtro.Plataforma">
+            <option value="">Todas</option>
+            <option value="Android">Android</option>
+            <option value="Windows">Windows</option>
+            <option value="WinUI">WinUI</option>
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Ubicación</label>
+        <InputSelect class="form-control" @bind-Value="filtro.Ubicacion">
+            <option value="">Todas</option>
+            <option value="con">Con ubicación</option>
+            <option value="sin">Sin ubicación</option>
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Versión app</label>
+        <InputText class="form-control"
+                   @bind-Value="filtro.VersionApp"
+                   placeholder="Ej. 1.0.0" />
+    </div>
+
+    <div class="form-group">
+        <label>Tolerancia activa</label>
+        <InputSelect class="form-control" @bind-Value="filtro.MinutosActivo">
+            <option value="1">1 minuto</option>
+            <option value="2">2 minutos</option>
+            <option value="5">5 minutos</option>
+            <option value="10">10 minutos</option>
+            <option value="15">15 minutos</option>
+        </InputSelect>
+    </div>
+
+    <div class="device-filter-actions">
+        <button class="btn-primary" @onclick="AplicarFiltros">
+            <i class="fa-solid fa-filter"></i>
+            Aplicar
+        </button>
+        <button class="btn-link" @onclick="LimpiarFiltros">Limpiar</button>
+    </div>
+</section>
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Consultando dispositivos..." />
+}
+else if (vistaActual == "mapa")
+{
+    <section class="panel device-map-panel">
+        <div class="device-map-toolbar">
+            <div>
+                <h2>Ubicación de dispositivos</h2>
+                <p>
+                    Se muestran los dispositivos que han autorizado y reportado
+                    una ubicación válida.
+                </p>
+            </div>
+
+            <label class="device-map-toggle">
+                <InputCheckbox @bind-Value="soloConectadosMapa"
+                               @bind-Value:after="ActualizarMapaPorEstado" />
+                <span>Mostrar solo conectados</span>
+            </label>
+        </div>
+
+        @if (cargandoMapa)
+        {
+            <LoadingState Mensaje="Cargando ubicaciones..." />
+        }
+        else if (dispositivosMapa.Count == 0)
+        {
+            <div class="empty-state compact-empty device-map-empty">
+                <i class="fa-solid fa-location-crosshairs"></i>
+                <h2>No hay ubicaciones disponibles</h2>
+                <p>
+                    Los dispositivos aparecerán aquí cuando la aplicación reporte
+                    coordenadas con permiso de ubicación.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="device-map-legend">
+                <span>
+                    <i class="device-map-legend-dot online"></i>
+                    Conectado
+                </span>
+                <span>
+                    <i class="device-map-legend-dot offline"></i>
+                    Desconectado
+                </span>
+                <span>
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    Ubicación simulada
+                </span>
+            </div>
+
+            <div id="dispositivos-conectados-mapa"
+                 class="device-map-container"
+                 aria-label="Mapa de ubicación de dispositivos conectados">
+            </div>
+        }
+    </section>
+}
+else
+{
+    <section class="panel table-panel">
+        <div class="table-summary">
+            <span>Dispositivos encontrados</span>
+            <strong>@resultado.TotalRegistros</strong>
+        </div>
+
+        <div class="responsive-table-wrapper">
+            <table class="data-table device-table">
+                <thead>
+                    <tr>
+                        <th>Estado</th>
+                        <th>Usuario</th>
+                        <th>Dispositivo</th>
+                        <th>Plataforma</th>
+                        <th>Versión</th>
+                        <th>Conexión</th>
+                        <th>Último latido</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (resultado.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="8" class="table-empty">
+                                No hay dispositivos para los filtros seleccionados.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (DispositivoConexionItem item in resultado.Items)
+                        {
+                            <tr>
+                                <td data-label="Estado">
+                                    <span class="status-label @(item.Conectado ? "success" : "danger")">
+                                        @(item.Conectado ? "Conectado" : "Desconectado")
+                                    </span>
+                                </td>
+                                <td data-label="Usuario">
+                                    <strong>@item.UsuarioNombre</strong>
+                                    <small>@item.CorreoUsuario</small>
+                                </td>
+                                <td data-label="Dispositivo">
+                                    <strong>@NombreDispositivo(item)</strong>
+                                    <small>@ModeloDispositivo(item)</small>
+                                </td>
+                                <td data-label="Plataforma">
+                                    <span class="platform-badge">
+                                        <i class="@IconoPlataforma(item.Plataforma)"></i>
+                                        @item.Plataforma
+                                    </span>
+                                </td>
+                                <td data-label="Versión">
+                                    <strong>@Texto(item.VersionApp)</strong>
+                                    <small>Build @Texto(item.BuildApp)</small>
+                                </td>
+                                <td data-label="Conexión">
+                                    <strong>@Texto(item.TipoConexion)</strong>
+                                    <small>@Texto(item.DireccionIp)</small>
+                                </td>
+                                <td data-label="Último latido">
+                                    <strong>@FechaLocal(item.UltimoLatidoUtc)</strong>
+                                    <small>Hace @TiempoTranscurrido(item.SegundosDesdeUltimoLatido)</small>
+                                </td>
+                                <td>
+                                    <button class="table-action"
+                                            title="Ver detalle"
+                                            @onclick="() => VerDetalle(item.DispositivoConexionId)">
+                                        <i class="fa-regular fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-bar">
+            <button class="btn-secondary"
+                    disabled="@(resultado.Pagina <= 1)"
+                    @onclick="PaginaAnterior">
+                <i class="fa-solid fa-chevron-left"></i>
+                Anterior
+            </button>
+            <span>
+                Página <strong>@resultado.Pagina</strong>
+                de <strong>@resultado.TotalPaginas</strong>
+            </span>
+            <button class="btn-secondary"
+                    disabled="@(resultado.Pagina >= resultado.TotalPaginas)"
+                    @onclick="PaginaSiguiente">
+                Siguiente
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+    </section>
+}
+
+@if (detalle is not null)
+{
+    <div class="modal-backdrop" @onclick="CerrarDetalle">
+        <article class="modal-card device-detail-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Detalle del dispositivo</p>
+                    <h2>@NombreDispositivo(detalle)</h2>
+                </div>
+                <button class="modal-close" @onclick="CerrarDetalle">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="device-detail-header">
+                <div class="device-icon-large">
+                    <i class="@IconoPlataforma(detalle.Plataforma)"></i>
+                </div>
+                <div>
+                    <h3>@detalle.UsuarioNombre</h3>
+                    <span>@detalle.CorreoUsuario · @detalle.RolNombre</span>
+                </div>
+                <span class="status-label @(detalle.Conectado ? "success" : "danger")">
+                    @(detalle.Conectado ? "Conectado" : "Desconectado")
+                </span>
+            </div>
+
+            <div class="detail-grid">
+                <DetailItem Etiqueta="Plataforma" Valor="@detalle.Plataforma" />
+                <DetailItem Etiqueta="Tipo" Valor="@detalle.TipoDispositivo" />
+                <DetailItem Etiqueta="Fabricante" Valor="@detalle.Fabricante" />
+                <DetailItem Etiqueta="Modelo" Valor="@detalle.Modelo" />
+                <DetailItem Etiqueta="Sistema operativo"
+                            Valor="@($"{detalle.SistemaOperativo} {detalle.VersionSistema}".Trim())" />
+                <DetailItem Etiqueta="Versión de app"
+                            Valor="@($"{detalle.VersionApp} · Build {detalle.BuildApp}")" />
+                <DetailItem Etiqueta="Tipo de conexión" Valor="@detalle.TipoConexion" />
+                <DetailItem Etiqueta="Dirección IP" Valor="@detalle.DireccionIp" />
+                <DetailItem Etiqueta="Página actual" Valor="@detalle.PaginaActual" />
+                <DetailItem Etiqueta="Sesiones"
+                            Valor="@detalle.CantidadSesiones.ToString()" />
+                <DetailItem Etiqueta="Inicio de sesión"
+                            Valor="@FechaLocal(detalle.FechaInicioSesionUtc)" />
+                <DetailItem Etiqueta="Último latido"
+                            Valor="@FechaLocal(detalle.UltimoLatidoUtc)" />
+            </div>
+
+            @if (detalle.TieneUbicacion)
+            {
+                <div class="detail-block">
+                    <strong>Ubicación reportada</strong>
+                    <p>
+                        @detalle.Latitud, @detalle.Longitud ·
+                        precisión @detalle.PrecisionMetros m ·
+                        @detalle.EstadoPermisoUbicacion
+                    </p>
+                    @if (detalle.UbicacionSimulada == true)
+                    {
+                        <span class="status-label danger">Ubicación simulada</span>
+                    }
+                </div>
+            }
+        </article>
+    </div>
+}
+
+@code {
+    private DispositivosConexionResumen resumen = new();
+    private DispositivosConexionPaginada resultado = new();
+    private DispositivoConexionFiltro filtro = new();
+    private DispositivoConexionItem? detalle;
+    private List<DispositivoConexionMapaItem> dispositivosMapa = [];
+    private string vistaActual = "lista";
+    private bool soloConectadosMapa = true;
+    private bool cargandoMapa;
+    private bool mapaPendienteRender;
+    private bool cargando = true;
+    private string? error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (!AuthState.IsAuthenticated)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            await CargarTodo();
+            StateHasChanged();
+        }
+
+        if (mapaPendienteRender &&
+            vistaActual == "mapa" &&
+            !cargandoMapa &&
+            dispositivosMapa.Count > 0)
+        {
+            mapaPendienteRender = false;
+
+            await JS.InvokeVoidAsync(
+                "conatradecDispositivosMapa.inicializar",
+                "dispositivos-conectados-mapa");
+
+            await JS.InvokeVoidAsync(
+                "conatradecDispositivosMapa.mostrar",
+                "dispositivos-conectados-mapa",
+                dispositivosMapa);
+        }
+    }
+
+    private async Task CargarTodo()
+    {
+        cargando = true;
+        error = null;
+
+        try
+        {
+            resumen =
+                await DispositivosService.ObtenerResumenAsync(
+                    filtro.MinutosActivo);
+
+            resultado =
+                await DispositivosService.ListarAsync(filtro);
+        }
+        catch (Exception ex)
+        {
+            error =
+                $"No fue posible consultar los dispositivos conectados. {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+
+private async Task CambiarVista(string vista)
+{
+    vistaActual = vista;
+
+    if (vistaActual == "mapa")
+    {
+        await CargarMapa();
+    }
+    else
+    {
+        await JS.InvokeVoidAsync(
+            "conatradecDispositivosMapa.destruir",
+            "dispositivos-conectados-mapa");
+    }
+}
+
+private async Task CargarMapa()
+{
+    cargandoMapa = true;
+    error = null;
+
+    try
+    {
+        dispositivosMapa =
+            await DispositivosService.ObtenerMapaAsync(
+                soloConectadosMapa,
+                filtro.MinutosActivo);
+
+        mapaPendienteRender = dispositivosMapa.Count > 0;
+    }
+    catch (Exception ex)
+    {
+        dispositivosMapa = [];
+        error =
+            $"No fue posible cargar el mapa de dispositivos. {ex.Message}";
+    }
+    finally
+    {
+        cargandoMapa = false;
+    }
+}
+
+private async Task ActualizarMapaPorEstado()
+{
+    await CargarMapa();
+    StateHasChanged();
+}
+
+    private async Task AplicarFiltros()
+    {
+        filtro.Pagina = 1;
+        await CargarTodo();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        filtro = new DispositivoConexionFiltro();
+        await CargarTodo();
+    }
+
+    private async Task PaginaAnterior()
+    {
+        if (filtro.Pagina <= 1)
+            return;
+
+        filtro.Pagina--;
+        await CargarTodo();
+    }
+
+    private async Task PaginaSiguiente()
+    {
+        if (filtro.Pagina >= resultado.TotalPaginas)
+            return;
+
+        filtro.Pagina++;
+        await CargarTodo();
+    }
+
+    private async Task VerDetalle(int id)
+    {
+        try
+        {
+            detalle =
+                await DispositivosService.ObtenerAsync(
+                    id,
+                    filtro.MinutosActivo);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private void CerrarDetalle() =>
+        detalle = null;
+
+    private static string NombreDispositivo(DispositivoConexionItem item) =>
+        !string.IsNullOrWhiteSpace(item.NombreDispositivo)
+            ? item.NombreDispositivo
+            : !string.IsNullOrWhiteSpace(item.Modelo)
+                ? item.Modelo
+                : "Dispositivo sin nombre";
+
+    private static string ModeloDispositivo(DispositivoConexionItem item)
+    {
+        string valor =
+            $"{item.Fabricante} {item.Modelo}".Trim();
+
+        return string.IsNullOrWhiteSpace(valor)
+            ? item.InstalacionId
+            : valor;
+    }
+
+    private static string Texto(string? valor) =>
+        string.IsNullOrWhiteSpace(valor)
+            ? "No disponible"
+            : valor;
+
+    private static string IconoPlataforma(string? plataforma)
+    {
+        if (plataforma?.Contains(
+                "Android",
+                StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return "fa-brands fa-android";
+        }
+
+        if (plataforma?.Contains(
+                "Windows",
+                StringComparison.OrdinalIgnoreCase) == true ||
+            plataforma?.Contains(
+                "WinUI",
+                StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return "fa-brands fa-windows";
+        }
+
+        return "fa-solid fa-mobile-screen-button";
+    }
+
+    private static string FechaLocal(DateTime fechaUtc) =>
+        DateTime.SpecifyKind(fechaUtc, DateTimeKind.Utc)
+            .ToLocalTime()
+            .ToString("dd/MM/yyyy hh:mm:ss tt");
+
+    private static string TiempoTranscurrido(int segundos)
+    {
+        if (segundos < 60)
+            return $"{segundos} s";
+
+        if (segundos < 3600)
+            return $"{segundos / 60} min";
+
+        if (segundos < 86400)
+            return $"{segundos / 3600} h";
+
+        return $"{segundos / 86400} días";
+    }
+}

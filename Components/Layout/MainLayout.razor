@@ -49,6 +49,15 @@ else
                     </NavLink>
                 }
 
+                @if (AuthState.TienePermisoLectura("dispositivosConectadosPage") ||
+                     AuthState.EsAdministrador)
+                {
+                    <NavLink href="/dispositivos-conectados">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                        <span>Dispositivos conectados</span>
+                    </NavLink>
+                }
+
                 @if (AuthState.TienePermisoLectura("BitacoraPage") ||
                      AuthState.EsAdministrador)
                 {

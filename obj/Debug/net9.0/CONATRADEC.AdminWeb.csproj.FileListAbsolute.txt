@@ -27,7 +27,6 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\s
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\staticwebassets.development.json
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\staticwebassets.build.endpoints.json
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\swae.build.ex.cache
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\CONATRADEC.AdminWeb.dll
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\refint\CONATRADEC.AdminWeb.dll
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\CONATRADEC.AdminWeb.pdb
@@ -37,3 +36,4 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\c
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\CONATRADEC.AdminWeb.sourcelink.json
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\compressed\fophhmm872-{0}-phd90y9sho-phd90y9sho.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\bin\Debug\net9.0\appsettings.Production.json
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\bin\Debug\net9.0\dotnet-tools.json
