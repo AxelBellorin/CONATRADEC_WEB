@@ -11,32 +11,33 @@ public sealed class DashboardService
         this.apiClient = apiClient;
     }
 
-    public async Task<ResultadoDatos<DashboardResumen>> ObtenerResumenAsync(
-        CancellationToken cancellationToken = default)
+    public async Task<ResultadoDatos<DashboardResumen>>
+        ObtenerResumenAsync(
+            CancellationToken cancellationToken = default)
     {
         try
         {
-            /*
-             * Endpoint que agregaremos al backend en la siguiente etapa:
-             * GET api/dashboard/resumen
-             */
-            var datos = await apiClient.GetAsync<DashboardResumen>(
-                "api/dashboard/resumen",
-                cancellationToken);
+            DashboardResumen? datos =
+                await apiClient.GetAsync<DashboardResumen>(
+                    "api/dashboard/resumen",
+                    cancellationToken);
 
-            if (datos is not null)
+            if (datos is null)
             {
-                datos.ApiDisponible = true;
-                return new ResultadoDatos<DashboardResumen>(datos);
+                return new ResultadoDatos<DashboardResumen>(
+                    DashboardResumen.Vacio(),
+                    "La API no devolvió información para el dashboard.");
             }
-        }
-        catch (Exception)
-        {
-            // Mientras el endpoint no exista, mostramos la estructura sin datos falsos.
-        }
 
-        return new ResultadoDatos<DashboardResumen>(
-            DashboardResumen.CrearDemostracion(),
-            "El portal ya está funcionando. Los indicadores aparecerán cuando agreguemos el endpoint api/dashboard/resumen al backend.");
+            datos.ApiDisponible = true;
+
+            return new ResultadoDatos<DashboardResumen>(datos);
+        }
+        catch (Exception ex)
+        {
+            return new ResultadoDatos<DashboardResumen>(
+                DashboardResumen.Vacio(),
+                $"No fue posible cargar los indicadores. {ex.Message}");
+        }
     }
 }

@@ -5,102 +5,202 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<PageTitle>Mapa de terrenos | CONATRADEC</PageTitle>
+<PageTitle>Mapa inteligente | CONATRADEC</PageTitle>
 
 <div class="page-header">
     <div>
-        <p class="eyebrow">Geolocalización</p>
-        <h1>Mapa de terrenos</h1>
-        <p>Visualiza y filtra las ubicaciones registradas.</p>
+        <p class="eyebrow">Inteligencia territorial</p>
+        <h1>Mapa inteligente de terrenos</h1>
+        <p>
+            Visualiza cobertura, estado agrícola y alertas por ubicación.
+        </p>
     </div>
+
     <div class="page-header-actions">
-        <button class="btn-secondary" @onclick="CargarTerrenos" disabled="@cargando">
+        <a class="btn-secondary" href="/alertas-agricolas">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Centro de alertas
+        </a>
+
+        <button class="btn-primary"
+                @onclick="CargarMapa"
+                disabled="@cargando">
             <i class="fa-solid fa-rotate"></i>
             Actualizar
         </button>
     </div>
 </div>
 
-@if (!string.IsNullOrWhiteSpace(aviso))
+@if (!string.IsNullOrWhiteSpace(error))
 {
-    <div class="alert alert-info">
-        <i class="fa-solid fa-circle-info"></i>
-        <span>@aviso</span>
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
     </div>
 }
 
-<section class="map-layout">
+<section class="smart-map-summary">
+    <article>
+        <span>Terrenos visibles</span>
+        <strong>@respuesta.Resumen.TotalTerrenos</strong>
+    </article>
+    <article>
+        <span>Estado crítico</span>
+        <strong class="critical-text">@respuesta.Resumen.Criticos</strong>
+    </article>
+    <article>
+        <span>Requieren atención</span>
+        <strong class="attention-text">@respuesta.Resumen.Atencion</strong>
+    </article>
+    <article>
+        <span>Sin análisis</span>
+        <strong>@respuesta.Resumen.SinAnalisis</strong>
+    </article>
+    <article>
+        <span>Extensión visible</span>
+        <strong>
+            @respuesta.Resumen.ExtensionVisibleManzanas.ToString("N2")
+            Mz
+        </strong>
+    </article>
+</section>
+
+<section class="map-layout smart-map-layout">
     <aside class="map-filters panel">
         <div class="panel-header">
             <div>
-                <h2>Filtros</h2>
-                <p>Refina los puntos visibles</p>
+                <h2>Capas y filtros</h2>
+                <p>Refina la información agrícola visible</p>
             </div>
         </div>
 
         <div class="form-group">
-            <label for="busqueda">Buscar terreno</label>
-            <InputText id="busqueda"
-                       class="form-control"
+            <label>Buscar terreno</label>
+            <InputText class="form-control"
                        @bind-Value="filtro.Texto"
-                       placeholder="Código, nombre o productor" />
+                       placeholder="Código, propietario o dirección" />
         </div>
 
         <div class="form-group">
-            <label for="departamento">Departamento</label>
-            <InputSelect id="departamento"
-                         class="form-control"
-                         @bind-Value="filtro.Departamento">
+            <label>Departamento</label>
+            <InputSelect class="form-control"
+                         @bind-Value="filtro.DepartamentoId"
+                         @bind-Value:after="DepartamentoCambiado">
                 <option value="">Todos</option>
-                @foreach (var departamento in departamentos)
+                @foreach (var item in departamentos)
                 {
-                    <option value="@departamento">@departamento</option>
+                    <option value="@item.Id">@item.Nombre</option>
                 }
             </InputSelect>
         </div>
 
+        <div class="form-group">
+            <label>Municipio</label>
+            <InputSelect class="form-control"
+                         @bind-Value="filtro.MunicipioId">
+                <option value="">Todos</option>
+                @foreach (var item in MunicipiosDisponibles)
+                {
+                    <option value="@item.Id">@item.Nombre</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="form-group">
+            <label>Estado agrícola</label>
+            <InputSelect class="form-control"
+                         @bind-Value="filtro.Nivel">
+                <option value="">Todos</option>
+                <option value="CRITICA">Crítico</option>
+                <option value="ATENCION">Atención</option>
+                <option value="NORMAL">Normal</option>
+                <option value="SIN_ANALISIS">Sin análisis</option>
+            </InputSelect>
+        </div>
+
+        <div class="form-group">
+            <label>Indicador</label>
+            <InputSelect class="form-control"
+                         @bind-Value="filtro.Indicador">
+                <option value="">Todos</option>
+                <option value="ph">pH bajo</option>
+                <option value="materia-organica">
+                    Materia orgánica baja
+                </option>
+                <option value="acidez">Acidez alta</option>
+                <option value="sin-analisis">
+                    Sin análisis
+                </option>
+            </InputSelect>
+        </div>
+
         <div class="filter-actions">
-            <button class="btn-primary" @onclick="AplicarFiltros">
+            <button class="btn-primary"
+                    @onclick="AplicarFiltros"
+                    disabled="@cargando">
                 <i class="fa-solid fa-filter"></i>
                 Aplicar filtros
             </button>
-            <button class="btn-link" @onclick="LimpiarFiltros">
+
+            <button class="btn-link"
+                    @onclick="LimpiarFiltros">
                 Limpiar
             </button>
         </div>
 
-        <div class="map-summary">
-            <strong>@terrenosFiltrados.Count</strong>
-            <span>terrenos visibles</span>
-        </div>
-
-        <div class="legend">
-            <h3>Leyenda</h3>
-            <span><i class="legend-dot normal"></i> Estado normal</span>
-            <span><i class="legend-dot attention"></i> Requiere atención</span>
-            <span><i class="legend-dot critical"></i> Estado crítico</span>
+        <div class="legend smart-map-legend">
+            <h3>Leyenda agrícola</h3>
+            <span>
+                <i class="legend-dot normal"></i>
+                Estado normal
+            </span>
+            <span>
+                <i class="legend-dot attention"></i>
+                Requiere atención
+            </span>
+            <span>
+                <i class="legend-dot critical"></i>
+                Estado crítico
+            </span>
+            <span>
+                <i class="legend-dot without-analysis"></i>
+                Sin análisis
+            </span>
         </div>
     </aside>
 
     <article class="map-container panel">
         @if (cargando)
         {
-            <LoadingState Mensaje="Cargando terrenos..." />
+            <LoadingState Mensaje="Cargando mapa inteligente..." />
         }
-        <div id="mapaTerrenos" class="leaflet-map"></div>
+
+        <div id="mapaTerrenos"
+             class="leaflet-map smart-leaflet-map">
+        </div>
     </article>
 </section>
 
 @code {
     private readonly MapaFiltro filtro = new();
-    private List<TerrenoMapaItem> terrenos = [];
-    private List<TerrenoMapaItem> terrenosFiltrados = [];
-    private List<string> departamentos = [];
+    private MapaInteligenteRespuesta respuesta = new();
+    private List<CatalogoSimple> departamentos = [];
+    private List<MunicipioSimple> municipios = [];
     private bool cargando = true;
     private bool mapaInicializado;
-    private string? aviso;
+    private string? error;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private List<MunicipioSimple> MunicipiosDisponibles =>
+        municipios
+            .Where(item =>
+                !filtro.DepartamentoId.HasValue ||
+                item.DepartamentoId ==
+                    filtro.DepartamentoId.Value)
+            .OrderBy(item => item.Nombre)
+            .ToList();
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
     {
         if (!firstRender)
             return;
@@ -111,79 +211,124 @@
             return;
         }
 
-        await CargarTerrenos();
+        await CargarCatalogos();
+        await CargarMapa();
         StateHasChanged();
     }
 
-    private async Task CargarTerrenos()
+    private async Task CargarCatalogos()
+    {
+        try
+        {
+            municipios =
+                await JS.InvokeAsync<List<MunicipioSimple>>(
+                    "conatradecMapaInteligente.obtenerMunicipios",
+                    "/api/municipio/listarTodos-por-departamento-por-pais");
+
+            departamentos = municipios
+                .GroupBy(item => new
+                {
+                    item.DepartamentoId,
+                    item.NombreDepartamento
+                })
+                .Select(grupo => new CatalogoSimple
+                {
+                    Id = grupo.Key.DepartamentoId,
+                    Nombre = grupo.Key.NombreDepartamento
+                })
+                .OrderBy(item => item.Nombre)
+                .ToList();
+        }
+        catch
+        {
+            municipios = [];
+            departamentos = [];
+        }
+    }
+
+    private async Task CargarMapa()
     {
         cargando = true;
-        aviso = null;
+        error = null;
 
-        var resultado = await MapaService.ObtenerTerrenosAsync();
-        terrenos = resultado.Datos;
-        aviso = resultado.Mensaje;
+        try
+        {
+            respuesta =
+                await MapaService
+                    .ObtenerMapaInteligenteAsync(
+                        filtro);
 
-        departamentos = terrenos
-            .Where(item => !string.IsNullOrWhiteSpace(item.Departamento))
-            .Select(item => item.Departamento!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(item => item)
-            .ToList();
-
-        terrenosFiltrados = terrenos.ToList();
-        cargando = false;
-
-        await DibujarMapa();
+            cargando = false;
+            await DibujarMapa();
+        }
+        catch (Exception ex)
+        {
+            cargando = false;
+            error =
+                $"No fue posible cargar el mapa. {ex.Message}";
+        }
     }
 
-    private async Task AplicarFiltros()
-    {
-        terrenosFiltrados = terrenos
-            .Where(item =>
-                string.IsNullOrWhiteSpace(filtro.Texto) ||
-                item.Codigo.Contains(filtro.Texto, StringComparison.OrdinalIgnoreCase) ||
-                item.Nombre.Contains(filtro.Texto, StringComparison.OrdinalIgnoreCase) ||
-                item.Productor.Contains(filtro.Texto, StringComparison.OrdinalIgnoreCase))
-            .Where(item =>
-                string.IsNullOrWhiteSpace(filtro.Departamento) ||
-                string.Equals(
-                    item.Departamento,
-                    filtro.Departamento,
-                    StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        await DibujarMapa();
-    }
+    private Task AplicarFiltros() =>
+        CargarMapa();
 
     private async Task LimpiarFiltros()
     {
         filtro.Texto = string.Empty;
-        filtro.Departamento = string.Empty;
-        terrenosFiltrados = terrenos.ToList();
-        await DibujarMapa();
+        filtro.DepartamentoId = null;
+        filtro.MunicipioId = null;
+        filtro.Nivel = string.Empty;
+        filtro.Indicador = string.Empty;
+
+        await CargarMapa();
+    }
+
+    private Task DepartamentoCambiado()
+    {
+        filtro.MunicipioId = null;
+        return Task.CompletedTask;
     }
 
     private async Task DibujarMapa()
     {
-        if (cargando)
-            return;
-
         if (!mapaInicializado)
         {
-            await JS.InvokeVoidAsync("conatradecMapa.inicializar", "mapaTerrenos");
+            await JS.InvokeVoidAsync(
+                "conatradecMapaInteligente.inicializar",
+                "mapaTerrenos");
+
             mapaInicializado = true;
         }
 
         await JS.InvokeVoidAsync(
-            "conatradecMapa.mostrarTerrenos",
+            "conatradecMapaInteligente.mostrar",
             "mapaTerrenos",
-            terrenosFiltrados);
+            respuesta.Terrenos);
     }
 
     public async ValueTask DisposeAsync()
     {
         if (mapaInicializado)
-            await JS.InvokeVoidAsync("conatradecMapa.destruir", "mapaTerrenos");
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecMapaInteligente.destruir",
+                "mapaTerrenos");
+        }
+    }
+
+    private sealed class CatalogoSimple
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+    }
+
+    private sealed class MunicipioSimple
+    {
+        public int Id => MunicipioId;
+        public string Nombre => NombreMunicipio;
+        public int MunicipioId { get; set; }
+        public string NombreMunicipio { get; set; } = string.Empty;
+        public int DepartamentoId { get; set; }
+        public string NombreDepartamento { get; set; } = string.Empty;
     }
 }

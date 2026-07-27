@@ -1,0 +1,320 @@
+@page "/alertas-agricolas"
+@inject AuthStateService AuthState
+@inject AlertasAgricolasService AlertasService
+@inject NavigationManager Navigation
+
+<PageTitle>Alertas agrícolas | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Supervisión agrícola</p>
+        <h1>Centro de alertas</h1>
+        <p>
+            Identifica terrenos que requieren atención según su análisis vigente.
+        </p>
+    </div>
+
+    <div class="page-header-actions">
+        <a class="btn-secondary" href="/mapa">
+            <i class="fa-solid fa-map-location-dot"></i>
+            Ver mapa
+        </a>
+
+        <button class="btn-primary"
+                @onclick="Cargar"
+                disabled="@cargando">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+<section class="alerts-summary-grid">
+    <article>
+        <span>Alertas encontradas</span>
+        <strong>@resultado.TotalRegistros</strong>
+    </article>
+    <article class="critical">
+        <span>Críticas</span>
+        <strong>@resultado.Criticas</strong>
+    </article>
+    <article class="attention">
+        <span>Atención</span>
+        <strong>@resultado.Atencion</strong>
+    </article>
+    <article>
+        <span>Sin análisis</span>
+        <strong>@resultado.SinAnalisis</strong>
+    </article>
+</section>
+
+<section class="panel alerts-filter-panel">
+    <div class="form-group alerts-search">
+        <label>Búsqueda</label>
+        <InputText class="form-control"
+                   @bind-Value="buscar"
+                   placeholder="Código, propietario o dirección" />
+    </div>
+
+    <div class="form-group">
+        <label>Nivel</label>
+        <InputSelect class="form-control"
+                     @bind-Value="nivel">
+            <option value="">Todos</option>
+            <option value="CRITICA">Crítica</option>
+            <option value="ATENCION">Atención</option>
+            <option value="SIN_ANALISIS">Sin análisis</option>
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Tipo</label>
+        <InputSelect class="form-control"
+                     @bind-Value="tipo">
+            <option value="">Todos</option>
+            <option value="pH">pH</option>
+            <option value="Materia orgánica">
+                Materia orgánica
+            </option>
+            <option value="Acidez">Acidez</option>
+            <option value="Sin análisis">
+                Sin análisis
+            </option>
+        </InputSelect>
+    </div>
+
+    <div class="alerts-filter-actions">
+        <button class="btn-primary"
+                @onclick="AplicarFiltros">
+            <i class="fa-solid fa-filter"></i>
+            Aplicar
+        </button>
+
+        <button class="btn-link"
+                @onclick="LimpiarFiltros">
+            Limpiar
+        </button>
+    </div>
+</section>
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Calculando alertas agrícolas..." />
+}
+else
+{
+    <section class="panel alerts-table-panel">
+        <div class="responsive-table-wrapper">
+            <table class="data-table alerts-table">
+                <thead>
+                    <tr>
+                        <th>Nivel</th>
+                        <th>Terreno</th>
+                        <th>Ubicación</th>
+                        <th>Alerta</th>
+                        <th>Valor</th>
+                        <th>Fecha</th>
+                        <th></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @if (resultado.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7"
+                                class="table-empty">
+                                No hay alertas para los filtros seleccionados.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (AlertaAgricolaItem item in
+                            resultado.Items)
+                        {
+                            <tr>
+                                <td data-label="Nivel">
+                                    <span class="executive-alert-badge
+                                          @ClaseNivel(item.Nivel)">
+                                        @NivelTexto(item.Nivel)
+                                    </span>
+                                </td>
+
+                                <td data-label="Terreno">
+                                    <strong>@item.CodigoTerreno</strong>
+                                    <small>@item.Propietario</small>
+                                </td>
+
+                                <td data-label="Ubicación">
+                                    <strong>@item.Municipio</strong>
+                                    <small>@item.Departamento</small>
+                                </td>
+
+                                <td data-label="Alerta">
+                                    <strong>@item.Tipo</strong>
+                                    <small>@item.Mensaje</small>
+                                </td>
+
+                                <td data-label="Valor">
+                                    <strong>
+                                        @(item.Valor?.ToString("N2") ?? "—")
+                                    </strong>
+                                    <small>@item.Unidad</small>
+                                </td>
+
+                                <td data-label="Fecha">
+                                    @(item.FechaAnalisis?.ToString("dd/MM/yyyy")
+                                      ?? "Sin análisis")
+                                </td>
+
+                                <td>
+                                    <a class="table-action"
+                                       href="@item.GoogleMapsUrl"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       title="Cómo llegar">
+                                        <i class="fa-solid fa-route"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-bar">
+            <button class="btn-secondary"
+                    disabled="@(resultado.Pagina <= 1)"
+                    @onclick="PaginaAnterior">
+                <i class="fa-solid fa-chevron-left"></i>
+                Anterior
+            </button>
+
+            <span>
+                Página <strong>@resultado.Pagina</strong>
+                de <strong>@resultado.TotalPaginas</strong>
+            </span>
+
+            <button class="btn-secondary"
+                    disabled="@(resultado.Pagina >= resultado.TotalPaginas)"
+                    @onclick="PaginaSiguiente">
+                Siguiente
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+    </section>
+}
+
+@code {
+    private AlertasAgricolasPaginada resultado = new();
+    private string buscar = string.Empty;
+    private string nivel = string.Empty;
+    private string tipo = string.Empty;
+    private int pagina = 1;
+    private const int TamanoPagina = 20;
+    private bool cargando = true;
+    private string? error;
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await Cargar();
+        StateHasChanged();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        error = null;
+
+        try
+        {
+            resultado =
+                await AlertasService.ListarAsync(
+                    null,
+                    null,
+                    nivel,
+                    tipo,
+                    buscar,
+                    pagina,
+                    TamanoPagina);
+        }
+        catch (Exception ex)
+        {
+            error =
+                $"No fue posible cargar las alertas. {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AplicarFiltros()
+    {
+        pagina = 1;
+        await Cargar();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        buscar = string.Empty;
+        nivel = string.Empty;
+        tipo = string.Empty;
+        pagina = 1;
+        await Cargar();
+    }
+
+    private async Task PaginaAnterior()
+    {
+        if (pagina <= 1)
+            return;
+
+        pagina--;
+        await Cargar();
+    }
+
+    private async Task PaginaSiguiente()
+    {
+        if (pagina >= resultado.TotalPaginas)
+            return;
+
+        pagina++;
+        await Cargar();
+    }
+
+    private static string ClaseNivel(string valor) =>
+        valor switch
+        {
+            "CRITICA" => "critical",
+            "ATENCION" => "attention",
+            _ => "without-analysis"
+        };
+
+    private static string NivelTexto(string valor) =>
+        valor switch
+        {
+            "CRITICA" => "Crítica",
+            "ATENCION" => "Atención",
+            _ => "Sin análisis"
+        };
+}

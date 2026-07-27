@@ -1,0 +1,239 @@
+.smart-map-summary,
+.alerts-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.smart-map-summary article,
+.alerts-summary-grid article {
+    padding: 14px;
+    border: 1px solid var(--gray-200);
+    border-radius: 14px;
+    background: white;
+}
+
+.smart-map-summary span,
+.smart-map-summary strong,
+.alerts-summary-grid span,
+.alerts-summary-grid strong {
+    display: block;
+}
+
+.smart-map-summary span,
+.alerts-summary-grid span {
+    color: var(--gray-600);
+    font-size: 10px;
+}
+
+.smart-map-summary strong,
+.alerts-summary-grid strong {
+    margin-top: 5px;
+    font-size: 22px;
+}
+
+.critical-text,
+.alerts-summary-grid .critical strong {
+    color: #b32f2f;
+}
+
+.attention-text,
+.alerts-summary-grid .attention strong {
+    color: #b86100;
+}
+
+.smart-map-layout {
+    grid-template-columns: 290px minmax(0, 1fr);
+}
+
+.smart-leaflet-map {
+    min-height: 680px;
+}
+
+.smart-map-legend .legend-dot.without-analysis,
+.legend-dot.without-analysis {
+    background: #8e9692;
+}
+
+.smart-marker-wrapper {
+    background: transparent;
+    border: 0;
+}
+
+.smart-marker {
+    display: grid;
+    place-items: center;
+    width: 37px;
+    height: 37px;
+    border: 3px solid white;
+    border-radius: 50% 50% 50% 10px;
+    box-shadow: 0 5px 14px rgba(0, 0, 0, .24);
+    color: white;
+    transform: rotate(-45deg);
+}
+
+.smart-marker i {
+    transform: rotate(45deg);
+}
+
+.smart-marker.normal {
+    background: #3B655B;
+}
+
+.smart-marker.attention {
+    background: #FF9800;
+}
+
+.smart-marker.critical {
+    background: #EF4444;
+}
+
+.smart-marker.without-analysis {
+    background: #8E9692;
+}
+
+.smart-map-popup {
+    min-width: 280px;
+    color: #24322d;
+}
+
+.smart-popup-header {
+    margin-bottom: 10px;
+    padding-bottom: 9px;
+    border-bottom: 1px solid #e3e9e6;
+}
+
+.smart-popup-header strong,
+.smart-popup-header span {
+    display: block;
+}
+
+.smart-popup-header strong {
+    font-size: 15px;
+}
+
+.smart-popup-header span {
+    color: #66736e;
+    font-size: 11px;
+}
+
+.smart-map-popup p {
+    margin: 6px 0;
+    font-size: 11px;
+}
+
+.smart-popup-values {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin: 10px 0;
+}
+
+.smart-popup-values span {
+    padding: 7px;
+    border-radius: 8px;
+    background: #f3f7f5;
+    text-align: center;
+    font-size: 11px;
+}
+
+.smart-popup-values b {
+    display: block;
+    margin-bottom: 3px;
+    color: #66736e;
+    font-size: 9px;
+}
+
+.smart-popup-alerts {
+    margin: 9px 0;
+    padding: 8px;
+    border-radius: 8px;
+    background: rgba(255, 152, 0, .08);
+}
+
+.smart-popup-alerts ul {
+    margin: 0;
+    padding-left: 17px;
+    font-size: 10px;
+}
+
+.smart-popup-ok {
+    color: #3B655B;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.alerts-filter-panel {
+    display: grid;
+    grid-template-columns: minmax(250px, 2fr) repeat(2, minmax(160px, 1fr)) auto;
+    gap: 0 14px;
+    margin-bottom: 16px;
+}
+
+.alerts-filter-actions {
+    display: flex;
+    align-items: flex-end;
+    gap: 7px;
+    padding-bottom: 17px;
+}
+
+.alerts-table td strong,
+.alerts-table td small {
+    display: block;
+}
+
+.alerts-table td small {
+    margin-top: 2px;
+    color: var(--gray-600);
+    font-size: 9px;
+}
+
+.executive-alert-badge.without-analysis {
+    background: rgba(142, 150, 146, .13);
+    color: #5d6662;
+}
+
+@media (max-width: 1100px) {
+    .smart-map-summary,
+    .alerts-summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .alerts-filter-panel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .alerts-search {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 760px) {
+    .smart-map-summary,
+    .alerts-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .smart-map-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .smart-leaflet-map {
+        min-height: 500px;
+    }
+
+    .alerts-filter-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .alerts-search {
+        grid-column: auto;
+    }
+
+    .alerts-filter-actions {
+        align-items: stretch;
+        flex-direction: column;
+        padding-bottom: 0;
+    }
+}

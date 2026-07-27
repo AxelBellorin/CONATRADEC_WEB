@@ -39,3 +39,7 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\bin\Release\net9.0\dotnet-tools.json
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\fophhmm872-{0}-mtdndmxtfw-mtdndmxtfw.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\39e6n0hekl-{0}-6g46qx0lo7-6g46qx0lo7.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\n3xkqr9z75-{0}-i4bfyxhce9-i4bfyxhce9.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\6sichzp50p-{0}-gi050mopch-gi050mopch.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\wcrf99ln33-{0}-qld8j2awbk-qld8j2awbk.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\2f8hjytzjz-{0}-cwjreohui9-cwjreohui9.gz

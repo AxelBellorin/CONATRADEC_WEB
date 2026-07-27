@@ -11,61 +11,47 @@ public sealed class MapaService
         this.apiClient = apiClient;
     }
 
-    public async Task<ResultadoDatos<List<TerrenoMapaItem>>> ObtenerTerrenosAsync(
-        CancellationToken cancellationToken = default)
+    public async Task<MapaInteligenteRespuesta>
+        ObtenerMapaInteligenteAsync(
+            MapaFiltro filtro,
+            CancellationToken cancellationToken = default)
     {
-        try
-        {
-            /*
-             * Endpoint liviano recomendado para el mapa:
-             * GET api/mapa/terrenos
-             *
-             * No debe devolver fotografías ni análisis completos.
-             */
-            var datos = await apiClient.GetAsync<List<TerrenoMapaItem>>(
-                "api/mapa/terrenos",
-                cancellationToken);
+        var parametros = new List<string>();
 
-            return new ResultadoDatos<List<TerrenoMapaItem>>(
-                datos ?? []);
-        }
-        catch (Exception)
-        {
-            return new ResultadoDatos<List<TerrenoMapaItem>>(
-                CrearDatosDemostracion(),
-                "El mapa utiliza puntos demostrativos hasta que agreguemos el endpoint api/mapa/terrenos al backend.");
-        }
+        Agregar(parametros, "buscar", filtro.Texto);
+
+        if (filtro.DepartamentoId.HasValue)
+            parametros.Add(
+                $"departamentoId={filtro.DepartamentoId.Value}");
+
+        if (filtro.MunicipioId.HasValue)
+            parametros.Add(
+                $"municipioId={filtro.MunicipioId.Value}");
+
+        Agregar(parametros, "nivel", filtro.Nivel);
+        Agregar(parametros, "indicador", filtro.Indicador);
+
+        string ruta = "api/mapa/inteligente";
+
+        if (parametros.Count > 0)
+            ruta += "?" + string.Join("&", parametros);
+
+        return await apiClient
+            .GetAsync<MapaInteligenteRespuesta>(
+                ruta,
+                cancellationToken) ?? new();
     }
 
-    private static List<TerrenoMapaItem> CrearDatosDemostracion() =>
-    [
-        new()
+    private static void Agregar(
+        ICollection<string> parametros,
+        string nombre,
+        string? valor)
+    {
+        if (!string.IsNullOrWhiteSpace(valor))
         {
-            TerrenoId = 1,
-            Codigo = "DEMO-MAT-001",
-            Nombre = "Terreno demostrativo Matagalpa",
-            Productor = "Dato demostrativo",
-            Latitud = 12.9256,
-            Longitud = -85.9175,
-            Departamento = "Matagalpa",
-            Municipio = "Matagalpa",
-            ExtensionManzanas = 8.5m,
-            Estado = "Normal",
-            UltimoPh = 5.8m
-        },
-        new()
-        {
-            TerrenoId = 2,
-            Codigo = "DEMO-JIN-001",
-            Nombre = "Terreno demostrativo Jinotega",
-            Productor = "Dato demostrativo",
-            Latitud = 13.0910,
-            Longitud = -86.0004,
-            Departamento = "Jinotega",
-            Municipio = "Jinotega",
-            ExtensionManzanas = 12m,
-            Estado = "Atención",
-            UltimoPh = 4.9m
+            parametros.Add(
+                $"{nombre}=" +
+                Uri.EscapeDataString(valor.Trim()));
         }
-    ];
+    }
 }
