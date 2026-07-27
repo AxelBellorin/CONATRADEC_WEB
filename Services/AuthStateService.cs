@@ -4,6 +4,9 @@ namespace CONATRADEC.AdminWeb.Services;
 
 public sealed class AuthStateService
 {
+    private static readonly TimeSpan TiempoMaximoRestauracion =
+        TimeSpan.FromSeconds(5);
+
     private readonly ApiClientService apiClient;
     private readonly BrowserSessionService browserSession;
 
@@ -26,7 +29,8 @@ public sealed class AuthStateService
     public bool IsAuthenticated =>
         Usuario is not null &&
         Usuario.Activo &&
-        !string.IsNullOrWhiteSpace(Usuario.Token);
+        !string.IsNullOrWhiteSpace(
+            Usuario.Token);
 
     public bool EsAdministrador =>
         Usuario?.RolNombre.Contains(
@@ -40,15 +44,37 @@ public sealed class AuthStateService
 
     public async Task InicializarAsync()
     {
-        if (Inicializado || inicializando)
+        if (Inicializado ||
+            inicializando)
+        {
             return;
+        }
 
         inicializando = true;
 
         try
         {
+            Task<UsuarioSesion?> lectura =
+                browserSession.LeerAsync();
+
+            Task esperaMaxima =
+                Task.Delay(
+                    TiempoMaximoRestauracion);
+
+            Task completada =
+                await Task.WhenAny(
+                    lectura,
+                    esperaMaxima);
+
+            if (completada != lectura)
+            {
+                Usuario = null;
+                apiClient.ConfigurarToken(null);
+                return;
+            }
+
             UsuarioSesion? restaurado =
-                await browserSession.LeerAsync();
+                await lectura;
 
             if (restaurado is null ||
                 !restaurado.Activo ||
@@ -64,16 +90,15 @@ public sealed class AuthStateService
 
             apiClient.ConfigurarToken(
                 restaurado.Token);
-
+        }
+        catch
+        {
             /*
-             * No se elimina la sesión automáticamente si falta
-             * el permiso en el objeto restaurado. La autorización
-             * de entrada ya se validó en el login y los permisos
-             * individuales siguen controlando el menú.
-             *
-             * Esto evita un bucle de login si la API cambia la
-             * lista o el navegador restaura una sesión válida.
+             * Si localStorage o JavaScript falla durante desarrollo,
+             * la aplicación continúa y permite volver al login.
              */
+            Usuario = null;
+            apiClient.ConfigurarToken(null);
         }
         finally
         {

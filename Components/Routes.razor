@@ -2,7 +2,7 @@
 @inject AuthStateService AuthState
 @inject NavigationManager Navigation
 
-@if (!AuthState.Inicializado)
+@if (!preparado)
 {
     <div class="portal-loading">
         <i class="fa-solid fa-spinner fa-spin"></i>
@@ -38,6 +38,7 @@ else
 }
 
 @code {
+    private bool preparado;
     private bool inicializacionEjecutada;
 
     protected override async Task OnAfterRenderAsync(
@@ -51,9 +52,7 @@ else
 
         inicializacionEjecutada = true;
 
-        await AuthState.InicializarAsync();
-
-        string ruta =
+        string rutaActual =
             Navigation
                 .ToBaseRelativePath(
                     Navigation.Uri)
@@ -61,12 +60,29 @@ else
 
         bool estaEnLogin =
             string.Equals(
-                ruta,
+                rutaActual,
                 "login",
                 StringComparison.OrdinalIgnoreCase);
 
-        if (!AuthState.IsAuthenticated &&
-            !estaEnLogin)
+        /*
+         * La página de login debe mostrarse inmediatamente.
+         * No depende de localStorage para poder renderizarse.
+         */
+        if (estaEnLogin)
+        {
+            preparado = true;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        /*
+         * En rutas protegidas sí intentamos restaurar la sesión.
+         * AuthStateService contiene un tiempo máximo para evitar
+         * que la interfaz se quede congelada.
+         */
+        await AuthState.InicializarAsync();
+
+        if (!AuthState.IsAuthenticated)
         {
             Navigation.NavigateTo(
                 "/login",
@@ -76,17 +92,7 @@ else
             return;
         }
 
-        if (AuthState.IsAuthenticated &&
-            estaEnLogin)
-        {
-            Navigation.NavigateTo(
-                "/",
-                forceLoad: false,
-                replace: true);
-
-            return;
-        }
-
+        preparado = true;
         await InvokeAsync(StateHasChanged);
     }
 }

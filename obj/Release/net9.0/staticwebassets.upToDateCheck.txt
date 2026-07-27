@@ -1,13 +1,13 @@
-wwwroot\css\alertas-integracion.css
 wwwroot\css\app.css
 wwwroot\css\dashboard-ejecutivo.css
 wwwroot\css\mapa-alertas.css
-wwwroot\css\seguimiento-alertas.css
-wwwroot\css\seguridad-web.css
+wwwroot\css\alertas-integracion.css
 wwwroot\favicon.svg
 wwwroot\js\dispositivosMapa.js
 wwwroot\js\mapa.js
 wwwroot\js\mapaInteligente.js
+wwwroot\css\seguimiento-alertas.css
+wwwroot\css\seguridad-web.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\app.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\dashboard-ejecutivo.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\mapa-alertas.css
