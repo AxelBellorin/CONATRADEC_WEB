@@ -1,0 +1,127 @@
+@page "/configuracion-alertas"
+@inject AuthStateService AuthState
+@inject SeguimientoAlertasService Service
+@inject NavigationManager Navigation
+
+<PageTitle>Configuración de alertas | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Parametrización agrícola</p>
+        <h1>Umbrales de alertas</h1>
+        <p>Modifica los valores utilizados para clasificar condiciones críticas y de atención.</p>
+    </div>
+    <a class="btn-secondary" href="/alertas-agricolas">
+        <i class="fa-solid fa-arrow-left"></i>
+        Volver a alertas
+    </a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert @(esError ? "alert-error" : "alert-success")">
+        @mensaje
+    </div>
+}
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Cargando umbrales..." />
+}
+else
+{
+    <section class="threshold-grid">
+        @foreach (ConfiguracionAlertaItem item in configuraciones)
+        {
+            <article class="threshold-card">
+                <div>
+                    <span class="threshold-key">@item.Clave</span>
+                    <h2>@item.Nombre</h2>
+                    <p>@item.Descripcion</p>
+                </div>
+
+                <div class="threshold-value">
+                    <InputNumber class="form-control"
+                                 @bind-Value="item.Valor" />
+                    <span>@item.Unidad</span>
+                </div>
+
+                <button class="btn-primary"
+                        disabled="@guardando"
+                        @onclick="() => Guardar(item)">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    Guardar umbral
+                </button>
+            </article>
+        }
+    </section>
+}
+
+@code {
+    private List<ConfiguracionAlertaItem> configuraciones = [];
+    private bool cargando = true;
+    private bool guardando;
+    private string? mensaje;
+    private bool esError;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await Cargar();
+        StateHasChanged();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        try
+        {
+            configuraciones = await Service.ConfiguracionesAsync();
+        }
+        catch (Exception ex)
+        {
+            mensaje = ex.Message;
+            esError = true;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task Guardar(ConfiguracionAlertaItem item)
+    {
+        guardando = true;
+        mensaje = null;
+
+        try
+        {
+            await Service.ActualizarUmbralAsync(
+                item.ConfiguracionAlertaAgricolaId,
+                new ActualizarUmbralAlerta
+                {
+                    Valor = item.Valor,
+                    UsuarioAccionId = AuthState.Usuario?.UsuarioId ?? 0
+                });
+
+            mensaje = $"El umbral «{item.Nombre}» fue actualizado.";
+            esError = false;
+        }
+        catch (Exception ex)
+        {
+            mensaje = ex.Message;
+            esError = true;
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+}

@@ -1,0 +1,82 @@
+@page "/reportes"
+@inject AuthStateService AuthState
+@inject SeguimientoAlertasService Service
+@inject NavigationManager Navigation
+
+<PageTitle>Centro de reportes | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Información ejecutiva</p>
+        <h1>Centro de reportes</h1>
+        <p>Consulta el estado general y descarga el seguimiento de alertas.</p>
+    </div>
+</div>
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Preparando indicadores..." />
+}
+else
+{
+    <section class="report-summary-grid">
+        <article><span>Total</span><strong>@resumen.Total</strong></article>
+        <article><span>Pendientes</span><strong>@resumen.Pendientes</strong></article>
+        <article><span>En proceso</span><strong>@resumen.EnProceso</strong></article>
+        <article><span>Atendidas</span><strong>@resumen.Atendidas</strong></article>
+        <article><span>Críticas</span><strong>@resumen.Criticas</strong></article>
+    </section>
+
+    <section class="report-options-grid">
+        <article class="report-option-card">
+            <i class="fa-solid fa-file-pdf"></i>
+            <div>
+                <h2>Reporte PDF</h2>
+                <p>Documento tamaño carta con el seguimiento actual de alertas.</p>
+            </div>
+            <a class="btn-primary"
+               href="@Ruta("api/reportes-alertas/pdf")"
+               target="_blank">
+                Descargar PDF
+            </a>
+        </article>
+
+        <article class="report-option-card">
+            <i class="fa-solid fa-file-excel"></i>
+            <div>
+                <h2>Reporte Excel</h2>
+                <p>Archivo editable con todos los casos y sus estados.</p>
+            </div>
+            <a class="btn-primary"
+               href="@Ruta("api/reportes-alertas/excel")">
+                Descargar Excel
+            </a>
+        </article>
+    </section>
+}
+
+@code {
+    private ResumenReporteAlertas resumen = new();
+    private bool cargando = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        resumen = await Service.ResumenReporteAsync() ?? new();
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private string Ruta(string relativa)
+    {
+        string baseApi = Navigation.BaseUri;
+        return new Uri(new Uri(baseApi), relativa).ToString();
+    }
+}

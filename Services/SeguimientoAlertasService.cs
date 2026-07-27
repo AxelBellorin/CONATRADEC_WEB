@@ -32,19 +32,38 @@ public sealed class SeguimientoAlertasService
             ruta, cancellationToken) ?? [];
     }
 
-    public async Task<SeguimientoAlertaItem?> CrearAsync(
+    public async Task<List<SeguimientoAlertaItem>> AbiertosAsync(
+        CancellationToken cancellationToken = default) =>
+        await api.GetAsync<List<SeguimientoAlertaItem>>(
+            "api/seguimiento-alertas-agricolas/abiertos",
+            cancellationToken) ?? [];
+
+    public async Task<List<TecnicoAlertaItem>> TecnicosAsync(
+        CancellationToken cancellationToken = default) =>
+        await api.GetAsync<List<TecnicoAlertaItem>>(
+            "api/seguimiento-alertas-agricolas/tecnicos",
+            cancellationToken) ?? [];
+
+    public async Task<List<HistorialAlertaItem>> HistorialAsync(
+        int id,
+        CancellationToken cancellationToken = default) =>
+        await api.GetAsync<List<HistorialAlertaItem>>(
+            $"api/seguimiento-alertas-agricolas/{id}/historial",
+            cancellationToken) ?? [];
+
+    public Task<SeguimientoAlertaItem?> CrearAsync(
         CrearSeguimientoAlerta request,
         CancellationToken cancellationToken = default) =>
-        await api.PostAsync<CrearSeguimientoAlerta, SeguimientoAlertaItem>(
+        api.PostAsync<CrearSeguimientoAlerta, SeguimientoAlertaItem>(
             "api/seguimiento-alertas-agricolas",
             request,
             cancellationToken);
 
-    public async Task<SeguimientoAlertaItem?> ActualizarAsync(
+    public Task<SeguimientoAlertaItem?> ActualizarAsync(
         int id,
         ActualizarSeguimientoAlerta request,
         CancellationToken cancellationToken = default) =>
-        await api.PutAsync<ActualizarSeguimientoAlerta, SeguimientoAlertaItem>(
+        api.PutAsync<ActualizarSeguimientoAlerta, SeguimientoAlertaItem>(
             $"api/seguimiento-alertas-agricolas/{id}",
             request,
             cancellationToken);
@@ -54,4 +73,19 @@ public sealed class SeguimientoAlertasService
         await api.GetAsync<List<ConfiguracionAlertaItem>>(
             "api/configuracion-alertas-agricolas",
             cancellationToken) ?? [];
+
+    public Task<object?> ActualizarUmbralAsync(
+        int id,
+        ActualizarUmbralAlerta request,
+        CancellationToken cancellationToken = default) =>
+        api.PutAsync<ActualizarUmbralAlerta, object>(
+            $"api/configuracion-alertas-agricolas/{id}",
+            request,
+            cancellationToken);
+
+    public Task<ResumenReporteAlertas?> ResumenReporteAsync(
+        CancellationToken cancellationToken = default) =>
+        api.GetAsync<ResumenReporteAlertas>(
+            "api/reportes-alertas/resumen",
+            cancellationToken);
 }
