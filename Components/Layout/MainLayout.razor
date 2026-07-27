@@ -29,6 +29,7 @@ else
                 </NavLink>
 
                 @if (AuthState.TienePermisoLectura("TerrenoPage") ||
+                     AuthState.TienePermisoLectura("terrenoPage") ||
                      AuthState.TienePermisoLectura("MapaTerrenosWeb") ||
                      AuthState.EsAdministrador)
                 {
@@ -38,9 +39,35 @@ else
                     </NavLink>
                 }
 
-                <div class="nav-section">Administración</div>
+                @if (AuthState.TienePermisoLectura(PermisosWeb.Alertas) ||
+                     AuthState.EsAdministrador)
+                {
+                    <div class="nav-section">
+                        Supervisión agrícola
+                    </div>
+
+                    <NavLink href="/alertas-agricolas">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Centro de alertas</span>
+                    </NavLink>
+
+                    <NavLink href="/seguimiento-alertas">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Seguimiento</span>
+                    </NavLink>
+
+                    <NavLink href="/configuracion-alertas">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>Umbrales</span>
+                    </NavLink>
+                }
+
+                <div class="nav-section">
+                    Administración
+                </div>
 
                 @if (AuthState.TienePermisoLectura("UsuarioPage") ||
+                     AuthState.TienePermisoLectura("userPage") ||
                      AuthState.EsAdministrador)
                 {
                     <NavLink href="/usuarios">
@@ -49,16 +76,35 @@ else
                     </NavLink>
                 }
 
+                @if (AuthState.TienePermisoLectura(PermisosWeb.Roles) ||
+                     AuthState.EsAdministrador)
+                {
+                    <NavLink href="/roles">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span>Roles</span>
+                    </NavLink>
+                }
+
+                @if (AuthState.TienePermisoLectura(PermisosWeb.Matriz) ||
+                     AuthState.EsAdministrador)
+                {
+                    <NavLink href="/matriz-permisos">
+                        <i class="fa-solid fa-table-cells"></i>
+                        <span>Matriz de permisos</span>
+                    </NavLink>
+                }
+
                 @if (AuthState.TienePermisoLectura("dispositivosConectadosPage") ||
                      AuthState.EsAdministrador)
                 {
                     <NavLink href="/dispositivos-conectados">
-                        <i class="fa-solid fa-map-location-dot"></i>
+                        <i class="fa-solid fa-laptop"></i>
                         <span>Dispositivos conectados</span>
                     </NavLink>
                 }
 
                 @if (AuthState.TienePermisoLectura("BitacoraPage") ||
+                     AuthState.TienePermisoLectura("bitacoraPage") ||
                      AuthState.EsAdministrador)
                 {
                     <NavLink href="/bitacora">
@@ -77,13 +123,19 @@ else
                 <div class="avatar">
                     @ObtenerIniciales()
                 </div>
+
                 <div class="sidebar-user-data">
-                    <strong>@AuthState.Usuario?.NombreCompletoUsuario</strong>
-                    <span>@AuthState.Usuario?.RolNombre</span>
+                    <strong>
+                        @AuthState.Usuario?.NombreCompletoUsuario
+                    </strong>
+                    <span>
+                        @AuthState.Usuario?.RolNombre
+                    </span>
                 </div>
+
                 <button class="icon-button"
                         title="Cerrar sesión"
-                        @onclick="CerrarSesion">
+                        @onclick="CerrarSesionAsync">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
             </div>
@@ -93,7 +145,8 @@ else
         {
             <button class="sidebar-overlay"
                     aria-label="Cerrar menú"
-                    @onclick="ToggleMenu"></button>
+                    @onclick="ToggleMenu">
+            </button>
         }
 
         <section class="content-shell">
@@ -110,7 +163,9 @@ else
 
                 <div class="topbar-user">
                     <i class="fa-regular fa-circle-user"></i>
-                    <span>@AuthState.Usuario?.NombreUsuario</span>
+                    <span>
+                        @AuthState.Usuario?.NombreUsuario
+                    </span>
                 </div>
             </header>
 
@@ -124,7 +179,10 @@ else
 @code {
     private bool menuAbierto;
 
-    private void ToggleMenu() => menuAbierto = !menuAbierto;
+    private void ToggleMenu()
+    {
+        menuAbierto = !menuAbierto;
+    }
 
     private void CerrarMenuMovil()
     {
@@ -133,20 +191,29 @@ else
 
     private string ObtenerIniciales()
     {
-        var nombre = AuthState.Usuario?.NombreCompletoUsuario;
+        string? nombre =
+            AuthState.Usuario?.NombreCompletoUsuario;
 
         if (string.IsNullOrWhiteSpace(nombre))
             return "U";
 
         return string.Concat(
-            nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            nombre
+                .Split(
+                    ' ',
+                    StringSplitOptions.RemoveEmptyEntries)
                 .Take(2)
-                .Select(item => char.ToUpperInvariant(item[0])));
+                .Select(
+                    item =>
+                        char.ToUpperInvariant(item[0])));
     }
 
-    private void CerrarSesion()
+    private async Task CerrarSesionAsync()
     {
-        AuthState.CerrarSesion();
-        Navigation.NavigateTo("/login", forceLoad: false);
+        await AuthState.CerrarSesionAsync();
+
+        Navigation.NavigateTo(
+            "/login",
+            forceLoad: false);
     }
 }

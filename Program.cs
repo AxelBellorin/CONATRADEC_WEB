@@ -11,8 +11,7 @@ builder.Services.AddHttpClient<ApiClientService>(
     (serviceProvider, client) =>
     {
         IConfiguration configuration =
-            serviceProvider
-                .GetRequiredService<IConfiguration>();
+            serviceProvider.GetRequiredService<IConfiguration>();
 
         string baseUrl =
             configuration["ApiSettings:BaseUrl"]
@@ -24,14 +23,17 @@ builder.Services.AddHttpClient<ApiClientService>(
                 ? baseUrl
                 : $"{baseUrl}/");
 
-        client.Timeout =
-            TimeSpan.FromSeconds(30);
+        client.Timeout = TimeSpan.FromSeconds(30);
     });
 
+builder.Services.AddScoped<BrowserSessionService>();
 builder.Services.AddScoped<AuthStateService>();
+builder.Services.AddScoped<SeguridadWebService>();
+
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<MapaService>();
 builder.Services.AddScoped<AlertasAgricolasService>();
+builder.Services.AddScoped<SeguimientoAlertasService>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<BitacoraService>();
 builder.Services.AddScoped<UsuariosInactivosService>();

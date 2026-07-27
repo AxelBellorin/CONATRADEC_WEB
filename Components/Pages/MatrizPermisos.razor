@@ -1,0 +1,355 @@
+@page "/matriz-permisos"
+@inject AuthStateService AuthState
+@inject SeguridadWebService Seguridad
+@inject NavigationManager Navigation
+
+<PageTitle>Matriz de permisos | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Seguridad</p>
+        <h1>Matriz de permisos</h1>
+        <p>
+            La configuración se comparte con la aplicación
+            móvil y Windows.
+        </p>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert @(esError ? "alert-error" : "alert-success")">
+        @mensaje
+    </div>
+}
+
+<section class="panel permission-toolbar">
+    <div class="form-group">
+        <label>Rol</label>
+        <InputSelect class="form-control"
+                     @bind-Value="rolId"
+                     @bind-Value:after="SeleccionarRol">
+            <option value="0">Selecciona un rol</option>
+
+            @foreach (RolConPermisosWeb matriz in matrices)
+            {
+                <option value="@matriz.Rol.RolId">
+                    @matriz.Rol.NombreRol
+                </option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Buscar interfaz</label>
+        <InputText class="form-control"
+                   @bind-Value="buscar"
+                   placeholder="Nombre visible" />
+    </div>
+</section>
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Cargando matriz..." />
+}
+else if (actual is not null)
+{
+    <section class="panel">
+        <div class="permission-matrix-header">
+            <div>
+                <h2>@actual.Rol.NombreRol</h2>
+
+                @if (actual.Rol.EsAdministrador)
+                {
+                    <p class="protected-message">
+                        <i class="fa-solid fa-lock"></i>
+                        Este rol está protegido. Todos sus permisos
+                        permanecen habilitados y no pueden modificarse.
+                    </p>
+                }
+                else
+                {
+                    <p>@Filtrados.Count interfaces visibles</p>
+                }
+            </div>
+
+            @if (!actual.Rol.EsAdministrador)
+            {
+                <button class="btn-primary"
+                        disabled="@guardando"
+                        @onclick="Guardar">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    Guardar cambios
+                </button>
+            }
+        </div>
+
+        @if (!actual.Rol.EsAdministrador)
+        {
+            <div class="permission-bulk-actions">
+                <button class="btn-secondary"
+                        @onclick="() => MarcarColumna(TipoPermiso.Leer)">
+                    Marcar lectura
+                </button>
+
+                <button class="btn-secondary"
+                        @onclick="() => MarcarColumna(TipoPermiso.Agregar)">
+                    Marcar agregar
+                </button>
+
+                <button class="btn-secondary"
+                        @onclick="() => MarcarColumna(TipoPermiso.Actualizar)">
+                    Marcar actualizar
+                </button>
+
+                <button class="btn-secondary"
+                        @onclick="() => MarcarColumna(TipoPermiso.Eliminar)">
+                    Marcar eliminar
+                </button>
+
+                <button class="btn-link"
+                        @onclick="LimpiarTodo">
+                    Limpiar todo
+                </button>
+            </div>
+        }
+
+        <div class="responsive-table-wrapper">
+            <table class="data-table permission-matrix">
+                <thead>
+                    <tr>
+                        <th>Interfaz</th>
+                        <th>Leer</th>
+                        <th>Agregar</th>
+                        <th>Actualizar</th>
+                        <th>Eliminar</th>
+                        <th>Todo</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach (
+                        InterfazPermisoWeb permiso
+                        in Filtrados)
+                    {
+                        <tr>
+                            <td>
+                                <strong>
+                                    @permiso.NombreVisible
+                                </strong>
+                            </td>
+
+                            <td>
+                                <InputCheckbox
+                                    @bind-Value="permiso.Leer"
+                                    disabled="@actual.Rol.EsAdministrador" />
+                            </td>
+
+                            <td>
+                                <InputCheckbox
+                                    @bind-Value="permiso.Agregar"
+                                    disabled="@actual.Rol.EsAdministrador" />
+                            </td>
+
+                            <td>
+                                <InputCheckbox
+                                    @bind-Value="permiso.Actualizar"
+                                    disabled="@actual.Rol.EsAdministrador" />
+                            </td>
+
+                            <td>
+                                <InputCheckbox
+                                    @bind-Value="permiso.Eliminar"
+                                    disabled="@actual.Rol.EsAdministrador" />
+                            </td>
+
+                            <td>
+                                <button class="table-action"
+                                        disabled="@actual.Rol.EsAdministrador"
+                                        title="Alternar toda la fila"
+                                        @onclick="() => AlternarFila(permiso)">
+                                    <i class="fa-solid fa-check-double"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@code {
+    private List<RolConPermisosWeb> matrices = [];
+    private RolConPermisosWeb? actual;
+    private int rolId;
+    private string buscar = string.Empty;
+    private bool cargando = true;
+    private bool guardando;
+    private string? mensaje;
+    private bool esError;
+
+    private List<InterfazPermisoWeb> Filtrados =>
+        actual?.Interfaz
+            .Where(item =>
+                string.IsNullOrWhiteSpace(buscar) ||
+                item.NombreVisible.Contains(
+                    buscar,
+                    StringComparison.OrdinalIgnoreCase))
+            .OrderBy(item => item.NombreVisible)
+            .ToList() ?? [];
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await AuthState.InicializarAsync();
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+        StateHasChanged();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+
+        try
+        {
+            matrices = await Seguridad.MatrizAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private Task SeleccionarRol()
+    {
+        actual = matrices.FirstOrDefault(
+            item => item.Rol.RolId == rolId);
+
+        mensaje = null;
+        return Task.CompletedTask;
+    }
+
+    private void MarcarColumna(TipoPermiso tipo)
+    {
+        if (actual == null ||
+            actual.Rol.EsAdministrador)
+        {
+            return;
+        }
+
+        foreach (InterfazPermisoWeb permiso
+                 in actual.Interfaz)
+        {
+            switch (tipo)
+            {
+                case TipoPermiso.Leer:
+                    permiso.Leer = true;
+                    break;
+
+                case TipoPermiso.Agregar:
+                    permiso.Agregar = true;
+                    break;
+
+                case TipoPermiso.Actualizar:
+                    permiso.Actualizar = true;
+                    break;
+
+                case TipoPermiso.Eliminar:
+                    permiso.Eliminar = true;
+                    break;
+            }
+        }
+    }
+
+    private void AlternarFila(
+        InterfazPermisoWeb permiso)
+    {
+        if (actual?.Rol.EsAdministrador == true)
+            return;
+
+        bool nuevoValor =
+            !(permiso.Leer &&
+              permiso.Agregar &&
+              permiso.Actualizar &&
+              permiso.Eliminar);
+
+        permiso.Leer = nuevoValor;
+        permiso.Agregar = nuevoValor;
+        permiso.Actualizar = nuevoValor;
+        permiso.Eliminar = nuevoValor;
+    }
+
+    private void LimpiarTodo()
+    {
+        if (actual == null ||
+            actual.Rol.EsAdministrador)
+        {
+            return;
+        }
+
+        foreach (InterfazPermisoWeb permiso
+                 in actual.Interfaz)
+        {
+            permiso.Leer = false;
+            permiso.Agregar = false;
+            permiso.Actualizar = false;
+            permiso.Eliminar = false;
+        }
+    }
+
+    private async Task Guardar()
+    {
+        if (actual == null ||
+            actual.Rol.EsAdministrador)
+        {
+            return;
+        }
+
+        guardando = true;
+
+        try
+        {
+            await Seguridad.GuardarMatrizAsync(actual);
+            mensaje =
+                "Matriz actualizada correctamente.";
+            esError = false;
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void MostrarError(string texto)
+    {
+        mensaje = texto;
+        esError = true;
+    }
+
+    private enum TipoPermiso
+    {
+        Leer,
+        Agregar,
+        Actualizar,
+        Eliminar
+    }
+}

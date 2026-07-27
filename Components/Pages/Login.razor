@@ -10,17 +10,34 @@
             <div class="login-logo">
                 <i class="fa-solid fa-seedling"></i>
             </div>
+
             <p class="eyebrow">CONATRADEC</p>
-            <h1>Gestión agrícola en una sola plataforma</h1>
+
+            <h1>
+                Gestión agrícola en una sola plataforma
+            </h1>
+
             <p>
-                Supervisa terrenos, análisis de suelo, indicadores y actividad
-                administrativa desde cualquier computadora.
+                Supervisa terrenos, análisis de suelo,
+                indicadores y actividad administrativa
+                desde cualquier computadora.
             </p>
 
             <div class="login-feature-list">
-                <span><i class="fa-solid fa-chart-pie"></i> Indicadores consolidados</span>
-                <span><i class="fa-solid fa-map"></i> Mapa dinámico de terrenos</span>
-                <span><i class="fa-solid fa-shield-halved"></i> Acceso por permisos</span>
+                <span>
+                    <i class="fa-solid fa-chart-pie"></i>
+                    Indicadores consolidados
+                </span>
+
+                <span>
+                    <i class="fa-solid fa-map"></i>
+                    Mapa dinámico de terrenos
+                </span>
+
+                <span>
+                    <i class="fa-solid fa-shield-halved"></i>
+                    Acceso por permisos
+                </span>
             </div>
         </div>
     </section>
@@ -28,14 +45,24 @@
     <section class="login-panel">
         <div class="login-card">
             <div class="login-card-header">
-                <span class="mobile-logo"><i class="fa-solid fa-seedling"></i></span>
-                <p class="eyebrow">Portal administrativo</p>
+                <span class="mobile-logo">
+                    <i class="fa-solid fa-seedling"></i>
+                </span>
+
+                <p class="eyebrow">
+                    Portal administrativo
+                </p>
+
                 <h2>Bienvenido</h2>
-                <p>Utiliza las mismas credenciales de CONATRADEC.</p>
+
+                <p>
+                    Utiliza las mismas credenciales
+                    de CONATRADEC.
+                </p>
             </div>
 
-            <EditForm Model="modelo"
-                      OnValidSubmit="IniciarSesion"
+            <EditForm Model="@modelo"
+                      OnValidSubmit="IniciarSesionAsync"
                       FormName="login-form">
                 <DataAnnotationsValidator />
 
@@ -48,30 +75,44 @@
                 }
 
                 <div class="form-group">
-                    <label for="usuario">Usuario o correo</label>
+                    <label for="usuario">
+                        Usuario o correo
+                    </label>
+
                     <div class="input-with-icon">
                         <i class="fa-regular fa-user"></i>
+
                         <InputText id="usuario"
                                    class="form-control"
                                    autocomplete="username"
+                                   disabled="@procesando"
                                    @bind-Value="modelo.UsuarioOEmail"
                                    placeholder="Escribe tu usuario o correo" />
                     </div>
-                    <ValidationMessage For="() => modelo.UsuarioOEmail" />
+
+                    <ValidationMessage
+                        For="() => modelo.UsuarioOEmail" />
                 </div>
 
                 <div class="form-group">
-                    <label for="clave">Contraseña</label>
+                    <label for="clave">
+                        Contraseña
+                    </label>
+
                     <div class="input-with-icon">
                         <i class="fa-solid fa-lock"></i>
+
                         <InputText id="clave"
                                    type="password"
                                    class="form-control"
                                    autocomplete="current-password"
+                                   disabled="@procesando"
                                    @bind-Value="modelo.Clave"
                                    placeholder="Escribe tu contraseña" />
                     </div>
-                    <ValidationMessage For="() => modelo.Clave" />
+
+                    <ValidationMessage
+                        For="() => modelo.Clave" />
                 </div>
 
                 <button type="submit"
@@ -92,7 +133,11 @@
 
             <div class="login-note">
                 <i class="fa-solid fa-circle-info"></i>
-                <span>El acceso y las opciones dependen de tu rol y permisos.</span>
+
+                <span>
+                    El acceso y las opciones dependen
+                    de tu rol y permisos.
+                </span>
             </div>
         </div>
     </section>
@@ -100,23 +145,48 @@
 
 @code {
     private readonly LoginRequest modelo = new();
+
     private bool procesando;
+    private bool navegando;
     private string? error;
 
-    protected override void OnInitialized()
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
     {
-        if (AuthState.IsAuthenticated)
-            Navigation.NavigateTo("/");
+        if (!firstRender)
+            return;
+
+        /*
+         * Cuando se abre directamente /login después de
+         * refrescar, se intenta restaurar primero la sesión.
+         */
+        await AuthState.InicializarAsync();
+
+        if (AuthState.IsAuthenticated &&
+            !navegando)
+        {
+            navegando = true;
+
+            Navigation.NavigateTo(
+                "/",
+                forceLoad: true,
+                replace: true);
+        }
     }
 
-    private async Task IniciarSesion()
+    private async Task IniciarSesionAsync()
     {
+        if (procesando || navegando)
+            return;
+
         procesando = true;
         error = null;
 
         try
         {
-            var resultado = await AuthState.IniciarSesionAsync(modelo);
+            ResultadoOperacion resultado =
+                await AuthState.IniciarSesionAsync(
+                    modelo);
 
             if (!resultado.Exitoso)
             {
@@ -124,11 +194,28 @@
                 return;
             }
 
-            Navigation.NavigateTo("/");
+            /*
+             * La sesión ya quedó almacenada en localStorage.
+             * Se fuerza una carga completa para iniciar un
+             * circuito limpio y restaurarla antes de crear
+             * el dashboard.
+             */
+            navegando = true;
+
+            Navigation.NavigateTo(
+                "/",
+                forceLoad: true,
+                replace: true);
+        }
+        catch (Exception ex)
+        {
+            error =
+                $"No fue posible completar el inicio de sesión. {ex.Message}";
         }
         finally
         {
-            procesando = false;
+            if (!navegando)
+                procesando = false;
         }
     }
 }

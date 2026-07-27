@@ -1,0 +1,78 @@
+.portal-loading {
+    min-height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #3B655B;
+    font-weight: 700;
+}
+
+.access-denied-card {
+    max-width: 620px;
+    margin: 48px auto;
+    padding: 32px;
+    text-align: center;
+    border: 1px solid #E5E7EB;
+    border-radius: 20px;
+    background: #FFFFFF;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, .06);
+}
+
+.access-denied-card > i {
+    color: #9B552C;
+    font-size: 42px;
+}
+
+.security-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.table-action.danger {
+    color: #EF4444;
+}
+
+.permission-toolbar {
+    display: grid;
+    grid-template-columns: minmax(220px, .8fr) minmax(260px, 1.4fr) auto auto;
+    gap: 14px;
+    align-items: end;
+    margin-bottom: 16px;
+}
+
+.permission-matrix-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.permission-matrix td:not(:first-child),
+.permission-matrix th:not(:first-child) {
+    text-align: center;
+}
+
+.permission-matrix td:first-child strong,
+.permission-matrix td:first-child small {
+    display: block;
+}
+
+.permission-matrix td:first-child small {
+    margin-top: 3px;
+    color: #6B7280;
+    font-size: 11px;
+}
+
+@media (max-width: 900px) {
+    .permission-toolbar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .permission-matrix-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

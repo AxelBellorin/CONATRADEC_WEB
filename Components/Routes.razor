@@ -1,20 +1,92 @@
 @using CONATRADEC.AdminWeb.Components.Layout
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
 
-<Router AppAssembly="typeof(Program).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData"
-                   DefaultLayout="typeof(MainLayout)" />
-        <FocusOnNavigate RouteData="routeData"
-                         Selector="h1" />
-    </Found>
-    <NotFound>
-        <LayoutView Layout="typeof(MainLayout)">
-            <div class="empty-state">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <h1>Página no encontrada</h1>
-                <p>La dirección solicitada no existe.</p>
-                <a class="btn-primary" href="/">Volver al inicio</a>
-            </div>
-        </LayoutView>
-    </NotFound>
-</Router>
+@if (!AuthState.Inicializado)
+{
+    <div class="portal-loading">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+        <span>Restaurando sesión...</span>
+    </div>
+}
+else
+{
+    <Router AppAssembly="typeof(Program).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData"
+                       DefaultLayout="typeof(MainLayout)" />
+
+            <FocusOnNavigate RouteData="routeData"
+                             Selector="h1" />
+        </Found>
+
+        <NotFound>
+            <LayoutView Layout="typeof(MainLayout)">
+                <div class="empty-state">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <h1>Página no encontrada</h1>
+                    <p>La dirección solicitada no existe.</p>
+
+                    <a class="btn-primary"
+                       href="/">
+                        Volver al inicio
+                    </a>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+}
+
+@code {
+    private bool inicializacionEjecutada;
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender ||
+            inicializacionEjecutada)
+        {
+            return;
+        }
+
+        inicializacionEjecutada = true;
+
+        await AuthState.InicializarAsync();
+
+        string rutaRelativa =
+            Navigation
+                .ToBaseRelativePath(
+                    Navigation.Uri)
+                .Trim('/');
+
+        bool estaEnLogin =
+            string.Equals(
+                rutaRelativa,
+                "login",
+                StringComparison.OrdinalIgnoreCase);
+
+        if (!AuthState.IsAuthenticated &&
+            !estaEnLogin)
+        {
+            Navigation.NavigateTo(
+                "/login",
+                forceLoad: true,
+                replace: true);
+
+            return;
+        }
+
+        if (AuthState.IsAuthenticated &&
+            estaEnLogin)
+        {
+            Navigation.NavigateTo(
+                "/",
+                forceLoad: true,
+                replace: true);
+
+            return;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+}

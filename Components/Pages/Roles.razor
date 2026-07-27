@@ -1,0 +1,344 @@
+@page "/roles"
+@inject AuthStateService AuthState
+@inject SeguridadWebService Seguridad
+@inject NavigationManager Navigation
+
+<PageTitle>Roles | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Seguridad</p>
+        <h1>Administración de roles</h1>
+        <p>
+            Administra roles activos y recupera registros
+            desactivados.
+        </p>
+    </div>
+
+    @if (AuthState.TienePermisoAgregar(PermisosWeb.Roles))
+    {
+        <button class="btn-primary" @onclick="Nuevo">
+            <i class="fa-solid fa-plus"></i>
+            Crear rol
+        </button>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert @(esError ? "alert-error" : "alert-success")">
+        @mensaje
+    </div>
+}
+
+<section class="panel">
+    <div class="security-tabs">
+        <button class="@(mostrarInactivos ? "btn-link" : "btn-primary")"
+                @onclick="MostrarActivos">
+            Activos (@rolesActivos.Count)
+        </button>
+
+        <button class="@(mostrarInactivos ? "btn-primary" : "btn-link")"
+                @onclick="MostrarInactivos">
+            Inactivos (@rolesInactivos.Count)
+        </button>
+    </div>
+
+    @if (cargando)
+    {
+        <LoadingState Mensaje="Cargando roles..." />
+    }
+    else
+    {
+        <div class="responsive-table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Rol</th>
+                        <th>Descripción</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (RolWebItem rol in RolesVisibles)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@rol.NombreRol</strong>
+                                @if (rol.EsAdministrador)
+                                {
+                                    <span class="protected-badge">
+                                        Protegido
+                                    </span>
+                                }
+                            </td>
+                            <td>@rol.DescripcionRol</td>
+                            <td>
+                                @(rol.Activo ? "Activo" : "Inactivo")
+                            </td>
+                            <td>
+                                <div class="security-actions">
+                                    @if (rol.Activo &&
+                                         !rol.EsAdministrador &&
+                                         AuthState.TienePermisoActualizar(
+                                             PermisosWeb.Roles))
+                                    {
+                                        <button class="table-action"
+                                                title="Editar"
+                                                @onclick="() => Editar(rol)">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+                                    }
+
+                                    @if (rol.Activo &&
+                                         !rol.EsAdministrador &&
+                                         AuthState.TienePermisoEliminar(
+                                             PermisosWeb.Roles))
+                                    {
+                                        <button class="table-action danger"
+                                                title="Desactivar"
+                                                @onclick="() => Desactivar(rol)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    }
+
+                                    @if (!rol.Activo &&
+                                         AuthState.TienePermisoActualizar(
+                                             PermisosWeb.Roles))
+                                    {
+                                        <button class="btn-secondary"
+                                                @onclick="() => Reactivar(rol)">
+                                            <i class="fa-solid fa-rotate-left"></i>
+                                            Reactivar
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (mostrarFormulario)
+{
+    <div class="modal-backdrop">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>
+                    @(editandoId.HasValue
+                        ? "Editar rol"
+                        : "Crear rol")
+                </h2>
+
+                <button class="modal-close"
+                        @onclick="CerrarFormulario">
+                    ×
+                </button>
+            </div>
+
+            <EditForm Model="@formulario"
+                      OnValidSubmit="Guardar">
+                <DataAnnotationsValidator />
+
+                <div class="form-group">
+                    <label>Nombre del rol</label>
+                    <InputText class="form-control"
+                               @bind-Value="formulario.NombreRol" />
+                    <ValidationMessage
+                        For="() => formulario.NombreRol" />
+                </div>
+
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <InputTextArea class="form-control"
+                                   @bind-Value="formulario.DescripcionRol" />
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button"
+                            class="btn-link"
+                            @onclick="CerrarFormulario">
+                        Cancelar
+                    </button>
+
+                    <button type="submit"
+                            class="btn-primary"
+                            disabled="@guardando">
+                        Guardar
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<RolWebItem> rolesActivos = [];
+    private List<RolWebItem> rolesInactivos = [];
+    private RolFormularioWeb formulario = new();
+    private int? editandoId;
+    private bool mostrarFormulario;
+    private bool mostrarInactivos;
+    private bool cargando = true;
+    private bool guardando;
+    private string? mensaje;
+    private bool esError;
+
+    private IEnumerable<RolWebItem> RolesVisibles =>
+        mostrarInactivos
+            ? rolesInactivos
+            : rolesActivos;
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await AuthState.InicializarAsync();
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+        StateHasChanged();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+
+        try
+        {
+            Task<List<RolWebItem>> activos =
+                Seguridad.ListarRolesAsync();
+
+            Task<List<RolWebItem>> inactivos =
+                Seguridad.ListarRolesInactivosAsync();
+
+            await Task.WhenAll(activos, inactivos);
+
+            rolesActivos = activos.Result;
+            rolesInactivos = inactivos.Result;
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void MostrarActivos()
+    {
+        mostrarInactivos = false;
+    }
+
+    private void MostrarInactivos()
+    {
+        mostrarInactivos = true;
+    }
+
+    private void Nuevo()
+    {
+        editandoId = null;
+        formulario = new RolFormularioWeb();
+        mostrarFormulario = true;
+    }
+
+    private void Editar(RolWebItem rol)
+    {
+        editandoId = rol.RolId;
+        formulario = new RolFormularioWeb
+        {
+            NombreRol = rol.NombreRol,
+            DescripcionRol = rol.DescripcionRol
+        };
+        mostrarFormulario = true;
+    }
+
+    private void CerrarFormulario()
+    {
+        mostrarFormulario = false;
+    }
+
+    private async Task Guardar()
+    {
+        guardando = true;
+
+        try
+        {
+            if (editandoId.HasValue)
+            {
+                await Seguridad.ActualizarRolAsync(
+                    editandoId.Value,
+                    formulario);
+            }
+            else
+            {
+                await Seguridad.CrearRolAsync(formulario);
+            }
+
+            mostrarFormulario = false;
+            MostrarExito("Rol guardado correctamente.");
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task Desactivar(RolWebItem rol)
+    {
+        try
+        {
+            await Seguridad.EliminarRolAsync(rol.RolId);
+            MostrarExito("Rol desactivado correctamente.");
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+    }
+
+    private async Task Reactivar(RolWebItem rol)
+    {
+        try
+        {
+            await Seguridad.ReactivarRolAsync(rol.RolId);
+            MostrarExito("Rol reactivado correctamente.");
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+    }
+
+    private void MostrarExito(string texto)
+    {
+        mensaje = texto;
+        esError = false;
+    }
+
+    private void MostrarError(string texto)
+    {
+        mensaje = texto;
+        esError = true;
+    }
+}

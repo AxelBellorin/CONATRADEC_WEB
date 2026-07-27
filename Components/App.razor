@@ -4,8 +4,10 @@
 <html lang="es">
 <head>
     <meta charset="utf-8" />
+
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0" />
+
     <base href="/" />
 
     <link rel="stylesheet"
@@ -21,11 +23,18 @@
     <link rel="stylesheet"
           href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
-    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet"
+          href="css/app.css" />
+
     <link rel="stylesheet"
           href="css/dashboard-ejecutivo.css" />
+
     <link rel="stylesheet"
           href="css/mapa-alertas.css" />
+
+    <link rel="stylesheet"
+          href="css/seguridad-web.css" />
+
     <link rel="stylesheet"
           href="CONATRADEC.AdminWeb.styles.css" />
 
@@ -33,16 +42,19 @@
           type="image/svg+xml"
           href="favicon.svg" />
 
-    <HeadOutlet @rendermode="RenderMode.InteractiveServer" />
+    <HeadOutlet
+        @rendermode="new InteractiveServerRenderMode(prerender: false)" />
 </head>
 
 <body>
-    <Routes @rendermode="RenderMode.InteractiveServer" />
+    <Routes
+        @rendermode="new InteractiveServerRenderMode(prerender: false)" />
 
     <script src="_framework/blazor.web.js"></script>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            crossorigin=""></script>
+            crossorigin="">
+    </script>
 
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js">
     </script>

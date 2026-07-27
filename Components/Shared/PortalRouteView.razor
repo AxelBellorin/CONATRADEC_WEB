@@ -1,0 +1,109 @@
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+
+@if (!AuthState.Inicializado)
+{
+    <LayoutView Layout="@DefaultLayout">
+        <div class="portal-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <span>Restaurando sesión...</span>
+        </div>
+    </LayoutView>
+}
+else if (EsPaginaLogin)
+{
+    <RouteView RouteData="@RouteData"
+               DefaultLayout="@DefaultLayout" />
+}
+else if (!AuthState.IsAuthenticated)
+{
+    <LayoutView Layout="@DefaultLayout">
+        <div class="portal-loading">
+            <span>Redirigiendo al inicio de sesión...</span>
+        </div>
+    </LayoutView>
+}
+else if (!AuthState.PuedeEntrarPortal)
+{
+    <LayoutView Layout="@DefaultLayout">
+        <div class="access-denied-card">
+            <i class="fa-solid fa-lock"></i>
+            <h1>Acceso no autorizado</h1>
+            <p>
+                Tu usuario no tiene habilitado el acceso
+                al portal administrativo.
+            </p>
+
+            <button class="btn-primary"
+                    @onclick="CerrarSesionAsync">
+                Cerrar sesión
+            </button>
+        </div>
+    </LayoutView>
+}
+else
+{
+    <RouteView RouteData="@RouteData"
+               DefaultLayout="@DefaultLayout" />
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public RouteData RouteData { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public Type DefaultLayout { get; set; } = default!;
+
+    private bool inicializacionSolicitada;
+
+    private bool EsPaginaLogin =>
+        string.Equals(
+            RouteData.PageType.Name,
+            "Login",
+            StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender ||
+            inicializacionSolicitada)
+        {
+            return;
+        }
+
+        inicializacionSolicitada = true;
+
+        await AuthState.InicializarAsync();
+
+        if (AuthState.IsAuthenticated &&
+            EsPaginaLogin)
+        {
+            Navigation.NavigateTo(
+                "/",
+                forceLoad: false);
+
+            return;
+        }
+
+        if (!AuthState.IsAuthenticated &&
+            !EsPaginaLogin)
+        {
+            Navigation.NavigateTo(
+                "/login",
+                forceLoad: false);
+
+            return;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CerrarSesionAsync()
+    {
+        await AuthState.CerrarSesionAsync();
+
+        Navigation.NavigateTo(
+            "/login",
+            forceLoad: false);
+    }
+}
