@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
       "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
@@ -26,7 +30,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 5,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Bookmark",
@@ -38,7 +42,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
+              "Title": "appsettings.Development.json",
+              "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\appsettings.Development.json",
+              "RelativeDocumentMoniker": "appsettings.Development.json",
+              "ToolTip": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\appsettings.Development.json",
+              "RelativeToolTip": "appsettings.Development.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAsAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-07-27T03:30:28.202Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "dotnet-tools.json",
               "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\dotnet-tools.json",
               "RelativeDocumentMoniker": "dotnet-tools.json",
@@ -50,7 +67,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "CONATRADEC.AdminWeb.csproj.Backup.tmp",
               "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj.Backup.tmp",
               "RelativeDocumentMoniker": "CONATRADEC.AdminWeb.csproj.Backup.tmp",
@@ -62,7 +79,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "CONATRADEC.AdminWeb.csproj.Backup (1).tmp",
               "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj.Backup (1).tmp",
               "RelativeDocumentMoniker": "CONATRADEC.AdminWeb.csproj.Backup (1).tmp",
@@ -74,13 +91,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "appsettings.json",
               "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\appsettings.json",
               "RelativeDocumentMoniker": "appsettings.json",
               "ToolTip": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\appsettings.json",
               "RelativeToolTip": "appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAAVAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
               "WhenOpened": "2026-07-27T02:24:40.257Z",
               "EditorCaption": ""
