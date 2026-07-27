@@ -3,6 +3,18 @@
   "WorkspaceRootPath": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\conatradec.adminweb.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:conatradec.adminweb.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\conatradec.adminweb.csproj.backup.tmp||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:conatradec.adminweb.csproj.backup.tmp||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\components\\pages\\usuarios.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:components\\pages\\usuarios.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\components\\app.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:components\\app.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     }
@@ -14,7 +26,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 3,
           "Children": [
             {
               "$type": "Bookmark",
@@ -26,7 +38,44 @@
             },
             {
               "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "CONATRADEC.AdminWeb.csproj.Backup.tmp",
+              "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj.Backup.tmp",
+              "RelativeDocumentMoniker": "CONATRADEC.AdminWeb.csproj.Backup.tmp",
+              "ToolTip": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj.Backup.tmp",
+              "RelativeToolTip": "CONATRADEC.AdminWeb.csproj.Backup.tmp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-07-27T01:20:49.093Z"
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "CONATRADEC.AdminWeb.csproj",
+              "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj",
+              "RelativeDocumentMoniker": "CONATRADEC.AdminWeb.csproj",
+              "ToolTip": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj",
+              "RelativeToolTip": "CONATRADEC.AdminWeb.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-07-27T01:03:15.981Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Usuarios.razor",
+              "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\Components\\Pages\\Usuarios.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Usuarios.razor",
+              "ToolTip": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\Components\\Pages\\Usuarios.razor",
+              "RelativeToolTip": "Components\\Pages\\Usuarios.razor",
+              "ViewState": "AgIAALECAAAAAAAAAIAwwL8CAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-07-27T00:58:02.142Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
               "Title": "App.razor",
               "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\Components\\App.razor",
               "RelativeDocumentMoniker": "Components\\App.razor",
@@ -34,8 +83,7 @@
               "RelativeToolTip": "Components\\App.razor",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2026-07-27T00:41:04.371Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-07-27T00:41:04.371Z"
             }
           ]
         }

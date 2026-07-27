@@ -1,0 +1,43 @@
+@if (!string.IsNullOrWhiteSpace(Url))
+{
+    <img class="user-photo @(Grande ? "user-photo-large" : string.Empty)"
+         src="@Url"
+         alt="Imagen de @Usuario.NombreCompletoUsuario"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='grid';" />
+    <div class="user-initials @(Grande ? "user-initials-large" : string.Empty)"
+         style="display:none">
+        @Iniciales
+    </div>
+}
+else
+{
+    <div class="user-initials @(Grande ? "user-initials-large" : string.Empty)">
+        @Iniciales
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public UsuarioListadoItem Usuario { get; set; } = new();
+
+    [Parameter]
+    public string Url { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool Grande { get; set; }
+
+    private string Iniciales
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Usuario.NombreCompletoUsuario))
+                return "U";
+
+            return string.Concat(
+                Usuario.NombreCompletoUsuario
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Take(2)
+                    .Select(item => char.ToUpperInvariant(item[0])));
+        }
+    }
+}

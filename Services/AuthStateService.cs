@@ -65,7 +65,21 @@ public sealed class AuthStateService
         }
     }
 
-    public bool TienePermisoLectura(string nombreInterfaz)
+    public bool TienePermisoLectura(string nombreInterfaz) =>
+        TienePermiso(nombreInterfaz, item => item.Leer == true);
+
+    public bool TienePermisoAgregar(string nombreInterfaz) =>
+        TienePermiso(nombreInterfaz, item => item.Agregar == true);
+
+    public bool TienePermisoActualizar(string nombreInterfaz) =>
+        TienePermiso(nombreInterfaz, item => item.Actualizar == true);
+
+    public bool TienePermisoEliminar(string nombreInterfaz) =>
+        TienePermiso(nombreInterfaz, item => item.Eliminar == true);
+
+    private bool TienePermiso(
+        string nombreInterfaz,
+        Func<PermisoInterfaz, bool> selector)
     {
         if (EsAdministrador)
             return true;
@@ -75,7 +89,7 @@ public sealed class AuthStateService
                 item.NombreInterfaz,
                 nombreInterfaz,
                 StringComparison.OrdinalIgnoreCase) &&
-            item.Leer == true) == true;
+            selector(item)) == true;
     }
 
     public void CerrarSesion()

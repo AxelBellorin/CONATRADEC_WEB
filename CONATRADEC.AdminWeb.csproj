@@ -4,6 +4,13 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- MonsterASP trabaja sobre IIS. InProcess es el modelo recomendado. -->
+    <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
+
+    <!-- MonsterASP ya dispone del runtime de .NET 9. -->
+    <SelfContained>false</SelfContained>
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
 </Project>

@@ -1,4 +1,5 @@
 using CONATRADEC.AdminWeb.Models;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace CONATRADEC.AdminWeb.Services;
 
@@ -12,21 +13,99 @@ public sealed class UsuarioService
     }
 
     public async Task<List<UsuarioListadoItem>> ListarAsync(
-        CancellationToken cancellationToken = default)
-    {
-        return await apiClient.GetAsync<List<UsuarioListadoItem>>(
+        CancellationToken cancellationToken = default) =>
+        await apiClient.GetAsync<List<UsuarioListadoItem>>(
             "api/usuarios/listar",
             cancellationToken) ?? [];
+
+    public async Task<UsuarioListadoItem?> ObtenerAsync(
+        int usuarioId,
+        CancellationToken cancellationToken = default) =>
+        await apiClient.GetAsync<UsuarioListadoItem>(
+            $"api/usuarios/{usuarioId}",
+            cancellationToken);
+
+    public async Task<UsuarioListadoItem> CrearAsync(
+        UsuarioCrearModel modelo,
+        CancellationToken cancellationToken = default)
+    {
+        ValidarRol(modelo.EsInterno, modelo.RolId);
+
+        UsuarioListadoItem? creado =
+            await apiClient.PostAsync<UsuarioCrearModel, UsuarioListadoItem>(
+                "api/usuarios/crear",
+                modelo,
+                cancellationToken);
+
+        return creado ??
+               throw new InvalidOperationException(
+                   "La API no devolvió el usuario creado.");
     }
+
+    public async Task<UsuarioListadoItem> ActualizarAsync(
+        UsuarioActualizarModel modelo,
+        CancellationToken cancellationToken = default)
+    {
+        ValidarRol(modelo.EsInterno, modelo.RolId);
+
+        UsuarioListadoItem? actualizado =
+            await apiClient.PutAsync<UsuarioActualizarModel, UsuarioListadoItem>(
+                $"api/usuarios/actualizar/{modelo.UsuarioId}",
+                modelo,
+                cancellationToken);
+
+        return actualizado ??
+               throw new InvalidOperationException(
+                   "La API no devolvió el usuario actualizado.");
+    }
+
+    public Task DesactivarAsync(
+        int usuarioId,
+        CancellationToken cancellationToken = default) =>
+        apiClient.EliminarAsync(
+            $"api/usuarios/eliminar/{usuarioId}",
+            cancellationToken);
+
+    public Task SubirImagenAsync(
+        int usuarioId,
+        IBrowserFile archivo,
+        CancellationToken cancellationToken = default) =>
+        apiClient.SubirArchivoAsync(
+            $"api/usuarios/{usuarioId}/SubirImagenUsuario",
+            archivo,
+            "archivo",
+            8 * 1024 * 1024,
+            cancellationToken);
+
+    public async Task<List<RolSelectorItem>> ListarRolesAsync(
+        CancellationToken cancellationToken = default) =>
+        await apiClient.GetAsync<List<RolSelectorItem>>(
+            "api/Rol/listarRoles",
+            cancellationToken) ?? [];
+
+    public async Task<List<MunicipioSelectorItem>> ListarMunicipiosAsync(
+        CancellationToken cancellationToken = default) =>
+        await apiClient.GetAsync<List<MunicipioSelectorItem>>(
+            "api/municipio/listarTodos-por-departamento-por-pais",
+            cancellationToken) ?? [];
 
     public string ConstruirUrlImagen(string? ruta)
     {
         if (string.IsNullOrWhiteSpace(ruta))
             return string.Empty;
 
-        if (Uri.TryCreate(ruta, UriKind.Absolute, out var absoluta))
+        if (Uri.TryCreate(ruta, UriKind.Absolute, out Uri? absoluta))
             return absoluta.ToString();
 
         return new Uri(apiClient.BaseAddress!, ruta.TrimStart('/')).ToString();
+    }
+
+    private static void ValidarRol(bool esInterno, int? rolId)
+    {
+        if (esInterno && (!rolId.HasValue || rolId.Value <= 0))
+        {
+            throw new InvalidOperationException(
+                "Seleccione un rol para el usuario interno.");
+        }
     }
 }

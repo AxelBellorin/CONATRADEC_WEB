@@ -9,15 +9,34 @@
     <div>
         <p class="eyebrow">Administración</p>
         <h1>Usuarios</h1>
-        <p>Consulta los usuarios activos, sus roles y procedencia.</p>
+        <p>Agrega, consulta, modifica y desactiva usuarios del sistema.</p>
     </div>
+
     <div class="page-header-actions">
-        <button class="btn-secondary" @onclick="CargarUsuarios" disabled="@cargando">
+        <button class="btn-secondary"
+                @onclick="CargarTodo"
+                disabled="@procesando">
             <i class="fa-solid fa-rotate"></i>
             Actualizar
         </button>
+
+        @if (PuedeAgregar)
+        {
+            <button class="btn-primary" @onclick="AbrirCrear">
+                <i class="fa-solid fa-user-plus"></i>
+                Agregar usuario
+            </button>
+        }
     </div>
 </div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert alert-success-custom">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensaje</span>
+    </div>
+}
 
 @if (!string.IsNullOrWhiteSpace(error))
 {
@@ -35,9 +54,10 @@
                    @bind-Value:event="oninput"
                    placeholder="Buscar por nombre, usuario, correo, identificación o rol" />
     </div>
+
     <div class="toolbar-summary">
         <strong>@UsuariosFiltrados.Count</strong>
-        <span>usuarios visibles</span>
+        <span>usuarios activos</span>
     </div>
 </section>
 
@@ -50,28 +70,18 @@ else if (UsuariosFiltrados.Count == 0)
     <section class="empty-state panel compact-empty">
         <i class="fa-solid fa-users-slash"></i>
         <h2>No se encontraron usuarios</h2>
-        <p>Cambia el texto de búsqueda o actualiza la información.</p>
+        <p>No hay registros activos que coincidan con la búsqueda.</p>
     </section>
 }
 else
 {
     <section class="user-grid">
-        @foreach (var usuario in UsuariosFiltrados)
+        @foreach (UsuarioListadoItem usuario in UsuariosFiltrados)
         {
             <article class="user-card panel">
                 <div class="user-card-top">
-                    @if (!string.IsNullOrWhiteSpace(usuario.UrlImagenUsuario))
-                    {
-                        <img class="user-photo"
-                             src="@UsuarioService.ConstruirUrlImagen(usuario.UrlImagenUsuario)"
-                             alt="Imagen de @usuario.NombreCompletoUsuario"
-                             onerror="this.style.display='none';this.nextElementSibling.style.display='grid';" />
-                        <div class="user-initials" style="display:none">@Iniciales(usuario.NombreCompletoUsuario)</div>
-                    }
-                    else
-                    {
-                        <div class="user-initials">@Iniciales(usuario.NombreCompletoUsuario)</div>
-                    }
+                    <UserAvatar Usuario="usuario"
+                                Url="@UsuarioService.ConstruirUrlImagen(usuario.UrlImagenUsuario)" />
 
                     <div class="user-main-data">
                         <h2>@usuario.NombreCompletoUsuario</h2>
@@ -95,12 +105,38 @@ else
                         <i class="fa-regular fa-id-card"></i>
                         @usuario.IdentificacionUsuario
                     </span>
-                    @if (!string.IsNullOrWhiteSpace(usuario.TelefonoUsuario))
+                    <span>
+                        <i class="fa-solid fa-phone"></i>
+                        @(string.IsNullOrWhiteSpace(usuario.TelefonoUsuario)
+                            ? "No registrado"
+                            : usuario.TelefonoUsuario)
+                    </span>
+                </div>
+
+                <div class="user-card-actions">
+                    <button class="btn-icon-view"
+                            title="Visualizar"
+                            @onclick="() => AbrirVisualizar(usuario)">
+                        <i class="fa-regular fa-eye"></i>
+                    </button>
+
+                    @if (PuedeActualizar)
                     {
-                        <span>
-                            <i class="fa-solid fa-phone"></i>
-                            @usuario.TelefonoUsuario
-                        </span>
+                        <button class="btn-icon-edit"
+                                title="Editar"
+                                @onclick="() => AbrirEditar(usuario)">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                    }
+
+                    @if (PuedeEliminar)
+                    {
+                        <button class="btn-icon-delete"
+                                title="Desactivar"
+                                disabled="@(usuario.UsuarioId == AuthState.Usuario?.UsuarioId)"
+                                @onclick="() => AbrirEliminar(usuario)">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
                     }
                 </div>
             </article>
@@ -108,11 +144,159 @@ else
     </section>
 }
 
+@if (modalCrear)
+{
+    <div class="modal-backdrop">
+        <article class="modal-card user-form-modal">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Nuevo registro</p>
+                    <h2>Agregar usuario</h2>
+                </div>
+                <button class="modal-close" @onclick="CerrarModales">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <EditForm Model="crearModel"
+                      OnValidSubmit="GuardarNuevo"
+                      FormName="crear-usuario">
+                <DataAnnotationsValidator />
+                @FormularioCrear()
+            </EditForm>
+        </article>
+    </div>
+}
+
+@if (modalEditar && editarModel is not null)
+{
+    <div class="modal-backdrop">
+        <article class="modal-card user-form-modal">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Actualizar registro</p>
+                    <h2>Editar @editarModel.NombreUsuario</h2>
+                </div>
+                <button class="modal-close" @onclick="CerrarModales">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <EditForm Model="editarModel"
+                      OnValidSubmit="GuardarEdicion"
+                      FormName="editar-usuario">
+                <DataAnnotationsValidator />
+                @FormularioEditar()
+            </EditForm>
+        </article>
+    </div>
+}
+
+@if (modalVisualizar && seleccionado is not null)
+{
+    <div class="modal-backdrop" @onclick="CerrarModales">
+        <article class="modal-card user-view-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Detalle del usuario</p>
+                    <h2>@seleccionado.NombreCompletoUsuario</h2>
+                </div>
+                <button class="modal-close" @onclick="CerrarModales">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="user-view-header">
+                <UserAvatar Usuario="seleccionado"
+                            Grande="true"
+                            Url="@UsuarioService.ConstruirUrlImagen(seleccionado.UrlImagenUsuario)" />
+                <div>
+                    <h3>@@@seleccionado.NombreUsuario</h3>
+                    <div class="user-tags">
+                        <span class="badge">@seleccionado.RolNombre</span>
+                        <span class="badge badge-neutral">@seleccionado.ProcedenciaNombre</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-grid">
+                <DetailItem Etiqueta="Correo" Valor="@seleccionado.CorreoUsuario" />
+                <DetailItem Etiqueta="Teléfono" Valor="@seleccionado.TelefonoUsuario" />
+                <DetailItem Etiqueta="Identificación" Valor="@seleccionado.IdentificacionUsuario" />
+                <DetailItem Etiqueta="Nacimiento" Valor="@FechaTexto(seleccionado.FechaNacimientoUsuario)" />
+                <DetailItem Etiqueta="Tipo de usuario"
+                            Valor="@(seleccionado.EsInterno ? "Interno" : "Externo")" />
+                <DetailItem Etiqueta="Municipio"
+                            Valor="@NombreMunicipio(seleccionado.MunicipioId)" />
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary" @onclick="CerrarModales">Cerrar</button>
+                @if (PuedeActualizar)
+                {
+                    <button class="btn-primary" @onclick="() => AbrirEditar(seleccionado)">
+                        <i class="fa-solid fa-pen"></i>
+                        Editar
+                    </button>
+                }
+            </div>
+        </article>
+    </div>
+}
+
+@if (modalEliminar && seleccionado is not null)
+{
+    <div class="modal-backdrop">
+        <article class="modal-card confirm-modal">
+            <div class="confirm-icon">
+                <i class="fa-solid fa-user-slash"></i>
+            </div>
+            <h2>¿Desactivar usuario?</h2>
+            <p>
+                Se desactivará a <strong>@seleccionado.NombreCompletoUsuario</strong>.
+                Ya no podrá iniciar sesión, pero su historial se conservará.
+            </p>
+            <div class="confirm-actions">
+                <button class="btn-secondary" @onclick="CerrarModales">Cancelar</button>
+                <button class="btn-danger" @onclick="ConfirmarEliminar" disabled="@procesando">
+                    @(procesando ? "Desactivando..." : "Sí, desactivar")
+                </button>
+            </div>
+        </article>
+    </div>
+}
+
 @code {
     private List<UsuarioListadoItem> usuarios = [];
+    private List<RolSelectorItem> roles = [];
+    private List<MunicipioSelectorItem> municipios = [];
+
+    private UsuarioCrearModel crearModel = new();
+    private UsuarioActualizarModel? editarModel;
+    private UsuarioListadoItem? seleccionado;
+
     private bool cargando = true;
+    private bool procesando;
+    private bool modalCrear;
+    private bool modalEditar;
+    private bool modalVisualizar;
+    private bool modalEliminar;
+
     private string buscar = string.Empty;
+    private string? mensaje;
     private string? error;
+
+    private bool PuedeAgregar =>
+        AuthState.TienePermisoAgregar("UsuarioPage") ||
+        AuthState.TienePermisoAgregar("usuarioPage");
+
+    private bool PuedeActualizar =>
+        AuthState.TienePermisoActualizar("UsuarioPage") ||
+        AuthState.TienePermisoActualizar("usuarioPage");
+
+    private bool PuedeEliminar =>
+        AuthState.TienePermisoEliminar("UsuarioPage") ||
+        AuthState.TienePermisoEliminar("usuarioPage");
 
     private List<UsuarioListadoItem> UsuariosFiltrados => usuarios
         .Where(usuario =>
@@ -136,23 +320,24 @@ else
             return;
         }
 
-        await CargarUsuarios();
+        await CargarTodo();
         StateHasChanged();
     }
 
-    private async Task CargarUsuarios()
+    private async Task CargarTodo()
     {
         cargando = true;
-        error = null;
+        LimpiarMensajes();
 
         try
         {
             usuarios = await UsuarioService.ListarAsync();
+            roles = await UsuarioService.ListarRolesAsync();
+            municipios = await UsuarioService.ListarMunicipiosAsync();
         }
         catch (Exception ex)
         {
-            error = $"No fue posible cargar los usuarios. {ex.Message}";
-            usuarios = [];
+            error = $"No fue posible cargar la administración de usuarios. {ex.Message}";
         }
         finally
         {
@@ -160,17 +345,422 @@ else
         }
     }
 
+    private void AbrirCrear()
+    {
+        CerrarModales();
+        crearModel = new UsuarioCrearModel
+        {
+            EsInterno = true
+        };
+        modalCrear = true;
+    }
+
+    private void AbrirVisualizar(UsuarioListadoItem usuario)
+    {
+        CerrarModales();
+        seleccionado = usuario;
+        modalVisualizar = true;
+    }
+
+    private void AbrirEditar(UsuarioListadoItem usuario)
+    {
+        CerrarModales();
+        seleccionado = usuario;
+        editarModel = UsuarioActualizarModel.Desde(usuario);
+        modalEditar = true;
+    }
+
+    private void AbrirEliminar(UsuarioListadoItem usuario)
+    {
+        CerrarModales();
+        seleccionado = usuario;
+        modalEliminar = true;
+    }
+
+    private async Task GuardarNuevo()
+    {
+        if (procesando)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            UsuarioListadoItem creado =
+                await UsuarioService.CrearAsync(crearModel);
+
+            if (crearModel.Imagen is not null)
+            {
+                await UsuarioService.SubirImagenAsync(
+                    creado.UsuarioId,
+                    crearModel.Imagen);
+            }
+
+            mensaje = "Usuario creado correctamente.";
+            CerrarModales();
+            await CargarUsuariosSinBorrarMensaje();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task GuardarEdicion()
+    {
+        if (procesando || editarModel is null)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await UsuarioService.ActualizarAsync(editarModel);
+
+            if (editarModel.Imagen is not null)
+            {
+                await UsuarioService.SubirImagenAsync(
+                    editarModel.UsuarioId,
+                    editarModel.Imagen);
+            }
+
+            mensaje = "Usuario actualizado correctamente.";
+            CerrarModales();
+            await CargarUsuariosSinBorrarMensaje();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task ConfirmarEliminar()
+    {
+        if (procesando || seleccionado is null)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await UsuarioService.DesactivarAsync(seleccionado.UsuarioId);
+            mensaje = "Usuario desactivado correctamente.";
+            CerrarModales();
+            await CargarUsuariosSinBorrarMensaje();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task CargarUsuariosSinBorrarMensaje()
+    {
+        try
+        {
+            usuarios = await UsuarioService.ListarAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private RenderFragment FormularioCrear() => @<text>
+        <div class="user-form-grid">
+            <div class="form-group">
+                <label>Nombre de usuario *</label>
+                <InputText class="form-control" @bind-Value="crearModel.NombreUsuario" />
+                <ValidationMessage For="() => crearModel.NombreUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Nombre completo *</label>
+                <InputText class="form-control" @bind-Value="crearModel.NombreCompletoUsuario" />
+                <ValidationMessage For="() => crearModel.NombreCompletoUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Correo electrónico *</label>
+                <InputText class="form-control" @bind-Value="crearModel.CorreoUsuario" />
+                <ValidationMessage For="() => crearModel.CorreoUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Teléfono *</label>
+                <InputText class="form-control" maxlength="8" @bind-Value="crearModel.TelefonoUsuario" />
+                <ValidationMessage For="() => crearModel.TelefonoUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Fecha de nacimiento *</label>
+                <InputDate class="form-control" @bind-Value="crearModel.FechaNacimientoUsuario" />
+                <ValidationMessage For="() => crearModel.FechaNacimientoUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Identificación *</label>
+                <InputText class="form-control"
+                           placeholder="001-080701-1050R"
+                           maxlength="18"
+                           @bind-Value="crearModel.IdentificacionUsuario" />
+                <ValidationMessage For="() => crearModel.IdentificacionUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Tipo de usuario *</label>
+                <InputSelect class="form-control" @bind-Value="crearModel.EsInterno">
+                    <option value="true">Interno</option>
+                    <option value="false">Externo</option>
+                </InputSelect>
+            </div>
+
+            @if (crearModel.EsInterno)
+            {
+                <div class="form-group">
+                    <label>Rol *</label>
+                    <InputSelect class="form-control" @bind-Value="crearModel.RolId">
+                        <option value="">Seleccione</option>
+                        @foreach (RolSelectorItem rol in roles)
+                        {
+                            <option value="@rol.RolId">@rol.NombreRol</option>
+                        }
+                    </InputSelect>
+                </div>
+            }
+            else
+            {
+                <div class="form-info">
+                    <i class="fa-solid fa-circle-info"></i>
+                    El backend asignará automáticamente el rol Invitado.
+                </div>
+            }
+
+            <div class="form-group form-span-2">
+                <label>Municipio</label>
+                <InputSelect class="form-control" @bind-Value="crearModel.MunicipioId">
+                    <option value="">Sin municipio</option>
+                    @foreach (MunicipioSelectorItem municipio in municipios)
+                    {
+                        <option value="@municipio.MunicipioId">
+                            @municipio.NombrePais · @municipio.NombreDepartamento · @municipio.NombreMunicipio
+                        </option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="form-group form-span-2">
+                <label>Contraseña *</label>
+                <InputText type="password" class="form-control" @bind-Value="crearModel.Clave" />
+                <small class="field-help">
+                    Mínimo 8 caracteres con mayúscula, minúscula, número y símbolo.
+                </small>
+                <ValidationMessage For="() => crearModel.Clave" />
+            </div>
+
+            <div class="form-group form-span-2">
+                <label>Fotografía opcional</label>
+                <InputFile OnChange="SeleccionarImagenCrear"
+                           accept=".jpg,.jpeg,.png,.webp"
+                           class="file-input" />
+                @if (crearModel.Imagen is not null)
+                {
+                    <small class="file-selected">
+                        <i class="fa-solid fa-image"></i>
+                        @crearModel.Imagen.Name
+                    </small>
+                }
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn-secondary" @onclick="CerrarModales">
+                Cancelar
+            </button>
+            <button type="submit" class="btn-primary" disabled="@procesando">
+                <i class="fa-solid fa-floppy-disk"></i>
+                @(procesando ? "Guardando..." : "Guardar usuario")
+            </button>
+        </div>
+    </text>;
+
+    private RenderFragment FormularioEditar() => @<text>
+        <div class="user-form-grid">
+            <div class="form-group">
+                <label>Nombre de usuario</label>
+                <InputText class="form-control" disabled @bind-Value="editarModel!.NombreUsuario" />
+                <small class="field-help">El backend no permite modificar este campo.</small>
+            </div>
+
+            <div class="form-group">
+                <label>Nombre completo *</label>
+                <InputText class="form-control" @bind-Value="editarModel!.NombreCompletoUsuario" />
+                <ValidationMessage For="() => editarModel!.NombreCompletoUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Correo electrónico *</label>
+                <InputText class="form-control" @bind-Value="editarModel!.CorreoUsuario" />
+                <ValidationMessage For="() => editarModel!.CorreoUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Teléfono *</label>
+                <InputText class="form-control" maxlength="8" @bind-Value="editarModel!.TelefonoUsuario" />
+                <ValidationMessage For="() => editarModel!.TelefonoUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Fecha de nacimiento *</label>
+                <InputDate class="form-control" @bind-Value="editarModel!.FechaNacimientoUsuario" />
+                <ValidationMessage For="() => editarModel!.FechaNacimientoUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Identificación *</label>
+                <InputText class="form-control"
+                           maxlength="18"
+                           @bind-Value="editarModel!.IdentificacionUsuario" />
+                <ValidationMessage For="() => editarModel!.IdentificacionUsuario" />
+            </div>
+
+            <div class="form-group">
+                <label>Tipo de usuario *</label>
+                <InputSelect class="form-control" @bind-Value="editarModel!.EsInterno">
+                    <option value="true">Interno</option>
+                    <option value="false">Externo</option>
+                </InputSelect>
+            </div>
+
+            @if (editarModel!.EsInterno)
+            {
+                <div class="form-group">
+                    <label>Rol *</label>
+                    <InputSelect class="form-control" @bind-Value="editarModel!.RolId">
+                        <option value="">Seleccione</option>
+                        @foreach (RolSelectorItem rol in roles)
+                        {
+                            <option value="@rol.RolId">@rol.NombreRol</option>
+                        }
+                    </InputSelect>
+                </div>
+            }
+            else
+            {
+                <div class="form-info">
+                    <i class="fa-solid fa-circle-info"></i>
+                    Al guardar, el backend asignará el rol Invitado.
+                </div>
+            }
+
+            <div class="form-group form-span-2">
+                <label>Municipio</label>
+                <InputSelect class="form-control" @bind-Value="editarModel!.MunicipioId">
+                    <option value="">Sin municipio</option>
+                    @foreach (MunicipioSelectorItem municipio in municipios)
+                    {
+                        <option value="@municipio.MunicipioId">
+                            @municipio.NombrePais · @municipio.NombreDepartamento · @municipio.NombreMunicipio
+                        </option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="form-group form-span-2">
+                <label>Nueva contraseña</label>
+                <InputText type="password"
+                           class="form-control"
+                           @bind-Value="editarModel!.NuevaClave" />
+                <small class="field-help">
+                    Déjala vacía para conservar la contraseña actual.
+                </small>
+                <ValidationMessage For="() => editarModel!.NuevaClave" />
+            </div>
+
+            <div class="form-group form-span-2">
+                <label>Cambiar fotografía</label>
+                <InputFile OnChange="SeleccionarImagenEditar"
+                           accept=".jpg,.jpeg,.png,.webp"
+                           class="file-input" />
+                @if (editarModel!.Imagen is not null)
+                {
+                    <small class="file-selected">
+                        <i class="fa-solid fa-image"></i>
+                        @editarModel.Imagen.Name
+                    </small>
+                }
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn-secondary" @onclick="CerrarModales">
+                Cancelar
+            </button>
+            <button type="submit" class="btn-primary" disabled="@procesando">
+                <i class="fa-solid fa-floppy-disk"></i>
+                @(procesando ? "Guardando..." : "Guardar cambios")
+            </button>
+        </div>
+    </text>;
+
+    private void SeleccionarImagenCrear(InputFileChangeEventArgs args)
+    {
+        crearModel.Imagen = args.File;
+    }
+
+    private void SeleccionarImagenEditar(InputFileChangeEventArgs args)
+    {
+        if (editarModel is not null)
+            editarModel.Imagen = args.File;
+    }
+
+    private void CerrarModales()
+    {
+        modalCrear = false;
+        modalEditar = false;
+        modalVisualizar = false;
+        modalEliminar = false;
+        seleccionado = null;
+        editarModel = null;
+    }
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+    }
+
+    private string NombreMunicipio(int? municipioId)
+    {
+        if (!municipioId.HasValue)
+            return "No registrado";
+
+        MunicipioSelectorItem? item =
+            municipios.FirstOrDefault(x => x.MunicipioId == municipioId.Value);
+
+        return item is null
+            ? $"Municipio #{municipioId}"
+            : $"{item.NombreMunicipio}, {item.NombreDepartamento}, {item.NombrePais}";
+    }
+
+    private static string FechaTexto(DateOnly? fecha) =>
+        fecha?.ToString("dd/MM/yyyy") ?? "No registrada";
+
     private static bool Contiene(string? valor, string texto) =>
         valor?.Contains(texto.Trim(), StringComparison.OrdinalIgnoreCase) == true;
-
-    private static string Iniciales(string nombre)
-    {
-        if (string.IsNullOrWhiteSpace(nombre))
-            return "U";
-
-        return string.Concat(nombre
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Take(2)
-            .Select(item => char.ToUpperInvariant(item[0])));
-    }
 }
