@@ -34,6 +34,7 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\C
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\ref\CONATRADEC.AdminWeb.dll
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\compressed\ti9450w5jy-{0}-xef6mlarw2-xef6mlarw2.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\CONATRADEC.AdminWeb.sourcelink.json
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\compressed\fophhmm872-{0}-phd90y9sho-phd90y9sho.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\bin\Debug\net9.0\appsettings.Production.json
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\bin\Debug\net9.0\dotnet-tools.json
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\compressed\fophhmm872-{0}-mtdndmxtfw-mtdndmxtfw.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Debug\net9.0\compressed\39e6n0hekl-{0}-6g46qx0lo7-6g46qx0lo7.gz

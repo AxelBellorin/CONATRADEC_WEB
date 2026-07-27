@@ -1566,3 +1566,492 @@ a {
         flex-direction: column;
     }
 }
+
+
+/* ============================================================
+   USUARIOS INACTIVOS Y DISPOSITIVOS CONECTADOS
+   ============================================================ */
+.inactive-user-card {
+    border-color: rgba(239, 68, 68, .18);
+}
+
+.inactive-avatar {
+    background: rgba(239, 68, 68, .10);
+    color: #b32f2f;
+}
+
+.inactive-details {
+    margin-top: 18px;
+}
+
+.btn-reactivate {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 15px;
+    border: 1px solid var(--green-600);
+    border-radius: 10px;
+    background: var(--green-100);
+    color: var(--green-800);
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.btn-reactivate:hover {
+    background: var(--green-600);
+    color: white;
+}
+
+.reactivate-icon {
+    background: var(--green-100);
+    color: var(--green-700);
+}
+
+.device-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.device-stat {
+    min-width: 0;
+}
+
+.device-stat span,
+.device-stat strong,
+.device-stat small {
+    display: block;
+}
+
+.device-stat span {
+    color: var(--gray-600);
+    font-size: 11px;
+}
+
+.device-stat strong {
+    margin: 7px 0;
+    color: var(--green-800);
+    font-size: 26px;
+}
+
+.device-stat small {
+    color: var(--gray-600);
+    font-size: 10px;
+}
+
+.device-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0 15px;
+    margin-bottom: 18px;
+}
+
+.device-search-wide {
+    grid-column: span 2;
+}
+
+.device-filter-actions {
+    display: flex;
+    align-items: flex-end;
+    gap: 7px;
+    padding-bottom: 17px;
+}
+
+.device-table td {
+    white-space: nowrap;
+}
+
+.platform-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 9px;
+    border-radius: 8px;
+    background: var(--gray-100);
+    color: var(--gray-800);
+    font-weight: 700;
+}
+
+.device-detail-modal {
+    width: min(900px, 100%);
+    padding: 25px;
+}
+
+.device-detail-header {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    margin: 20px 0;
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--green-100);
+}
+
+.device-detail-header h3 {
+    margin: 0 0 4px;
+}
+
+.device-detail-header span:not(.status-label) {
+    color: var(--gray-600);
+    font-size: 12px;
+}
+
+.device-icon-large {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 13px;
+    background: white;
+    color: var(--green-700);
+    font-size: 26px;
+}
+
+@media (max-width: 1250px) {
+    .device-stat-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .device-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 680px) {
+    .device-stat-grid,
+    .device-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .device-search-wide {
+        grid-column: auto;
+    }
+
+    .device-filter-actions {
+        align-items: stretch;
+        flex-direction: column;
+        padding-bottom: 0;
+    }
+
+    .device-detail-header {
+        grid-template-columns: 58px minmax(0, 1fr);
+    }
+
+    .device-detail-header .status-label {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+}
+
+
+/* ============================================================
+   MAPA DE DISPOSITIVOS CONECTADOS
+   ============================================================ */
+.device-view-selector {
+    display: inline-flex;
+    gap: 7px;
+    margin-bottom: 16px;
+    padding: 5px;
+    border: 1px solid var(--gray-200);
+    border-radius: 13px;
+    background: white;
+}
+
+.device-view-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 15px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--gray-700);
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.device-view-button.active {
+    background: var(--green-700);
+    color: white;
+}
+
+.device-view-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 23px;
+    height: 23px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .18);
+    font-size: 11px;
+}
+
+.device-map-panel {
+    padding: 18px;
+}
+
+.device-map-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 14px;
+}
+
+.device-map-toolbar h2 {
+    margin: 0 0 5px;
+}
+
+.device-map-toolbar p {
+    margin: 0;
+    color: var(--gray-600);
+}
+
+.device-map-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.device-map-legend {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 12px;
+    color: var(--gray-700);
+    font-size: 12px;
+}
+
+.device-map-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.device-map-legend-dot {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+}
+
+.device-map-legend-dot.online {
+    background: #3B655B;
+}
+
+.device-map-legend-dot.offline {
+    background: #8E9692;
+}
+
+.device-map-container {
+    width: 100%;
+    height: 580px;
+    overflow: hidden;
+    border: 1px solid var(--gray-200);
+    border-radius: 15px;
+    background: #edf2ef;
+    z-index: 1;
+}
+
+.device-map-empty {
+    min-height: 360px;
+}
+
+.device-map-marker-wrapper {
+    background: transparent;
+    border: 0;
+}
+
+.device-map-marker {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 3px solid white;
+    border-radius: 50% 50% 50% 12px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, .25);
+    color: white;
+    font-size: 18px;
+    transform: rotate(-45deg);
+}
+
+.device-map-marker > i {
+    transform: rotate(45deg);
+}
+
+.device-map-marker-online {
+    background: #3B655B;
+}
+
+.device-map-marker-offline {
+    background: #8E9692;
+}
+
+.device-map-warning {
+    position: absolute;
+    top: -9px;
+    right: -9px;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border: 2px solid white;
+    border-radius: 50%;
+    background: #EF4444;
+    color: white;
+    font-size: 10px;
+    transform: rotate(45deg);
+}
+
+.device-map-popup {
+    min-width: 245px;
+    color: #25332e;
+}
+
+.device-map-popup-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e4ebe7;
+}
+
+.device-map-popup-header h3 {
+    margin: 0 0 3px;
+    font-size: 15px;
+}
+
+.device-map-popup-header span {
+    color: #66736e;
+    font-size: 11px;
+}
+
+.device-map-popup-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    color: white;
+    font-size: 18px;
+}
+
+.device-map-popup p {
+    margin: 6px 0;
+    font-size: 12px;
+}
+
+.device-map-simulated {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 10px;
+    padding: 8px 9px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, .10);
+    color: #b32f2f;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+@media (max-width: 680px) {
+    .device-view-selector {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+    }
+
+    .device-view-button {
+        justify-content: center;
+        padding: 0 10px;
+    }
+
+    .device-map-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .device-map-container {
+        height: 460px;
+    }
+}
+
+
+/* ============================================================
+   UBICACIÓN ADMINISTRATIVA Y GOOGLE MAPS
+   ============================================================ */
+.device-map-location {
+    margin: 10px 0;
+    padding: 9px 10px;
+    border: 1px solid #dfe8e3;
+    border-radius: 9px;
+    background: #f5f8f6;
+}
+
+.device-map-location p {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: 7px;
+    margin: 5px 0;
+}
+
+.device-map-location i {
+    margin-top: 2px;
+    color: #3B655B;
+}
+
+.device-map-location span,
+.device-map-location strong {
+    display: block;
+}
+
+.device-map-location strong {
+    margin-bottom: 1px;
+    color: #607069;
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.device-google-maps-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 39px;
+    margin-top: 12px;
+    border-radius: 9px;
+    background: #3B655B;
+    color: #ffffff !important;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none !important;
+}
+
+.device-google-maps-button:hover {
+    background: #2f5149;
+}
+
+.department-tooltip {
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 7px;
+    background: rgba(47, 81, 73, .92);
+    color: white;
+    box-shadow: none;
+    font-size: 11px;
+    font-weight: 700;
+}

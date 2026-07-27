@@ -1,28 +1,7 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\",
-  "Documents": [
-    {
-      "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\dotnet-tools.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:dotnet-tools.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\conatradec.adminweb.csproj.backup (1).tmp||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
-      "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:conatradec.adminweb.csproj.backup (1).tmp||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|c:\\users\\axel bellorin\\desktop\\conatradec\\conatradec.adminweb\\conatradec.adminweb.csproj.backup.tmp||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
-      "RelativeMoniker": "D:0:0:{8B01FB35-56BE-B8B1-9E2C-BBC95131F4B1}|CONATRADEC.AdminWeb.csproj|solutionrelative:conatradec.adminweb.csproj.backup.tmp||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
-    }
-  ],
+  "Documents": [],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -30,7 +9,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": -1,
           "Children": [
             {
               "$type": "Bookmark",
@@ -39,68 +18,6 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "appsettings.Development.json",
-              "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\appsettings.Development.json",
-              "RelativeDocumentMoniker": "appsettings.Development.json",
-              "ToolTip": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\appsettings.Development.json",
-              "RelativeToolTip": "appsettings.Development.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAsAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-07-27T03:30:28.202Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "dotnet-tools.json",
-              "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\dotnet-tools.json",
-              "RelativeDocumentMoniker": "dotnet-tools.json",
-              "ToolTip": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\dotnet-tools.json",
-              "RelativeToolTip": "dotnet-tools.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-07-27T02:40:09.278Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "CONATRADEC.AdminWeb.csproj.Backup.tmp",
-              "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj.Backup.tmp",
-              "RelativeDocumentMoniker": "CONATRADEC.AdminWeb.csproj.Backup.tmp",
-              "ToolTip": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj.Backup.tmp",
-              "RelativeToolTip": "CONATRADEC.AdminWeb.csproj.Backup.tmp",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2026-07-27T02:40:06.21Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "CONATRADEC.AdminWeb.csproj.Backup (1).tmp",
-              "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj.Backup (1).tmp",
-              "RelativeDocumentMoniker": "CONATRADEC.AdminWeb.csproj.Backup (1).tmp",
-              "ToolTip": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj.Backup (1).tmp",
-              "RelativeToolTip": "CONATRADEC.AdminWeb.csproj.Backup (1).tmp",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2026-07-27T02:40:02.884Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "appsettings.json",
-              "DocumentMoniker": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\appsettings.json",
-              "RelativeDocumentMoniker": "appsettings.json",
-              "ToolTip": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\appsettings.json",
-              "RelativeToolTip": "appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAEAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-07-27T02:24:40.257Z",
-              "EditorCaption": ""
             }
           ]
         }
