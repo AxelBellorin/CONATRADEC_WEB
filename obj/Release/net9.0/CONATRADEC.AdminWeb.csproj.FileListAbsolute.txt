@@ -47,5 +47,6 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\scopedcss\Components\Pages\AlertasAgricolas.razor.rz.scp.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\scopedcss\Components\Pages\SeguimientoAlertas.razor.rz.scp.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\scopedcss\Components\Pages\Home.razor.rz.scp.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\722bys1tf3-{0}-lrzpetqa2y-lrzpetqa2y.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\bh50ruxdel-{0}-lrzpetqa2y-lrzpetqa2y.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\scopedcss\Components\Pages\Actualizaciones.razor.rz.scp.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\722bys1tf3-{0}-1eq7lo436h-1eq7lo436h.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\bh50ruxdel-{0}-1eq7lo436h-1eq7lo436h.gz

@@ -111,6 +111,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTWFpbkxheW91dC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-k15epbudz9
 
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/Actualizaciones.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY3R1YWxpemFjaW9uZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-yybolzysan
+
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/AlertasAgricolas.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBbGVydGFzQWdyaWNvbGFzLnJhem9y
 build_metadata.AdditionalFiles.CssScope = b-syt6o7gknb

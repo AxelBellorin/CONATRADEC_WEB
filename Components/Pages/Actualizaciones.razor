@@ -1,0 +1,878 @@
+@page "/actualizaciones"
+@inject AuthStateService AuthState
+@inject ActualizacionesService ActualizacionesApi
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Gestión de actualizaciones | CONATRADEC</PageTitle>
+
+<div class="page-header update-header">
+    <div>
+        <p class="eyebrow">Distribución interna</p>
+        <h1>Gestión de actualizaciones</h1>
+        <p>
+            Publica nuevas versiones de ConatraCafé Soil para Android y Windows
+            sin depender de Play Store o Microsoft Store.
+        </p>
+    </div>
+
+    <div class="page-header-actions">
+        <button class="btn-secondary"
+                @onclick="CargarTodoAsync"
+                disabled="@ocupado">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar listado
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensajeError))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@mensajeError</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(mensajeExito))
+{
+    <div class="alert alert-success">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensajeExito</span>
+    </div>
+}
+
+<section class="update-metrics">
+    <article class="metric-card update-metric">
+        <span>Versiones registradas</span>
+        <strong>@versiones.Count</strong>
+        <small>Todos los canales</small>
+    </article>
+
+    <article class="metric-card update-metric">
+        <span>Publicadas</span>
+        <strong>@versiones.Count(x => x.Estado == "PUBLICADA")</strong>
+        <small>Disponibles para descargar</small>
+    </article>
+
+    <article class="metric-card update-metric">
+        <span>Borradores</span>
+        <strong>@versiones.Count(x => x.Estado == "BORRADOR")</strong>
+        <small>Pendientes de publicación</small>
+    </article>
+
+    <article class="metric-card update-metric">
+        <span>Obligatorias</span>
+        <strong>@versiones.Count(x => x.Estado == "PUBLICADA" && x.Obligatoria)</strong>
+        <small>Bloquean versiones antiguas</small>
+    </article>
+</section>
+
+@if (PuedeAgregar)
+{
+    <section class="panel update-upload-panel">
+        <div class="update-section-title">
+            <div>
+                <p class="eyebrow">Nueva versión</p>
+                <h2>Subir actualización</h2>
+                <p>
+                    La versión se guardará primero como borrador. Después podrá
+                    revisarla y publicarla.
+                </p>
+            </div>
+
+            <span class="update-security-note">
+                <i class="fa-solid fa-shield-halved"></i>
+                Se calcula SHA-256 automáticamente
+            </span>
+        </div>
+
+        <EditForm Model="nuevaVersion"
+                  OnValidSubmit="SubirAsync"
+                  FormName="subir-actualizacion">
+            <DataAnnotationsValidator />
+
+            <div class="update-form-grid">
+                <div class="form-group">
+                    <label>Plataforma</label>
+                    <InputSelect class="form-control"
+                                 @bind-Value="nuevaVersion.Plataforma"
+                                 @bind-Value:after="CambiarDestinoAsync">
+                        <option value="ANDROID">Android</option>
+                        <option value="WINDOWS">Windows</option>
+                    </InputSelect>
+                </div>
+
+                <div class="form-group">
+                    <label>Canal</label>
+                    <InputSelect class="form-control"
+                                 @bind-Value="nuevaVersion.Canal"
+                                 @bind-Value:after="CambiarDestinoAsync">
+                        <option value="PRODUCCION">Producción</option>
+                        <option value="PRUEBAS">Pruebas</option>
+                    </InputSelect>
+                </div>
+
+                <div class="form-group">
+                    <label>Versión visible</label>
+                    <InputText class="form-control"
+                               @bind-Value="nuevaVersion.VersionNombre"
+                               placeholder="Ej. 1.0.2" />
+                    <ValidationMessage For="@(() => nuevaVersion.VersionNombre)" />
+                </div>
+
+                <div class="form-group">
+                    <label>Número de compilación</label>
+                    <InputNumber class="form-control"
+                                 @bind-Value="nuevaVersion.VersionCodigo" />
+                    <ValidationMessage For="@(() => nuevaVersion.VersionCodigo)" />
+                </div>
+
+                <div class="form-group update-file-field">
+                    <label>Archivo de instalación</label>
+                    <InputFile @key="inputFileKey" OnChange="SeleccionarArchivo" />
+                    <small>
+                        @DescripcionArchivoPermitido
+                        Tamaño máximo: 1 GB.
+                    </small>
+                    @if (nuevaVersion.Archivo != null)
+                    {
+                        <span class="selected-file">
+                            <i class="fa-solid fa-file-arrow-up"></i>
+                            @nuevaVersion.Archivo.Name
+                            (@FormatearTamano(nuevaVersion.Archivo.Size))
+                        </span>
+                    }
+                </div>
+
+                <div class="form-group update-notes-field">
+                    <label>Novedades de la versión</label>
+                    <InputTextArea class="form-control update-notes"
+                                   @bind-Value="nuevaVersion.NotasVersion"
+                                   placeholder="Describa mejoras, correcciones y cambios importantes." />
+                    <ValidationMessage For="@(() => nuevaVersion.NotasVersion)" />
+                </div>
+
+                <label class="update-checkbox-card">
+                    <InputCheckbox @bind-Value="nuevaVersion.Obligatoria" />
+                    <span>
+                        <strong>Actualización obligatoria</strong>
+                        <small>
+                            La aplicación no permitirá ignorar esta versión.
+                        </small>
+                    </span>
+                </label>
+
+                <label class="update-checkbox-card">
+                    <InputCheckbox @bind-Value="nuevaVersion.DefinirVersionMinima" />
+                    <span>
+                        <strong>Definir compilación mínima</strong>
+                        <small>
+                            Convierte la actualización en obligatoria para
+                            compilaciones inferiores.
+                        </small>
+                    </span>
+                </label>
+
+                @if (nuevaVersion.DefinirVersionMinima)
+                {
+                    <div class="form-group">
+                        <label>Compilación mínima permitida</label>
+                        <InputNumber class="form-control"
+                                     @bind-Value="nuevaVersion.VersionMinimaCodigo" />
+                    </div>
+                }
+            </div>
+
+            @if (sugerencia != null)
+            {
+                <div class="update-suggestion">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    <span>
+                        Última registrada:
+                        <strong>@sugerencia.UltimaVersionNombre</strong>
+                        (build @sugerencia.UltimaVersionCodigo).
+                        Sugerida:
+                        <strong>@sugerencia.SiguienteVersionNombre</strong>
+                        (build @sugerencia.SiguienteVersionCodigo).
+                    </span>
+                    <button type="button"
+                            class="btn-link"
+                            @onclick="AplicarSugerencia">
+                        Aplicar
+                    </button>
+                </div>
+            }
+
+            <div class="update-form-actions">
+                <button type="submit"
+                        class="btn-primary"
+                        disabled="@ocupado">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    @(subiendo ? "Subiendo archivo..." : "Guardar como borrador")
+                </button>
+
+                <button type="button"
+                        class="btn-secondary"
+                        @onclick="LimpiarFormulario"
+                        disabled="@ocupado">
+                    Limpiar
+                </button>
+            </div>
+        </EditForm>
+    </section>
+}
+
+<section class="panel update-filter-panel">
+    <div class="form-group">
+        <label>Plataforma</label>
+        <InputSelect class="form-control" @bind-Value="filtroPlataforma">
+            <option value="">Todas</option>
+            <option value="ANDROID">Android</option>
+            <option value="WINDOWS">Windows</option>
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Canal</label>
+        <InputSelect class="form-control" @bind-Value="filtroCanal">
+            <option value="">Todos</option>
+            <option value="PRODUCCION">Producción</option>
+            <option value="PRUEBAS">Pruebas</option>
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Estado</label>
+        <InputSelect class="form-control" @bind-Value="filtroEstado">
+            <option value="">Todos</option>
+            <option value="BORRADOR">Borrador</option>
+            <option value="PUBLICADA">Publicada</option>
+            <option value="REVOCADA">Revocada</option>
+        </InputSelect>
+    </div>
+
+    <div class="update-filter-actions">
+        <button class="btn-primary"
+                @onclick="AplicarFiltrosAsync"
+                disabled="@ocupado">
+            <i class="fa-solid fa-filter"></i>
+            Aplicar
+        </button>
+
+        <button class="btn-link"
+                @onclick="LimpiarFiltrosAsync"
+                disabled="@ocupado">
+            Limpiar
+        </button>
+    </div>
+</section>
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Consultando versiones publicadas..." />
+}
+else if (versiones.Count == 0)
+{
+    <section class="panel empty-state compact-empty">
+        <i class="fa-solid fa-box-open"></i>
+        <h2>No hay versiones registradas</h2>
+        <p>Suba el primer APK o paquete de Windows para comenzar.</p>
+    </section>
+}
+else
+{
+    <section class="update-version-grid">
+        @foreach (ActualizacionWebItem version in versiones)
+        {
+            <article class="panel update-version-card">
+                <div class="update-version-top">
+                    <div class="update-platform-icon @version.Plataforma.ToLowerInvariant()">
+                        <i class="@(version.Plataforma == "ANDROID" ? "fa-brands fa-android" : "fa-brands fa-windows")"></i>
+                    </div>
+
+                    <div class="update-version-identity">
+                        <div class="update-version-title-row">
+                            <h2>Versión @version.VersionNombre</h2>
+                            <span class="update-status @version.Estado.ToLowerInvariant()">
+                                @TextoEstado(version.Estado)
+                            </span>
+                        </div>
+
+                        <p>
+                            @TextoPlataforma(version.Plataforma) ·
+                            @TextoCanal(version.Canal) ·
+                            build @version.VersionCodigo
+                        </p>
+                    </div>
+                </div>
+
+                <div class="update-version-flags">
+                    @if (version.Obligatoria)
+                    {
+                        <span class="flag danger">
+                            <i class="fa-solid fa-lock"></i>
+                            Obligatoria
+                        </span>
+                    }
+
+                    @if (version.VersionMinimaCodigo.HasValue)
+                    {
+                        <span class="flag">
+                            Mínima: build @version.VersionMinimaCodigo
+                        </span>
+                    }
+
+                    <span class="flag">
+                        @version.TamanoVisible
+                    </span>
+                </div>
+
+                <p class="update-version-notes">
+                    @(string.IsNullOrWhiteSpace(version.NotasVersion)
+                        ? "Sin notas de versión."
+                        : version.NotasVersion)
+                </p>
+
+                <dl class="update-version-details">
+                    <div>
+                        <dt>Archivo</dt>
+                        <dd>@version.NombreArchivo</dd>
+                    </div>
+                    <div>
+                        <dt>Creada</dt>
+                        <dd>@FormatearFecha(version.FechaCreacionUtc)</dd>
+                    </div>
+                    <div>
+                        <dt>Publicada</dt>
+                        <dd>
+                            @(version.FechaPublicacionUtc.HasValue
+                                ? FormatearFecha(version.FechaPublicacionUtc.Value)
+                                : "Pendiente")
+                        </dd>
+                    </div>
+                    <div class="hash-row">
+                        <dt>SHA-256</dt>
+                        <dd title="@version.HashSha256">
+                            @AcortarHash(version.HashSha256)
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="update-version-actions">
+                    @if (version.Estado == "BORRADOR" && PuedeActualizar)
+                    {
+                        <button class="btn-primary"
+                                @onclick="() => PublicarAsync(version)"
+                                disabled="@ocupado">
+                            <i class="fa-solid fa-rocket"></i>
+                            Publicar
+                        </button>
+                    }
+
+                    @if (version.Estado == "PUBLICADA" && PuedeActualizar)
+                    {
+                        <button class="btn-warning"
+                                @onclick="() => RevocarAsync(version)"
+                                disabled="@ocupado">
+                            <i class="fa-solid fa-ban"></i>
+                            Revocar
+                        </button>
+                    }
+
+                    @if (version.Estado != "REVOCADA" && PuedeActualizar)
+                    {
+                        <button class="btn-secondary"
+                                @onclick="() => AbrirEdicion(version)"
+                                disabled="@ocupado">
+                            <i class="fa-solid fa-pen"></i>
+                            Configurar
+                        </button>
+                    }
+
+                    @if (version.Estado == "BORRADOR" && PuedeEliminar)
+                    {
+                        <button class="btn-danger"
+                                @onclick="() => EliminarAsync(version)"
+                                disabled="@ocupado">
+                            <i class="fa-solid fa-trash"></i>
+                            Eliminar
+                        </button>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(version.UrlDescarga))
+                    {
+                        <a class="btn-secondary"
+                           href="@version.UrlDescarga"
+                           target="_blank"
+                           rel="noopener noreferrer">
+                            <i class="fa-solid fa-download"></i>
+                            Descargar
+                        </a>
+                    }
+                </div>
+            </article>
+        }
+    </section>
+}
+
+@if (versionEditada != null)
+{
+    <div class="update-modal-backdrop" @onclick="CerrarEdicion">
+        <section class="update-modal" @onclick:stopPropagation="true">
+            <div class="update-modal-header">
+                <div>
+                    <p class="eyebrow">Configuración</p>
+                    <h2>Versión @versionEditada.VersionNombre</h2>
+                </div>
+
+                <button class="icon-button"
+                        title="Cerrar"
+                        @onclick="CerrarEdicion">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label>Notas de versión</label>
+                <InputTextArea class="form-control update-notes"
+                               @bind-Value="configuracionEdicion.NotasVersion" />
+            </div>
+
+            <label class="update-checkbox-card modal-check">
+                <InputCheckbox @bind-Value="configuracionEdicion.Obligatoria" />
+                <span>
+                    <strong>Actualización obligatoria</strong>
+                    <small>No permitirá omitir esta versión.</small>
+                </span>
+            </label>
+
+            <div class="form-group">
+                <label>Compilación mínima permitida</label>
+                <InputNumber class="form-control"
+                             @bind-Value="configuracionEdicion.VersionMinimaCodigo" />
+                <small>Déjelo vacío para no aplicar este criterio.</small>
+            </div>
+
+            <div class="update-form-actions">
+                <button class="btn-primary"
+                        @onclick="GuardarConfiguracionAsync"
+                        disabled="@ocupado">
+                    Guardar cambios
+                </button>
+                <button class="btn-secondary"
+                        @onclick="CerrarEdicion"
+                        disabled="@ocupado">
+                    Cancelar
+                </button>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private readonly ActualizacionNuevaWeb nuevaVersion = new();
+    private readonly List<ActualizacionWebItem> versiones = [];
+
+    private SiguienteVersionWeb? sugerencia;
+    private ActualizacionWebItem? versionEditada;
+    private ActualizacionConfiguracionWeb configuracionEdicion = new();
+
+    private string filtroPlataforma = string.Empty;
+    private string filtroCanal = string.Empty;
+    private string filtroEstado = string.Empty;
+
+    private string mensajeError = string.Empty;
+    private string mensajeExito = string.Empty;
+
+    private bool cargando = true;
+    private bool subiendo;
+    private bool procesando;
+    private int inputFileKey;
+
+    private bool ocupado => cargando || subiendo || procesando;
+
+    private int UsuarioId => AuthState.Usuario?.UsuarioId ?? 0;
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(PermisosWeb.Actualizaciones);
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(PermisosWeb.Actualizaciones);
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(PermisosWeb.Actualizaciones);
+
+    private string DescripcionArchivoPermitido =>
+        nuevaVersion.Plataforma == "ANDROID"
+            ? "Seleccione un archivo APK. "
+            : "Seleccione MSIX, MSIXBUNDLE, APPINSTALLER o EXE. ";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.InicializarAsync();
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!AuthState.EsAdministrador &&
+            !AuthState.TienePermisoLectura(PermisosWeb.Actualizaciones))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        await CargarTodoAsync();
+    }
+
+    private async Task CargarTodoAsync()
+    {
+        LimpiarMensajes();
+        cargando = true;
+
+        try
+        {
+            List<ActualizacionWebItem> resultado =
+                await ActualizacionesApi.ListarAsync(
+                    UsuarioId,
+                    filtroPlataforma,
+                    filtroCanal,
+                    filtroEstado);
+
+            versiones.Clear();
+            versiones.AddRange(resultado);
+
+            if (PuedeAgregar)
+                await CargarSugerenciaAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = LimpiarMensaje(ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarSugerenciaAsync()
+    {
+        try
+        {
+            sugerencia = await ActualizacionesApi.ObtenerSiguienteAsync(
+                UsuarioId,
+                nuevaVersion.Plataforma,
+                nuevaVersion.Canal);
+        }
+        catch
+        {
+            sugerencia = null;
+        }
+    }
+
+    private async Task CambiarDestinoAsync()
+    {
+        nuevaVersion.Archivo = null;
+        inputFileKey++;
+        await CargarSugerenciaAsync();
+    }
+
+    private void AplicarSugerencia()
+    {
+        if (sugerencia == null)
+            return;
+
+        nuevaVersion.VersionNombre = sugerencia.SiguienteVersionNombre;
+        nuevaVersion.VersionCodigo = sugerencia.SiguienteVersionCodigo;
+    }
+
+    private void SeleccionarArchivo(InputFileChangeEventArgs args)
+    {
+        LimpiarMensajes();
+
+        IBrowserFile archivo = args.File;
+        string extension = Path.GetExtension(archivo.Name).ToLowerInvariant();
+
+        bool valido = nuevaVersion.Plataforma switch
+        {
+            "ANDROID" => extension == ".apk",
+            "WINDOWS" => extension is
+                ".msix" or ".msixbundle" or ".appinstaller" or ".exe",
+            _ => false
+        };
+
+        if (!valido)
+        {
+            nuevaVersion.Archivo = null;
+            mensajeError = DescripcionArchivoPermitido;
+            return;
+        }
+
+        if (archivo.Size > CONATRADEC.AdminWeb.Services.ActualizacionesService.TamanoMaximoArchivo)
+        {
+            nuevaVersion.Archivo = null;
+            mensajeError = "El archivo no puede superar 1 GB.";
+            return;
+        }
+
+        nuevaVersion.Archivo = archivo;
+    }
+
+    private async Task SubirAsync()
+    {
+        LimpiarMensajes();
+
+        if (nuevaVersion.Archivo == null)
+        {
+            mensajeError = "Debe seleccionar el archivo de instalación.";
+            return;
+        }
+
+        if (nuevaVersion.DefinirVersionMinima &&
+            !nuevaVersion.VersionMinimaCodigo.HasValue)
+        {
+            mensajeError = "Indique la compilación mínima permitida.";
+            return;
+        }
+
+        subiendo = true;
+
+        try
+        {
+            await ActualizacionesApi.SubirAsync(
+                UsuarioId,
+                nuevaVersion);
+
+            mensajeExito =
+                "La actualización se guardó como borrador correctamente.";
+
+            LimpiarFormulario(conservarMensaje: true);
+            await CargarTodoAsyncConMensajeActual();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = LimpiarMensaje(ex.Message);
+        }
+        finally
+        {
+            subiendo = false;
+        }
+    }
+
+    private async Task PublicarAsync(ActualizacionWebItem version)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"¿Publicar la versión {version.VersionNombre} para {TextoPlataforma(version.Plataforma)}?");
+
+        if (!confirmar)
+            return;
+
+        await EjecutarProcesoAsync(
+            async () =>
+            {
+                await ActualizacionesApi.PublicarAsync(
+                    UsuarioId,
+                    version.ActualizacionAplicacionId);
+
+                mensajeExito = "La versión fue publicada correctamente.";
+            });
+    }
+
+    private async Task RevocarAsync(ActualizacionWebItem version)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            "¿Revocar esta versión? Los dispositivos dejarán de recibirla como actualización disponible.");
+
+        if (!confirmar)
+            return;
+
+        await EjecutarProcesoAsync(
+            async () =>
+            {
+                await ActualizacionesApi.RevocarAsync(
+                    UsuarioId,
+                    version.ActualizacionAplicacionId);
+
+                mensajeExito = "La versión fue revocada correctamente.";
+            });
+    }
+
+    private async Task EliminarAsync(ActualizacionWebItem version)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"¿Eliminar definitivamente el borrador {version.VersionNombre}?");
+
+        if (!confirmar)
+            return;
+
+        await EjecutarProcesoAsync(
+            async () =>
+            {
+                await ActualizacionesApi.EliminarAsync(
+                    UsuarioId,
+                    version.ActualizacionAplicacionId);
+
+                mensajeExito = "El borrador fue eliminado correctamente.";
+            });
+    }
+
+    private void AbrirEdicion(ActualizacionWebItem version)
+    {
+        LimpiarMensajes();
+        versionEditada = version;
+        configuracionEdicion = new ActualizacionConfiguracionWeb
+        {
+            NotasVersion = version.NotasVersion,
+            Obligatoria = version.Obligatoria,
+            VersionMinimaCodigo = version.VersionMinimaCodigo
+        };
+    }
+
+    private void CerrarEdicion()
+    {
+        if (procesando)
+            return;
+
+        versionEditada = null;
+    }
+
+    private async Task GuardarConfiguracionAsync()
+    {
+        if (versionEditada == null)
+            return;
+
+        await EjecutarProcesoAsync(
+            async () =>
+            {
+                await ActualizacionesApi.ConfigurarAsync(
+                    UsuarioId,
+                    versionEditada.ActualizacionAplicacionId,
+                    configuracionEdicion);
+
+                versionEditada = null;
+                mensajeExito = "La configuración fue actualizada correctamente.";
+            });
+    }
+
+    private async Task EjecutarProcesoAsync(Func<Task> accion)
+    {
+        LimpiarMensajes();
+        procesando = true;
+
+        try
+        {
+            await accion();
+            await CargarTodoAsyncConMensajeActual();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = LimpiarMensaje(ex.Message);
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task CargarTodoAsyncConMensajeActual()
+    {
+        string exito = mensajeExito;
+        string error = mensajeError;
+
+        await CargarTodoAsync();
+
+        mensajeExito = exito;
+        mensajeError = error;
+    }
+
+    private Task AplicarFiltrosAsync() => CargarTodoAsync();
+
+    private async Task LimpiarFiltrosAsync()
+    {
+        filtroPlataforma = string.Empty;
+        filtroCanal = string.Empty;
+        filtroEstado = string.Empty;
+        await CargarTodoAsync();
+    }
+
+    private void LimpiarFormulario() =>
+        LimpiarFormulario(conservarMensaje: false);
+
+    private void LimpiarFormulario(bool conservarMensaje)
+    {
+        string plataforma = nuevaVersion.Plataforma;
+        string canal = nuevaVersion.Canal;
+
+        nuevaVersion.Plataforma = plataforma;
+        nuevaVersion.Canal = canal;
+        nuevaVersion.VersionNombre =
+            sugerencia?.SiguienteVersionNombre ?? "1.0.2";
+        nuevaVersion.VersionCodigo =
+            sugerencia?.SiguienteVersionCodigo ?? 3;
+        nuevaVersion.NotasVersion = string.Empty;
+        nuevaVersion.Obligatoria = false;
+        nuevaVersion.DefinirVersionMinima = false;
+        nuevaVersion.VersionMinimaCodigo = null;
+        nuevaVersion.Archivo = null;
+        inputFileKey++;
+
+        if (!conservarMensaje)
+            LimpiarMensajes();
+    }
+
+    private void LimpiarMensajes()
+    {
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+    }
+
+    private static string TextoEstado(string estado) =>
+        estado switch
+        {
+            "BORRADOR" => "Borrador",
+            "PUBLICADA" => "Publicada",
+            "REVOCADA" => "Revocada",
+            _ => estado
+        };
+
+    private static string TextoPlataforma(string plataforma) =>
+        plataforma == "ANDROID" ? "Android" : "Windows";
+
+    private static string TextoCanal(string canal) =>
+        canal == "PRODUCCION" ? "Producción" : "Pruebas";
+
+    private static string FormatearFecha(DateTime fechaUtc) =>
+        fechaUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+
+    private static string FormatearTamano(long bytes)
+    {
+        string[] unidades = ["B", "KB", "MB", "GB"];
+        double valor = Math.Max(0, bytes);
+        int indice = 0;
+
+        while (valor >= 1024 && indice < unidades.Length - 1)
+        {
+            valor /= 1024;
+            indice++;
+        }
+
+        return $"{valor:0.##} {unidades[indice]}";
+    }
+
+    private static string AcortarHash(string hash) =>
+        string.IsNullOrWhiteSpace(hash) || hash.Length <= 22
+            ? hash
+            : $"{hash[..12]}…{hash[^8..]}";
+
+    private static string LimpiarMensaje(string mensaje) =>
+        mensaje.Trim().Trim('"');
+}

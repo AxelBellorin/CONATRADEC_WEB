@@ -26,6 +26,26 @@ builder.Services.AddHttpClient<ApiClientService>(
         client.Timeout = TimeSpan.FromSeconds(30);
     });
 
+builder.Services.AddHttpClient<ActualizacionesService>(
+    (serviceProvider, client) =>
+    {
+        IConfiguration configuration =
+            serviceProvider.GetRequiredService<IConfiguration>();
+
+        string baseUrl =
+            configuration["ApiSettings:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "No se encontró ApiSettings:BaseUrl en appsettings.json.");
+
+        client.BaseAddress = new Uri(
+            baseUrl.EndsWith('/')
+                ? baseUrl
+                : $"{baseUrl}/");
+
+        // Un APK o MSIX puede tardar varios minutos en subir.
+        client.Timeout = TimeSpan.FromMinutes(30);
+    });
+
 builder.Services.AddScoped<BrowserSessionService>();
 builder.Services.AddScoped<AuthStateService>();
 builder.Services.AddScoped<SeguridadWebService>();
@@ -46,7 +66,6 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler(
         "/error",
         createScopeForErrors: true);
-
     app.UseHsts();
 }
 
