@@ -1,4 +1,5 @@
 using CONATRADEC.AdminWeb.Models;
+using Microsoft.AspNetCore.Components;
 
 namespace CONATRADEC.AdminWeb.Services;
 
@@ -9,15 +10,26 @@ public sealed class AuthStateService
 
     private readonly ApiClientService apiClient;
     private readonly BrowserSessionService browserSession;
+    private readonly NavigationManager navigation;
 
     private bool inicializando;
+    private int invalidandoSesion;
 
     public AuthStateService(
         ApiClientService apiClient,
-        BrowserSessionService browserSession)
+        BrowserSessionService browserSession,
+        NavigationManager navigation)
     {
         this.apiClient = apiClient;
         this.browserSession = browserSession;
+        this.navigation = navigation;
+
+        /*
+         * ApiClientService avisa únicamente cuando la API responde
+         * SESSION_INVALIDATED o X-Sesion-Invalidada=true.
+         */
+        this.apiClient.SesionInvalidada +=
+            AlRecibirSesionInvalidada;
     }
 
     public event EventHandler? EstadoCambiado;
@@ -26,17 +38,11 @@ public sealed class AuthStateService
 
     public bool Inicializado { get; private set; }
 
-    /// <summary>
-    /// La API actual no genera un token JWT durante el login.
-    /// Por tanto, la sesión se considera válida cuando existe
-    /// un usuario activo restaurado o autenticado.
-    ///
-    /// Cuando el backend implemente JWT, el token podrá seguir
-    /// configurándose de forma opcional sin cambiar esta lógica.
-    /// </summary>
     public bool IsAuthenticated =>
         Usuario is not null &&
-        Usuario.Activo;
+        Usuario.Activo &&
+        Usuario.UsuarioId > 0 &&
+        Usuario.VersionSesion > 0;
 
     public bool EsAdministrador =>
         Usuario?.RolNombre.Contains(
@@ -82,28 +88,22 @@ public sealed class AuthStateService
                 await lectura;
 
             if (restaurado is null ||
-                !restaurado.Activo)
+                !restaurado.Activo ||
+                restaurado.UsuarioId <= 0 ||
+                restaurado.VersionSesion <= 0)
             {
                 LimpiarEstadoEnMemoria();
+                await browserSession.EliminarAsync();
                 return;
             }
 
             Usuario = restaurado;
 
-            /*
-             * El token es opcional porque el endpoint actual de login
-             * no devuelve JWT. Si en el futuro el backend lo incorpora,
-             * ApiClientService lo enviará automáticamente.
-             */
             apiClient.ConfigurarToken(
                 restaurado.Token);
         }
         catch
         {
-            /*
-             * Si localStorage o JSInterop falla durante desarrollo,
-             * la aplicación continúa y redirige al login.
-             */
             LimpiarEstadoEnMemoria();
         }
         finally
@@ -116,8 +116,8 @@ public sealed class AuthStateService
 
     public async Task<ResultadoOperacion>
         IniciarSesionAsync(
-            LoginRequest request,
-            CancellationToken cancellationToken = default)
+        LoginRequest request,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -141,6 +141,14 @@ public sealed class AuthStateService
                     "El usuario está inactivo.");
             }
 
+            if (usuario.UsuarioId <= 0 ||
+                usuario.VersionSesion <= 0)
+            {
+                return ResultadoOperacion.Fallido(
+                    "La API no devolvió una versión de sesión válida. " +
+                    "Verifique que el backend actualizado esté publicado.");
+            }
+
             bool accesoPortal =
                 usuario.Permisos.Any(
                     permiso =>
@@ -158,10 +166,6 @@ public sealed class AuthStateService
 
             Usuario = usuario;
 
-            /*
-             * La API actual devuelve null o vacío porque todavía
-             * no implementa JWT. ConfigurarToken acepta ese caso.
-             */
             apiClient.ConfigurarToken(
                 usuario.Token);
 
@@ -193,6 +197,33 @@ public sealed class AuthStateService
             return ResultadoOperacion.Fallido(
                 $"Ocurrió un error inesperado al iniciar sesión. {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Devuelve las cabeceras obligatorias para las llamadas que identifican
+    /// al usuario ante VersionSesionMiddleware.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>
+        CrearEncabezadosSesion()
+    {
+        UsuarioSesion? usuario = Usuario;
+
+        if (usuario is null ||
+            !usuario.Activo ||
+            usuario.UsuarioId <= 0 ||
+            usuario.VersionSesion <= 0)
+        {
+            throw new UnauthorizedAccessException(
+                "La sesión local no es válida. Inicie sesión nuevamente.");
+        }
+
+        return new Dictionary<string, string>
+        {
+            ["X-Usuario-Id"] =
+                usuario.UsuarioId.ToString(),
+            ["X-Version-Sesion"] =
+                usuario.VersionSesion.ToString()
+        };
     }
 
     public bool TienePermisoLectura(
@@ -254,6 +285,54 @@ public sealed class AuthStateService
 
     public Task CerrarSesion() =>
         CerrarSesionAsync();
+
+    private void AlRecibirSesionInvalidada(
+        object? sender,
+        EventArgs e)
+    {
+        _ = InvalidarSesionDesdeServidorAsync();
+    }
+
+    private async Task InvalidarSesionDesdeServidorAsync()
+    {
+        if (Interlocked.Exchange(
+                ref invalidandoSesion,
+                1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            /*
+             * Se limpia primero la memoria para impedir nuevas llamadas
+             * con la versión anterior mientras se elimina localStorage.
+             */
+            LimpiarEstadoEnMemoria();
+            Inicializado = true;
+            NotificarCambio();
+
+            try
+            {
+                await browserSession.EliminarAsync();
+            }
+            catch
+            {
+                // La navegación al login no debe depender de localStorage.
+            }
+
+            navigation.NavigateTo(
+                "/login",
+                forceLoad: false,
+                replace: true);
+        }
+        finally
+        {
+            Interlocked.Exchange(
+                ref invalidandoSesion,
+                0);
+        }
+    }
 
     private void LimpiarEstadoEnMemoria()
     {

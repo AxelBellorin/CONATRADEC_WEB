@@ -40,6 +40,13 @@ public sealed class SesionPersistida
     [JsonPropertyName("urlImagenUsuario")]
     public string UrlImagenUsuario { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Debe conservarse en localStorage para que todas las llamadas
+    /// autenticadas envíen la misma versión recibida durante el login.
+    /// </summary>
+    [JsonPropertyName("versionSesion")]
+    public int VersionSesion { get; set; }
+
     [JsonPropertyName("permisos")]
     public List<PermisoPersistido> Permisos { get; set; } = [];
 
@@ -63,6 +70,7 @@ public sealed class SesionPersistida
             Token = usuario.Token ?? string.Empty,
             UrlImagenUsuario =
                 usuario.UrlImagenUsuario,
+            VersionSesion = usuario.VersionSesion,
             Permisos = usuario.Permisos
                 .Select(item =>
                     new PermisoPersistido
@@ -103,6 +111,7 @@ public sealed class SesionPersistida
             Token = Token,
             UrlImagenUsuario =
                 UrlImagenUsuario,
+            VersionSesion = VersionSesion,
             Permisos = Permisos
                 .Select(item =>
                     new PermisoInterfaz

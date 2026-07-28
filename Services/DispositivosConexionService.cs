@@ -44,9 +44,20 @@ public sealed class DispositivosConexionService
         else if (filtro.Ubicacion == "sin")
             parametros.Add("conUbicacion=false");
 
-        Agregar(parametros, "plataforma", filtro.Plataforma);
-        Agregar(parametros, "versionApp", filtro.VersionApp);
-        Agregar(parametros, "buscar", filtro.Buscar);
+        Agregar(
+            parametros,
+            "plataforma",
+            filtro.Plataforma);
+
+        Agregar(
+            parametros,
+            "versionApp",
+            filtro.VersionApp);
+
+        Agregar(
+            parametros,
+            "buscar",
+            filtro.Buscar);
 
         string ruta =
             "api/dispositivos-conectados?" +
@@ -58,19 +69,18 @@ public sealed class DispositivosConexionService
             cancellationToken) ?? new();
     }
 
-
-public async Task<List<DispositivoConexionMapaItem>> ObtenerMapaAsync(
-    bool soloConectados = true,
-    int minutosActivo = 2,
-    int limite = 1000,
-    CancellationToken cancellationToken = default) =>
-    await apiClient.GetAsync<List<DispositivoConexionMapaItem>>(
-        "api/dispositivos-conectados/mapa" +
-        $"?soloConectados={soloConectados.ToString().ToLowerInvariant()}" +
-        $"&minutosActivo={Math.Clamp(minutosActivo, 1, 15)}" +
-        $"&limite={Math.Clamp(limite, 1, 2000)}",
-        Encabezados(),
-        cancellationToken) ?? [];
+    public async Task<List<DispositivoConexionMapaItem>> ObtenerMapaAsync(
+        bool soloConectados = true,
+        int minutosActivo = 2,
+        int limite = 1000,
+        CancellationToken cancellationToken = default) =>
+        await apiClient.GetAsync<List<DispositivoConexionMapaItem>>(
+            "api/dispositivos-conectados/mapa" +
+            $"?soloConectados={soloConectados.ToString().ToLowerInvariant()}" +
+            $"&minutosActivo={Math.Clamp(minutosActivo, 1, 15)}" +
+            $"&limite={Math.Clamp(limite, 1, 2000)}",
+            Encabezados(),
+            cancellationToken) ?? [];
 
     public async Task<DispositivoConexionItem?> ObtenerAsync(
         int id,
@@ -93,10 +103,7 @@ public async Task<List<DispositivoConexionMapaItem>> ObtenerMapaAsync(
         }
     }
 
-    private Dictionary<string, string> Encabezados() =>
-        new()
-        {
-            ["X-Usuario-Id"] =
-                (authState.Usuario?.UsuarioId ?? 0).ToString()
-        };
+    private IReadOnlyDictionary<string, string>
+        Encabezados() =>
+        authState.CrearEncabezadosSesion();
 }

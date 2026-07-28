@@ -35,10 +35,7 @@ public sealed class UsuariosInactivosService
             Encabezados(),
             cancellationToken);
 
-    private Dictionary<string, string> Encabezados() =>
-        new()
-        {
-            ["X-Usuario-Id"] =
-                (authState.Usuario?.UsuarioId ?? 0).ToString()
-        };
+    private IReadOnlyDictionary<string, string>
+        Encabezados() =>
+        authState.CrearEncabezadosSesion();
 }

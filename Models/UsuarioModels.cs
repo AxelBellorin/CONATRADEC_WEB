@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Components.Forms;
+﻿using Microsoft.AspNetCore.Components.Forms;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
@@ -47,6 +47,13 @@ public sealed class UsuarioListadoItem
 
     [JsonPropertyName("urlImagenUsuario")]
     public string UrlImagenUsuario { get; set; } = string.Empty;
+
+    [JsonIgnore]
+    public bool EsAdministradorProtegido =>
+        string.Equals(
+            RolNombre.Trim(),
+            "Administrador",
+            StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class UsuarioCrearModel

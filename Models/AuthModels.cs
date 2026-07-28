@@ -52,6 +52,13 @@ public sealed class UsuarioSesion
     [JsonPropertyName("urlImagenUsuario")]
     public string UrlImagenUsuario { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Versión de seguridad entregada por la API.
+    /// Cambia cuando se modifica el rol o los permisos del usuario.
+    /// </summary>
+    [JsonPropertyName("versionSesion")]
+    public int VersionSesion { get; set; }
+
     [JsonPropertyName("permisos")]
     public List<PermisoInterfaz> Permisos { get; set; } = [];
 }

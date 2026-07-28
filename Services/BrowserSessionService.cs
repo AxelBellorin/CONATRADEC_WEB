@@ -6,7 +6,15 @@ namespace CONATRADEC.AdminWeb.Services;
 
 public sealed class BrowserSessionService
 {
+    /*
+     * Se cambia a v4 porque las sesiones v3 no guardaban VersionSesion.
+     * Así se obliga únicamente una vez a iniciar sesión de nuevo después
+     * de publicar esta corrección.
+     */
     private const string ClaveSesion =
+        "conatradec.portal.session.v4";
+
+    private const string ClaveSesionAnterior =
         "conatradec.portal.session.v3";
 
     private readonly IJSRuntime jsRuntime;
@@ -37,6 +45,11 @@ public sealed class BrowserSessionService
             "localStorage.setItem",
             ClaveSesion,
             json);
+
+        // La sesión antigua ya no es compatible con VersionSesion.
+        await jsRuntime.InvokeVoidAsync(
+            "localStorage.removeItem",
+            ClaveSesionAnterior);
     }
 
     public async Task<UsuarioSesion?> LeerAsync()
@@ -57,8 +70,12 @@ public sealed class BrowserSessionService
                     json,
                     opciones);
 
-            if (sesion is null)
+            if (sesion is null ||
+                sesion.VersionSesion <= 0)
+            {
+                await EliminarAsync();
                 return null;
+            }
 
             return sesion.AUsuarioSesion();
         }
@@ -74,5 +91,9 @@ public sealed class BrowserSessionService
         await jsRuntime.InvokeVoidAsync(
             "localStorage.removeItem",
             ClaveSesion);
+
+        await jsRuntime.InvokeVoidAsync(
+            "localStorage.removeItem",
+            ClaveSesionAnterior);
     }
 }

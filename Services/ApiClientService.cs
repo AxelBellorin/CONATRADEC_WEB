@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Components.Forms;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 
 namespace CONATRADEC.AdminWeb.Services;
@@ -17,6 +16,12 @@ public sealed class ApiClientService
     {
         this.httpClient = httpClient;
     }
+
+    /// <summary>
+    /// Se dispara solamente cuando el backend confirma que la versión de
+    /// sesión ya no es vigente.
+    /// </summary>
+    public event EventHandler? SesionInvalidada;
 
     public Uri? BaseAddress => httpClient.BaseAddress;
 
@@ -38,13 +43,27 @@ public sealed class ApiClientService
         IReadOnlyDictionary<string, string>? encabezados,
         CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, ruta);
-        AgregarEncabezados(request, encabezados);
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Get,
+                ruta);
 
-        using var response = await httpClient.SendAsync(request, cancellationToken);
-        await ValidarRespuestaAsync(response, cancellationToken);
+        AgregarEncabezados(
+            request,
+            encabezados);
 
-        return await LeerJsonAsync<T>(response, cancellationToken);
+        using var response =
+            await httpClient.SendAsync(
+                request,
+                cancellationToken);
+
+        await ValidarRespuestaAsync(
+            response,
+            cancellationToken);
+
+        return await LeerJsonAsync<T>(
+            response,
+            cancellationToken);
     }
 
     public async Task<TResponse?> PostAsync<TRequest, TResponse>(
@@ -52,14 +71,20 @@ public sealed class ApiClientService
         TRequest datos,
         CancellationToken cancellationToken = default)
     {
-        using var response = await httpClient.PostAsJsonAsync(
-            ruta,
-            datos,
-            jsonOptions,
+        using var response =
+            await httpClient.PostAsJsonAsync(
+                ruta,
+                datos,
+                jsonOptions,
+                cancellationToken);
+
+        await ValidarRespuestaAsync(
+            response,
             cancellationToken);
 
-        await ValidarRespuestaAsync(response, cancellationToken);
-        return await LeerJsonAsync<TResponse>(response, cancellationToken);
+        return await LeerJsonAsync<TResponse>(
+            response,
+            cancellationToken);
     }
 
     public async Task<TResponse?> PutAsync<TRequest, TResponse>(
@@ -67,38 +92,58 @@ public sealed class ApiClientService
         TRequest datos,
         CancellationToken cancellationToken = default)
     {
-        using var response = await httpClient.PutAsJsonAsync(
-            ruta,
-            datos,
-            jsonOptions,
+        using var response =
+            await httpClient.PutAsJsonAsync(
+                ruta,
+                datos,
+                jsonOptions,
+                cancellationToken);
+
+        await ValidarRespuestaAsync(
+            response,
             cancellationToken);
 
-        await ValidarRespuestaAsync(response, cancellationToken);
-        return await LeerJsonAsync<TResponse>(response, cancellationToken);
+        return await LeerJsonAsync<TResponse>(
+            response,
+            cancellationToken);
     }
 
+    public async Task PutSinContenidoAsync(
+        string ruta,
+        IReadOnlyDictionary<string, string>? encabezados = null,
+        CancellationToken cancellationToken = default)
+    {
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Put,
+                ruta);
 
-public async Task PutSinContenidoAsync(
-    string ruta,
-    IReadOnlyDictionary<string, string>? encabezados = null,
-    CancellationToken cancellationToken = default)
-{
-    using var request = new HttpRequestMessage(HttpMethod.Put, ruta);
-    AgregarEncabezados(request, encabezados);
+        AgregarEncabezados(
+            request,
+            encabezados);
 
-    using var response = await httpClient.SendAsync(
-        request,
-        cancellationToken);
+        using var response =
+            await httpClient.SendAsync(
+                request,
+                cancellationToken);
 
-    await ValidarRespuestaAsync(response, cancellationToken);
-}
+        await ValidarRespuestaAsync(
+            response,
+            cancellationToken);
+    }
 
     public async Task EliminarAsync(
         string ruta,
         CancellationToken cancellationToken = default)
     {
-        using var response = await httpClient.DeleteAsync(ruta, cancellationToken);
-        await ValidarRespuestaAsync(response, cancellationToken);
+        using var response =
+            await httpClient.DeleteAsync(
+                ruta,
+                cancellationToken);
+
+        await ValidarRespuestaAsync(
+            response,
+            cancellationToken);
     }
 
     public async Task SubirArchivoAsync(
@@ -108,24 +153,38 @@ public async Task PutSinContenidoAsync(
         long tamanoMaximo = 8 * 1024 * 1024,
         CancellationToken cancellationToken = default)
     {
-        using var contenido = new MultipartFormDataContent();
-        await using var stream = archivo.OpenReadStream(tamanoMaximo, cancellationToken);
-        using var archivoContenido = new StreamContent(stream);
+        using var contenido =
+            new MultipartFormDataContent();
+
+        await using var stream =
+            archivo.OpenReadStream(
+                tamanoMaximo,
+                cancellationToken);
+
+        using var archivoContenido =
+            new StreamContent(stream);
 
         archivoContenido.Headers.ContentType =
             new MediaTypeHeaderValue(
-                string.IsNullOrWhiteSpace(archivo.ContentType)
+                string.IsNullOrWhiteSpace(
+                    archivo.ContentType)
                     ? "application/octet-stream"
                     : archivo.ContentType);
 
-        contenido.Add(archivoContenido, nombreCampo, archivo.Name);
+        contenido.Add(
+            archivoContenido,
+            nombreCampo,
+            archivo.Name);
 
-        using var response = await httpClient.PostAsync(
-            ruta,
-            contenido,
+        using var response =
+            await httpClient.PostAsync(
+                ruta,
+                contenido,
+                cancellationToken);
+
+        await ValidarRespuestaAsync(
+            response,
             cancellationToken);
-
-        await ValidarRespuestaAsync(response, cancellationToken);
     }
 
     private static void AgregarEncabezados(
@@ -137,6 +196,12 @@ public async Task PutSinContenidoAsync(
 
         foreach (var encabezado in encabezados)
         {
+            if (string.IsNullOrWhiteSpace(
+                    encabezado.Value))
+            {
+                continue;
+            }
+
             request.Headers.TryAddWithoutValidation(
                 encabezado.Key,
                 encabezado.Value);
@@ -150,14 +215,18 @@ public async Task PutSinContenidoAsync(
         if (response.Content.Headers.ContentLength == 0)
             return default;
 
-        string contenido = await response.Content.ReadAsStringAsync(cancellationToken);
+        string contenido =
+            await response.Content.ReadAsStringAsync(
+                cancellationToken);
 
         if (string.IsNullOrWhiteSpace(contenido))
             return default;
 
         try
         {
-            return JsonSerializer.Deserialize<T>(contenido, jsonOptions);
+            return JsonSerializer.Deserialize<T>(
+                contenido,
+                jsonOptions);
         }
         catch (JsonException)
         {
@@ -165,63 +234,143 @@ public async Task PutSinContenidoAsync(
         }
     }
 
-    private static async Task ValidarRespuestaAsync(
+    private async Task ValidarRespuestaAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
         if (response.IsSuccessStatusCode)
             return;
 
-        string contenido = await response.Content.ReadAsStringAsync(cancellationToken);
-        string mensaje = ExtraerMensaje(contenido);
+        string contenido =
+            await response.Content.ReadAsStringAsync(
+                cancellationToken);
 
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            throw new UnauthorizedAccessException(mensaje);
+        string mensaje =
+            ExtraerMensaje(contenido);
 
-        throw new HttpRequestException(mensaje, null, response.StatusCode);
+        if (EsSesionInvalidada(
+                response,
+                contenido))
+        {
+            SesionInvalidada?.Invoke(
+                this,
+                EventArgs.Empty);
+
+            throw new UnauthorizedAccessException(
+                mensaje);
+        }
+
+        if (response.StatusCode is
+            HttpStatusCode.Unauthorized or
+            HttpStatusCode.Forbidden)
+        {
+            throw new UnauthorizedAccessException(
+                mensaje);
+        }
+
+        throw new HttpRequestException(
+            mensaje,
+            null,
+            response.StatusCode);
     }
 
-    private static string ExtraerMensaje(string contenido)
+    private static bool EsSesionInvalidada(
+        HttpResponseMessage response,
+        string contenido)
+    {
+        bool porEncabezado =
+            response.Headers.TryGetValues(
+                "X-Sesion-Invalidada",
+                out IEnumerable<string>? valores) &&
+            valores.Any(valor =>
+                string.Equals(
+                    valor,
+                    "true",
+                    StringComparison.OrdinalIgnoreCase));
+
+        if (porEncabezado)
+            return true;
+
+        if (string.IsNullOrWhiteSpace(contenido))
+            return false;
+
+        return contenido.Contains(
+            "SESSION_INVALIDATED",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ExtraerMensaje(
+        string contenido)
     {
         if (string.IsNullOrWhiteSpace(contenido))
+        {
             return "La API no devolvió detalles del error.";
+        }
 
         try
         {
-            using var documento = JsonDocument.Parse(contenido);
-            JsonElement raiz = documento.RootElement;
+            using var documento =
+                JsonDocument.Parse(contenido);
+
+            JsonElement raiz =
+                documento.RootElement;
 
             foreach (string propiedad in new[]
                      {
-                         "message", "mensaje", "title", "error"
+                         "message",
+                         "mensaje",
+                         "title",
+                         "error"
                      })
             {
-                if (raiz.TryGetProperty(propiedad, out JsonElement valor) &&
-                    valor.ValueKind == JsonValueKind.String)
+                if (raiz.TryGetProperty(
+                        propiedad,
+                        out JsonElement valor) &&
+                    valor.ValueKind ==
+                        JsonValueKind.String)
                 {
-                    return valor.GetString() ?? contenido;
+                    return valor.GetString() ??
+                           contenido;
                 }
             }
 
-            if (raiz.TryGetProperty("errors", out JsonElement errores) &&
-                errores.ValueKind == JsonValueKind.Object)
+            if (raiz.TryGetProperty(
+                    "errors",
+                    out JsonElement errores) &&
+                errores.ValueKind ==
+                    JsonValueKind.Object)
             {
-                var mensajes = new List<string>();
+                var mensajes =
+                    new List<string>();
 
-                foreach (JsonProperty error in errores.EnumerateObject())
+                foreach (JsonProperty error in
+                         errores.EnumerateObject())
                 {
-                    if (error.Value.ValueKind != JsonValueKind.Array)
+                    if (error.Value.ValueKind !=
+                        JsonValueKind.Array)
+                    {
                         continue;
+                    }
 
                     mensajes.AddRange(
-                        error.Value.EnumerateArray()
-                            .Where(item => item.ValueKind == JsonValueKind.String)
-                            .Select(item => item.GetString())
-                            .Where(item => !string.IsNullOrWhiteSpace(item))!);
+                        error.Value
+                            .EnumerateArray()
+                            .Where(item =>
+                                item.ValueKind ==
+                                JsonValueKind.String)
+                            .Select(item =>
+                                item.GetString())
+                            .Where(item =>
+                                !string.IsNullOrWhiteSpace(
+                                    item))!);
                 }
 
                 if (mensajes.Count > 0)
-                    return string.Join(" ", mensajes);
+                {
+                    return string.Join(
+                        " ",
+                        mensajes);
+                }
             }
         }
         catch (JsonException)

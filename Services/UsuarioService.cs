@@ -32,7 +32,9 @@ public sealed class UsuarioService
         ValidarRol(modelo.EsInterno, modelo.RolId);
 
         UsuarioListadoItem? creado =
-            await apiClient.PostAsync<UsuarioCrearModel, UsuarioListadoItem>(
+            await apiClient.PostAsync<
+                UsuarioCrearModel,
+                UsuarioListadoItem>(
                 "api/usuarios/crear",
                 modelo,
                 cancellationToken);
@@ -49,7 +51,9 @@ public sealed class UsuarioService
         ValidarRol(modelo.EsInterno, modelo.RolId);
 
         UsuarioListadoItem? actualizado =
-            await apiClient.PutAsync<UsuarioActualizarModel, UsuarioListadoItem>(
+            await apiClient.PutAsync<
+                UsuarioActualizarModel,
+                UsuarioListadoItem>(
                 $"api/usuarios/actualizar/{modelo.UsuarioId}",
                 modelo,
                 cancellationToken);
@@ -59,12 +63,24 @@ public sealed class UsuarioService
                    "La API no devolvió el usuario actualizado.");
     }
 
-    public Task DesactivarAsync(
+    public async Task DesactivarAsync(
         int usuarioId,
-        CancellationToken cancellationToken = default) =>
-        apiClient.EliminarAsync(
+        CancellationToken cancellationToken = default)
+    {
+        UsuarioListadoItem? usuario = await ObtenerAsync(
+            usuarioId,
+            cancellationToken);
+
+        if (usuario?.EsAdministradorProtegido == true)
+        {
+            throw new InvalidOperationException(
+                "El usuario administrador es un registro protegido y no puede desactivarse.");
+        }
+
+        await apiClient.EliminarAsync(
             $"api/usuarios/eliminar/{usuarioId}",
             cancellationToken);
+    }
 
     public Task SubirImagenAsync(
         int usuarioId,
@@ -97,7 +113,9 @@ public sealed class UsuarioService
         if (Uri.TryCreate(ruta, UriKind.Absolute, out Uri? absoluta))
             return absoluta.ToString();
 
-        return new Uri(apiClient.BaseAddress!, ruta.TrimStart('/')).ToString();
+        return new Uri(
+            apiClient.BaseAddress!,
+            ruta.TrimStart('/')).ToString();
     }
 
     private static void ValidarRol(bool esInterno, int? rolId)
