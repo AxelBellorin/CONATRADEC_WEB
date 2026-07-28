@@ -1,4 +1,4 @@
-using CONATRADEC.AdminWeb.Models;
+﻿using CONATRADEC.AdminWeb.Models;
 using Microsoft.AspNetCore.Components;
 
 namespace CONATRADEC.AdminWeb.Services;
@@ -285,6 +285,14 @@ public sealed class AuthStateService
 
     public Task CerrarSesion() =>
         CerrarSesionAsync();
+
+    /// <summary>
+    /// Permite que servicios especializados, como el cargador de paquetes de
+    /// actualización, apliquen el mismo cierre de sesión automático que usa
+    /// ApiClientService cuando la API confirma SESSION_INVALIDATED.
+    /// </summary>
+    public Task InvalidarSesionDesdeApiAsync() =>
+        InvalidarSesionDesdeServidorAsync();
 
     private void AlRecibirSesionInvalidada(
         object? sender,

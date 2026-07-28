@@ -1,4 +1,4 @@
-using CONATRADEC.AdminWeb.Models;
+﻿using CONATRADEC.AdminWeb.Models;
 using Microsoft.AspNetCore.Components.Forms;
 using System.Globalization;
 using System.Net;
@@ -13,12 +13,17 @@ public sealed class ActualizacionesService
         1024L * 1024L * 1024L;
 
     private readonly HttpClient httpClient;
+    private readonly AuthStateService authState;
+
     private readonly JsonSerializerOptions jsonOptions =
         new(JsonSerializerDefaults.Web);
 
-    public ActualizacionesService(HttpClient httpClient)
+    public ActualizacionesService(
+        HttpClient httpClient,
+        AuthStateService authState)
     {
         this.httpClient = httpClient;
+        this.authState = authState;
     }
 
     public async Task<List<ActualizacionWebItem>> ListarAsync(
@@ -35,6 +40,7 @@ public sealed class ActualizacionesService
         AgregarParametro(parametros, "estado", estado);
 
         string ruta = "api/actualizaciones/administrar";
+
         if (parametros.Count > 0)
             ruta += "?" + string.Join("&", parametros);
 
@@ -77,17 +83,24 @@ public sealed class ActualizacionesService
         CancellationToken cancellationToken = default)
     {
         if (modelo.Archivo == null)
-            throw new InvalidOperationException("Debe seleccionar un archivo.");
+        {
+            throw new InvalidOperationException(
+                "Debe seleccionar un archivo.");
+        }
 
-        using var contenido = new MultipartFormDataContent();
+        using var contenido =
+            new MultipartFormDataContent();
 
-        await using Stream stream = modelo.Archivo.OpenReadStream(
-            TamanoMaximoArchivo,
-            cancellationToken);
+        await using Stream stream =
+            modelo.Archivo.OpenReadStream(
+                TamanoMaximoArchivo,
+                cancellationToken);
 
-        using var archivoContenido = new StreamContent(stream);
+        using var archivoContenido =
+            new StreamContent(stream);
 
-        if (!string.IsNullOrWhiteSpace(modelo.Archivo.ContentType))
+        if (!string.IsNullOrWhiteSpace(
+                modelo.Archivo.ContentType))
         {
             archivoContenido.Headers.ContentType =
                 new System.Net.Http.Headers.MediaTypeHeaderValue(
@@ -99,19 +112,34 @@ public sealed class ActualizacionesService
             "Archivo",
             modelo.Archivo.Name);
 
-        contenido.Add(new StringContent(modelo.Plataforma), "Plataforma");
-        contenido.Add(new StringContent(modelo.Canal), "Canal");
-        contenido.Add(new StringContent(modelo.VersionNombre), "VersionNombre");
+        contenido.Add(
+            new StringContent(modelo.Plataforma),
+            "Plataforma");
+
+        contenido.Add(
+            new StringContent(modelo.Canal),
+            "Canal");
+
+        contenido.Add(
+            new StringContent(modelo.VersionNombre),
+            "VersionNombre");
+
         contenido.Add(
             new StringContent(
-                modelo.VersionCodigo.ToString(CultureInfo.InvariantCulture)),
+                modelo.VersionCodigo.ToString(
+                    CultureInfo.InvariantCulture)),
             "VersionCodigo");
-        contenido.Add(
-            new StringContent(modelo.NotasVersion ?? string.Empty),
-            "NotasVersion");
+
         contenido.Add(
             new StringContent(
-                modelo.Obligatoria.ToString(CultureInfo.InvariantCulture)),
+                modelo.NotasVersion ??
+                string.Empty),
+            "NotasVersion");
+
+        contenido.Add(
+            new StringContent(
+                modelo.Obligatoria.ToString(
+                    CultureInfo.InvariantCulture)),
             "Obligatoria");
 
         if (modelo.DefinirVersionMinima &&
@@ -161,7 +189,8 @@ public sealed class ActualizacionesService
         ActualizacionConfiguracionWeb modelo,
         CancellationToken cancellationToken = default)
     {
-        using JsonContent contenido = JsonContent.Create(modelo);
+        using JsonContent contenido =
+            JsonContent.Create(modelo);
 
         RespuestaApi<ActualizacionWebItem>? respuesta =
             await EnviarAsync<RespuestaApi<ActualizacionWebItem>>(
@@ -187,11 +216,12 @@ public sealed class ActualizacionesService
             cancellationToken);
     }
 
-    private async Task<ActualizacionWebItem?> EjecutarAccionAsync(
-        int usuarioId,
-        int id,
-        string accion,
-        CancellationToken cancellationToken)
+    private async Task<ActualizacionWebItem?>
+        EjecutarAccionAsync(
+            int usuarioId,
+            int id,
+            string accion,
+            CancellationToken cancellationToken)
     {
         RespuestaApi<ActualizacionWebItem>? respuesta =
             await EnviarAsync<RespuestaApi<ActualizacionWebItem>>(
@@ -211,31 +241,81 @@ public sealed class ActualizacionesService
         HttpContent? contenido,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(metodo, ruta);
+        using var request =
+            new HttpRequestMessage(
+                metodo,
+                ruta);
 
-        request.Headers.TryAddWithoutValidation(
-            "X-Usuario-Id",
-            usuarioId.ToString(CultureInfo.InvariantCulture));
+        /*
+         * VersionSesionMiddleware exige ambas cabeceras cuando se identifica
+         * al usuario. Antes este servicio enviaba solamente X-Usuario-Id y la
+         * API interpretaba todas las llamadas como una sesión antigua.
+         */
+        IReadOnlyDictionary<string, string> encabezados =
+            authState.CrearEncabezadosSesion();
 
-        request.Content = contenido;
+        string usuarioSesion =
+            encabezados["X-Usuario-Id"];
 
-        using HttpResponseMessage response = await httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
+        if (!string.Equals(
+                usuarioSesion,
+                usuarioId.ToString(
+                    CultureInfo.InvariantCulture),
+                StringComparison.Ordinal))
+        {
+            throw new UnauthorizedAccessException(
+                "La sesión activa no corresponde al usuario solicitado.");
+        }
 
-        string texto = await response.Content.ReadAsStringAsync(
-            cancellationToken);
+        foreach (
+            KeyValuePair<string, string> encabezado
+            in encabezados)
+        {
+            request.Headers.TryAddWithoutValidation(
+                encabezado.Key,
+                encabezado.Value);
+        }
+
+        request.Content =
+            contenido;
+
+        using HttpResponseMessage response =
+            await httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+
+        string texto =
+            await response.Content.ReadAsStringAsync(
+                cancellationToken);
+
+        /*
+         * También procesa una invalidación real de sesión para conservar el
+         * mismo comportamiento del resto del portal: limpiar sesión y volver
+         * automáticamente al login.
+         */
+        if (EsSesionInvalidada(
+                response,
+                texto))
+        {
+            await authState
+                .InvalidarSesionDesdeApiAsync();
+
+            throw new UnauthorizedAccessException(
+                ExtraerMensaje(texto));
+        }
 
         if (!response.IsSuccessStatusCode)
         {
-            string mensaje = ExtraerMensaje(texto);
+            string mensaje =
+                ExtraerMensaje(texto);
 
             if (response.StatusCode is
                 HttpStatusCode.Unauthorized or
                 HttpStatusCode.Forbidden)
             {
-                throw new UnauthorizedAccessException(mensaje);
+                throw new UnauthorizedAccessException(
+                    mensaje);
             }
 
             throw new HttpRequestException(
@@ -247,7 +327,34 @@ public sealed class ActualizacionesService
         if (string.IsNullOrWhiteSpace(texto))
             return default;
 
-        return JsonSerializer.Deserialize<T>(texto, jsonOptions);
+        return JsonSerializer.Deserialize<T>(
+            texto,
+            jsonOptions);
+    }
+
+    private static bool EsSesionInvalidada(
+        HttpResponseMessage response,
+        string contenido)
+    {
+        bool porEncabezado =
+            response.Headers.TryGetValues(
+                "X-Sesion-Invalidada",
+                out IEnumerable<string>? valores) &&
+            valores.Any(valor =>
+                string.Equals(
+                    valor,
+                    "true",
+                    StringComparison.OrdinalIgnoreCase));
+
+        if (porEncabezado)
+            return true;
+
+        if (string.IsNullOrWhiteSpace(contenido))
+            return false;
+
+        return contenido.Contains(
+            "SESSION_INVALIDATED",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AgregarParametro(
@@ -262,30 +369,45 @@ public sealed class ActualizacionesService
             $"{nombre}={Uri.EscapeDataString(valor.Trim())}");
     }
 
-    private static string ExtraerMensaje(string texto)
+    private static string ExtraerMensaje(
+        string texto)
     {
         if (string.IsNullOrWhiteSpace(texto))
-            return "La API no devolvió detalles del error.";
+        {
+            return
+                "La API no devolvió detalles del error.";
+        }
 
         try
         {
-            using JsonDocument documento = JsonDocument.Parse(texto);
-            JsonElement raiz = documento.RootElement;
+            using JsonDocument documento =
+                JsonDocument.Parse(texto);
+
+            JsonElement raiz =
+                documento.RootElement;
 
             foreach (string propiedad in new[]
                      {
-                         "message", "mensaje", "title", "error"
+                         "message",
+                         "mensaje",
+                         "title",
+                         "error"
                      })
             {
-                if (raiz.TryGetProperty(propiedad, out JsonElement valor) &&
-                    valor.ValueKind == JsonValueKind.String)
+                if (raiz.TryGetProperty(
+                        propiedad,
+                        out JsonElement valor) &&
+                    valor.ValueKind ==
+                        JsonValueKind.String)
                 {
-                    return valor.GetString() ?? texto;
+                    return valor.GetString() ??
+                           texto;
                 }
             }
         }
         catch (JsonException)
         {
+            // La API también puede devolver texto plano.
         }
 
         return texto.Trim().Trim('"');
