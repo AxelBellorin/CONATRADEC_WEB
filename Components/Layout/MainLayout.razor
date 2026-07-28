@@ -16,14 +16,17 @@ else
                 <div class="brand-icon">
                     <i class="fa-solid fa-seedling"></i>
                 </div>
+
                 <div>
                     <strong>CONATRADEC</strong>
                     <span>Portal administrativo</span>
                 </div>
             </div>
 
-            <nav class="nav-menu" @onclick="CerrarMenuMovil">
-                <NavLink href="/" Match="NavLinkMatch.All">
+            <nav class="nav-menu"
+                 @onclick="CerrarMenuMovil">
+                <NavLink href="/"
+                         Match="NavLinkMatch.All">
                     <i class="fa-solid fa-chart-line"></i>
                     <span>Dashboard</span>
                 </NavLink>
@@ -39,23 +42,36 @@ else
                     </NavLink>
                 }
 
-                @if (AuthState.TienePermisoLectura(PermisosWeb.Alertas) ||
-                     AuthState.EsAdministrador)
+                @if (PuedeVerSupervision)
                 {
                     <div class="nav-section">
                         Supervisión agrícola
                     </div>
+                }
 
+                @if (AuthState.TienePermisoLectura(PermisosWeb.Alertas) ||
+                     AuthState.EsAdministrador)
+                {
                     <NavLink href="/alertas-agricolas">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>Centro de alertas</span>
                     </NavLink>
+                }
 
+                @if (AuthState.TienePermisoLectura(
+                         PermisosWeb.SeguimientoAlertas) ||
+                     AuthState.EsAdministrador)
+                {
                     <NavLink href="/seguimiento-alertas">
                         <i class="fa-solid fa-list-check"></i>
                         <span>Seguimiento</span>
                     </NavLink>
+                }
 
+                @if (AuthState.TienePermisoLectura(
+                         PermisosWeb.ConfiguracionAlertas) ||
+                     AuthState.EsAdministrador)
+                {
                     <NavLink href="/configuracion-alertas">
                         <i class="fa-solid fa-sliders"></i>
                         <span>Umbrales</span>
@@ -94,7 +110,8 @@ else
                     </NavLink>
                 }
 
-                @if (AuthState.TienePermisoLectura("dispositivosConectadosPage") ||
+                @if (AuthState.TienePermisoLectura(
+                         "dispositivosConectadosPage") ||
                      AuthState.EsAdministrador)
                 {
                     <NavLink href="/dispositivos-conectados">
@@ -128,6 +145,7 @@ else
                     <strong>
                         @AuthState.Usuario?.NombreCompletoUsuario
                     </strong>
+
                     <span>
                         @AuthState.Usuario?.RolNombre
                     </span>
@@ -163,6 +181,7 @@ else
 
                 <div class="topbar-user">
                     <i class="fa-regular fa-circle-user"></i>
+
                     <span>
                         @AuthState.Usuario?.NombreUsuario
                     </span>
@@ -179,6 +198,15 @@ else
 @code {
     private bool menuAbierto;
 
+    private bool PuedeVerSupervision =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.Alertas) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.SeguimientoAlertas) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.ConfiguracionAlertas);
+
     private void ToggleMenu()
     {
         menuAbierto = !menuAbierto;
@@ -192,7 +220,8 @@ else
     private string ObtenerIniciales()
     {
         string? nombre =
-            AuthState.Usuario?.NombreCompletoUsuario;
+            AuthState.Usuario?
+                .NombreCompletoUsuario;
 
         if (string.IsNullOrWhiteSpace(nombre))
             return "U";
@@ -201,11 +230,12 @@ else
             nombre
                 .Split(
                     ' ',
-                    StringSplitOptions.RemoveEmptyEntries)
+                    StringSplitOptions
+                        .RemoveEmptyEntries)
                 .Take(2)
-                .Select(
-                    item =>
-                        char.ToUpperInvariant(item[0])));
+                .Select(item =>
+                    char.ToUpperInvariant(
+                        item[0])));
     }
 
     private async Task CerrarSesionAsync()

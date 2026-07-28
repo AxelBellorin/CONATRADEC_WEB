@@ -27,10 +27,6 @@ build_property.EnableCodeStyleSeverity =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/AlertasAgricolas.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBbGVydGFzQWdyaWNvbGFzLnJhem9y
-build_metadata.AdditionalFiles.CssScope = 
-
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/Bitacora.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xCaXRhY29yYS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
@@ -39,20 +35,12 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb25maWd1cmFjaW9uLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/ConfiguracionAlertas.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb25maWd1cmFjaW9uQWxlcnRhcy5yYXpvcg==
-build_metadata.AdditionalFiles.CssScope = 
-
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/DispositivosConectados.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xEaXNwb3NpdGl2b3NDb25lY3RhZG9zLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/Error.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFcnJvci5yYXpvcg==
-build_metadata.AdditionalFiles.CssScope = 
-
-[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/Home.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/Login.razor]
@@ -73,10 +61,6 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/Roles.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xSb2xlcy5yYXpvcg==
-build_metadata.AdditionalFiles.CssScope = 
-
-[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/SeguimientoAlertas.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTZWd1aW1pZW50b0FsZXJ0YXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/Usuarios.razor]
@@ -107,6 +91,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcUG9ydGFsUm91dGVWaWV3LnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Shared/ProtectedRouteView.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcUHJvdGVjdGVkUm91dGVWaWV3LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Shared/StatCard.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcU3RhdENhcmQucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -122,3 +110,19 @@ build_metadata.AdditionalFiles.CssScope =
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Layout/MainLayout.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTWFpbkxheW91dC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-k15epbudz9
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/AlertasAgricolas.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBbGVydGFzQWdyaWNvbGFzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = b-syt6o7gknb
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/ConfiguracionAlertas.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb25maWd1cmFjaW9uQWxlcnRhcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-cybv9w4lhn
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/Home.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
+build_metadata.AdditionalFiles.CssScope = b-fwauv8ku64
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/SeguimientoAlertas.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTZWd1aW1pZW50b0FsZXJ0YXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-m501xi72ik

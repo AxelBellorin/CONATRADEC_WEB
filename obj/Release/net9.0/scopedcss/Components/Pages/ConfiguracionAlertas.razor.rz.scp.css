@@ -1,0 +1,106 @@
+.threshold-section[b-cybv9w4lhn] {
+    margin-bottom: 28px;
+}
+
+.threshold-section-header[b-cybv9w4lhn] {
+    margin-bottom: 14px;
+}
+
+.threshold-section-header h2[b-cybv9w4lhn] {
+    margin: 0 0 4px;
+    font-size: 22px;
+}
+
+.threshold-section-header p[b-cybv9w4lhn] {
+    margin: 0;
+    color: #667085;
+}
+
+.threshold-grid[b-cybv9w4lhn] {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.threshold-card[b-cybv9w4lhn] {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px;
+    border: 1px solid #dde4e1;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow:
+        0 5px 16px rgba(30, 62, 54, .06);
+}
+
+.threshold-card-content[b-cybv9w4lhn] {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+}
+
+.threshold-card-content h3[b-cybv9w4lhn] {
+    margin: 0 0 5px;
+    font-size: 18px;
+}
+
+.threshold-card-content p[b-cybv9w4lhn] {
+    margin: 0;
+    color: #667085;
+    line-height: 1.45;
+}
+
+.threshold-icon[b-cybv9w4lhn] {
+    display: grid;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 12px;
+    background: #e8f1ee;
+    color: #3b655b;
+}
+
+.threshold-value[b-cybv9w4lhn] {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.threshold-unit[b-cybv9w4lhn] {
+    min-width: 75px;
+    font-weight: 700;
+    color: #3b655b;
+}
+
+.threshold-card-footer[b-cybv9w4lhn] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.threshold-rule[b-cybv9w4lhn] {
+    color: #667085;
+    font-size: 13px;
+}
+
+@media (max-width: 900px) {
+    .threshold-grid[b-cybv9w4lhn] {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+    .threshold-card-footer[b-cybv9w4lhn] {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .threshold-card-footer .btn-primary[b-cybv9w4lhn] {
+        width: 100%;
+    }
+}

@@ -1,0 +1,7 @@
+El Login.razor actual de tu carpeta ya usa forceLoad:false y no necesita cambios.
+Debe conservar esta navegación después de un login correcto:
+
+Navigation.NavigateTo(
+    "/",
+    forceLoad: false,
+    replace: true);

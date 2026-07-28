@@ -1,0 +1,126 @@
+.followup-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.followup-summary article {
+    padding: 14px;
+    border: 1px solid var(--gray-200);
+    border-radius: 14px;
+    background: white;
+}
+
+.followup-summary span,
+.followup-summary strong {
+    display: block;
+}
+
+.followup-summary span {
+    color: var(--gray-600);
+    font-size: 10px;
+}
+
+.followup-summary strong {
+    margin-top: 5px;
+    font-size: 24px;
+}
+
+.followup-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.followup-card {
+    padding: 15px;
+    border: 1px solid var(--gray-200);
+    border-radius: 14px;
+    background: white;
+}
+
+.followup-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.followup-card h3 {
+    margin: 8px 0 0;
+}
+
+.followup-status {
+    padding: 6px 9px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.followup-status.pendiente {
+    background: rgba(255, 152, 0, .12);
+    color: #a95d00;
+}
+
+.followup-status.en_proceso {
+    background: rgba(59, 130, 246, .12);
+    color: #245cb5;
+}
+
+.followup-status.atendida {
+    background: rgba(59, 101, 91, .12);
+    color: #3B655B;
+}
+
+.followup-status.descartada {
+    background: rgba(142, 150, 146, .13);
+    color: #59615e;
+}
+
+.followup-card dl {
+    display: grid;
+    gap: 7px;
+    margin: 14px 0;
+}
+
+.followup-card dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.followup-card dt {
+    color: var(--gray-600);
+    font-size: 10px;
+}
+
+.followup-card dd {
+    margin: 0;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: right;
+}
+
+.followup-card p {
+    min-height: 42px;
+    color: var(--gray-600);
+    font-size: 10px;
+}
+
+.followup-observation {
+    min-height: 120px;
+}
+
+@media (max-width: 1000px) {
+    .followup-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 680px) {
+    .followup-summary,
+    .followup-grid {
+        grid-template-columns: 1fr;
+    }
+}

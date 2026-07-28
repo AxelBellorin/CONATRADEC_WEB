@@ -11,33 +11,11 @@ public sealed class DashboardService
         this.apiClient = apiClient;
     }
 
-    public async Task<ResultadoDatos<DashboardResumen>>
-        ObtenerResumenAsync(
-            CancellationToken cancellationToken = default)
+    public async Task<DashboardEjecutivoResumen> ObtenerResumenAsync(
+        CancellationToken cancellationToken = default)
     {
-        try
-        {
-            DashboardResumen? datos =
-                await apiClient.GetAsync<DashboardResumen>(
-                    "api/dashboard/resumen",
-                    cancellationToken);
-
-            if (datos is null)
-            {
-                return new ResultadoDatos<DashboardResumen>(
-                    DashboardResumen.Vacio(),
-                    "La API no devolvió información para el dashboard.");
-            }
-
-            datos.ApiDisponible = true;
-
-            return new ResultadoDatos<DashboardResumen>(datos);
-        }
-        catch (Exception ex)
-        {
-            return new ResultadoDatos<DashboardResumen>(
-                DashboardResumen.Vacio(),
-                $"No fue posible cargar los indicadores. {ex.Message}");
-        }
+        return await apiClient.GetAsync<DashboardEjecutivoResumen>(
+            "api/dashboard-ejecutivo/resumen",
+            cancellationToken) ?? new DashboardEjecutivoResumen();
     }
 }

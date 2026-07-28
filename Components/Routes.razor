@@ -1,98 +1,43 @@
 @using CONATRADEC.AdminWeb.Components.Layout
-@inject AuthStateService AuthState
-@inject NavigationManager Navigation
+@using CONATRADEC.AdminWeb.Components.Shared
 
-@if (!preparado)
-{
-    <div class="portal-loading">
-        <i class="fa-solid fa-spinner fa-spin"></i>
-        <span>Restaurando sesión...</span>
-    </div>
-}
-else
-{
-    <Router AppAssembly="typeof(Program).Assembly">
-        <Found Context="routeData">
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        @if (EsPaginaLogin(routeData.PageType))
+        {
             <RouteView RouteData="@routeData"
                        DefaultLayout="typeof(MainLayout)" />
+        }
+        else
+        {
+            <ProtectedRouteView RouteData="@routeData"
+                                DefaultLayout="typeof(MainLayout)" />
+        }
 
-            <FocusOnNavigate RouteData="routeData"
-                             Selector="h1" />
-        </Found>
+        <FocusOnNavigate RouteData="@routeData"
+                         Selector="h1" />
+    </Found>
 
-        <NotFound>
-            <LayoutView Layout="typeof(MainLayout)">
-                <div class="empty-state">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <h1>Página no encontrada</h1>
-                    <p>La dirección solicitada no existe.</p>
+    <NotFound>
+        <LayoutView Layout="typeof(MainLayout)">
+            <div class="empty-state">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <h1>Página no encontrada</h1>
+                <p>La dirección solicitada no existe.</p>
 
-                    <a class="btn-primary"
-                       href="/">
-                        Volver al inicio
-                    </a>
-                </div>
-            </LayoutView>
-        </NotFound>
-    </Router>
-}
+                <a class="btn-primary"
+                   href="/">
+                    Volver al inicio
+                </a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>
 
 @code {
-    private bool preparado;
-    private bool inicializacionEjecutada;
-
-    protected override async Task OnAfterRenderAsync(
-        bool firstRender)
-    {
-        if (!firstRender ||
-            inicializacionEjecutada)
-        {
-            return;
-        }
-
-        inicializacionEjecutada = true;
-
-        string rutaActual =
-            Navigation
-                .ToBaseRelativePath(
-                    Navigation.Uri)
-                .Trim('/');
-
-        bool estaEnLogin =
-            string.Equals(
-                rutaActual,
-                "login",
-                StringComparison.OrdinalIgnoreCase);
-
-        /*
-         * La página de login debe mostrarse inmediatamente.
-         * No depende de localStorage para poder renderizarse.
-         */
-        if (estaEnLogin)
-        {
-            preparado = true;
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-
-        /*
-         * En rutas protegidas sí intentamos restaurar la sesión.
-         * AuthStateService contiene un tiempo máximo para evitar
-         * que la interfaz se quede congelada.
-         */
-        await AuthState.InicializarAsync();
-
-        if (!AuthState.IsAuthenticated)
-        {
-            Navigation.NavigateTo(
-                "/login",
-                forceLoad: false,
-                replace: true);
-
-            return;
-        }
-
-        preparado = true;
-        await InvokeAsync(StateHasChanged);
-    }
+    private static bool EsPaginaLogin(Type pageType) =>
+        string.Equals(
+            pageType.Name,
+            "Login",
+            StringComparison.OrdinalIgnoreCase);
 }

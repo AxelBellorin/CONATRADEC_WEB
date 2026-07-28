@@ -7,157 +7,83 @@
 
 @if (cargando)
 {
-    <LoadingState Mensaje="Preparando el resumen ejecutivo..." />
+    <LoadingState Mensaje="Preparando el centro de operaciones..." />
 }
-else if (!AuthState.IsAuthenticated)
+else if (!string.IsNullOrWhiteSpace(error))
 {
-    <div></div>
+    <section class="panel dashboard-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <h1>No fue posible cargar el dashboard</h1>
+        <p>@error</p>
+        <button class="btn-primary" @onclick="CargarDatos">Reintentar</button>
+    </section>
 }
 else
 {
     <div class="executive-header">
         <div>
-            <p class="eyebrow">Inteligencia agrícola</p>
+            <p class="eyebrow">Centro de operaciones</p>
             <h1>Dashboard ejecutivo</h1>
-            <p>
-                Resumen operativo y agrícola de CONATRADEC para
-                @FechaConsultaTexto.
-            </p>
+            <p>Resumen actualizado al @FechaConsultaTexto.</p>
         </div>
 
         <div class="executive-header-actions">
             <span class="dashboard-live-indicator">
                 <i class="fa-solid fa-circle"></i>
-                Datos en tiempo real
+                Datos de la API
             </span>
-
-            <button class="btn-secondary"
-                    @onclick="CargarDatos"
-                    disabled="@cargando">
+            <button class="btn-secondary" @onclick="CargarDatos">
                 <i class="fa-solid fa-rotate"></i>
                 Actualizar
             </button>
         </div>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(aviso))
-    {
-        <div class="alert alert-error">
-            <i class="fa-solid fa-circle-exclamation"></i>
-            <span>@aviso</span>
-        </div>
-    }
-
     <section class="executive-kpi-grid">
-        <article class="executive-kpi">
-            <div class="executive-kpi-icon green">
-                <i class="fa-solid fa-map-location-dot"></i>
-            </div>
-            <div>
-                <span>Terrenos activos</span>
-                <strong>@resumen.TotalTerrenos.ToString("N0")</strong>
-                <small>
-                    @resumen.ExtensionTotalManzanas.ToString("N2")
-                    manzanas registradas
-                </small>
-            </div>
-        </article>
+        <Kpi Icono="fa-map-location-dot" Clase="green"
+             Titulo="Terrenos activos" Valor="@resumen.TotalTerrenos.ToString("N0")"
+             Detalle="@($"{resumen.ExtensionTotalManzanas:N2} manzanas")" />
 
-        <article class="executive-kpi">
-            <div class="executive-kpi-icon blue">
-                <i class="fa-solid fa-flask"></i>
-            </div>
-            <div>
-                <span>Análisis de suelo</span>
-                <strong>@resumen.TotalAnalisis.ToString("N0")</strong>
-                <small>
-                    @resumen.AnalisisMesActual.ToString("N0")
-                    realizados este mes
-                </small>
-            </div>
-        </article>
+        <Kpi Icono="fa-flask" Clase="blue"
+             Titulo="Análisis de suelo" Valor="@resumen.TotalAnalisis.ToString("N0")"
+             Detalle="@($"{resumen.AnalisisMesActual:N0} este mes")" />
 
-        <article class="executive-kpi">
-            <div class="executive-kpi-icon brown">
-                <i class="fa-solid fa-seedling"></i>
-            </div>
-            <div>
-                <span>Cobertura analizada</span>
-                <strong>
-                    @resumen.PorcentajeTerrenosAnalizados.ToString("N1")%
-                </strong>
-                <small>
-                    @resumen.TerrenosConAnalisis de
-                    @resumen.TotalTerrenos terrenos
-                </small>
-            </div>
-        </article>
+        <Kpi Icono="fa-seedling" Clase="brown"
+             Titulo="Cobertura analizada" Valor="@($"{resumen.PorcentajeTerrenosAnalizados:N1}%")"
+             Detalle="@($"{resumen.TerrenosConAnalisis} de {resumen.TotalTerrenos} terrenos")" />
 
-        <article class="executive-kpi">
-            <div class="executive-kpi-icon orange">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-            </div>
-            <div>
-                <span>Alertas críticas</span>
-                <strong>@resumen.AlertasCriticas.ToString("N0")</strong>
-                <small>
-                    @resumen.AlertasAtencion.ToString("N0")
-                    requieren seguimiento
-                </small>
-            </div>
-        </article>
+        <Kpi Icono="fa-triangle-exclamation" Clase="orange"
+             Titulo="Alertas críticas" Valor="@resumen.AlertasCriticas.ToString("N0")"
+             Detalle="@($"{resumen.AlertasAtencion:N0} requieren atención")" />
 
-        <article class="executive-kpi">
-            <div class="executive-kpi-icon purple">
-                <i class="fa-solid fa-users"></i>
-            </div>
-            <div>
-                <span>Usuarios activos</span>
-                <strong>@resumen.UsuariosActivos.ToString("N0")</strong>
-                <small>
-                    @resumen.UsuariosInternos internos ·
-                    @resumen.UsuariosExternos externos
-                </small>
-            </div>
-        </article>
+        <Kpi Icono="fa-list-check" Clase="purple"
+             Titulo="Seguimientos abiertos"
+             Valor="@((resumen.SeguimientosPendientes + resumen.SeguimientosEnProceso).ToString("N0"))"
+             Detalle="@($"{resumen.SeguimientosSinAsignar:N0} sin asignar")" />
 
-        <article class="executive-kpi">
-            <div class="executive-kpi-icon cyan">
-                <i class="fa-solid fa-mobile-screen-button"></i>
-            </div>
-            <div>
-                <span>Conectados ahora</span>
-                <strong>@resumen.DispositivosConectados.ToString("N0")</strong>
-                <small>
-                    @resumen.UsuariosConectados usuarios únicos
-                </small>
-            </div>
-        </article>
+        <Kpi Icono="fa-mobile-screen-button" Clase="cyan"
+             Titulo="Conectados ahora" Valor="@resumen.DispositivosConectados.ToString("N0")"
+             Detalle="@($"{resumen.UsuariosConectados:N0} usuarios únicos")" />
     </section>
 
-    <section class="executive-grid">
-        <article class="panel executive-chart-panel">
+    <section class="dashboard-main-grid">
+        <article class="panel dashboard-chart-panel">
             <div class="panel-header">
                 <div>
                     <h2>Actividad de análisis</h2>
-                    <p>Comportamiento de los últimos seis meses</p>
+                    <p>Últimos seis meses</p>
                 </div>
-                <span class="badge">
-                    @resumen.AnalisisUltimos30Dias análisis en 30 días
-                </span>
+                <span class="badge">@resumen.AnalisisUltimos30Dias en 30 días</span>
             </div>
 
-            <div class="executive-bar-chart"
-                 role="img"
-                 aria-label="Cantidad de análisis por mes">
-                @foreach (AnalisisMesItem item in resumen.AnalisisPorMes)
+            <div class="dashboard-bars">
+                @foreach (var item in resumen.AnalisisPorMes)
                 {
-                    <div class="executive-bar-item">
+                    <div class="dashboard-bar-item">
                         <strong>@item.Cantidad</strong>
-                        <div class="executive-bar-track">
-                            <div class="executive-bar-fill"
-                                 style="height:@CalcularAltura(item.Cantidad)%">
-                            </div>
+                        <div class="dashboard-bar-track">
+                            <div class="dashboard-bar-fill"
+                                 style="height:@Altura(item.Cantidad)%"></div>
                         </div>
                         <span>@item.Mes</span>
                     </div>
@@ -165,243 +91,169 @@ else
             </div>
         </article>
 
-        <article class="panel executive-alert-summary">
+        <article class="panel followup-overview">
             <div class="panel-header">
                 <div>
-                    <h2>Estado agrícola</h2>
-                    <p>Alertas del análisis vigente por terreno</p>
+                    <h2>Gestión de seguimientos</h2>
+                    <p>Estado operativo actual</p>
+                </div>
+                <a class="btn-link" href="/seguimiento-alertas">Gestionar</a>
+            </div>
+
+            <div class="followup-ring" style="--value:@resumen.PorcentajeSeguimientosCerrados">
+                <div>
+                    <strong>@resumen.PorcentajeSeguimientosCerrados.ToString("N1")%</strong>
+                    <span>cerrados</span>
                 </div>
             </div>
 
-            <div class="alert-indicator-list">
-                @foreach (IndicadorAlertaItem item in
-                    resumen.DistribucionAlertas)
+            <div class="followup-legend">
+                <span><i class="pending"></i>Pendientes <b>@resumen.SeguimientosPendientes</b></span>
+                <span><i class="progress"></i>En proceso <b>@resumen.SeguimientosEnProceso</b></span>
+                <span><i class="done"></i>Atendidos <b>@resumen.SeguimientosAtendidos</b></span>
+                <span><i class="discarded"></i>Descartados <b>@resumen.SeguimientosDescartados</b></span>
+            </div>
+        </article>
+
+        <article class="panel alerts-distribution">
+            <div class="panel-header">
+                <div>
+                    <h2>Condiciones agrícolas</h2>
+                    <p>Según los umbrales configurados</p>
+                </div>
+                <a class="btn-link" href="/configuracion-alertas">Umbrales</a>
+            </div>
+
+            @foreach (var item in resumen.DistribucionAlertas)
+            {
+                <div class="alert-distribution-row">
+                    <span class="severity-dot @(item.Nivel == "CRITICA" ? "critical" : "attention")"></span>
+                    <div><strong>@item.Nombre</strong><small>@item.Descripcion</small></div>
+                    <b>@item.Cantidad</b>
+                </div>
+            }
+        </article>
+
+        <article class="panel departments-panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Cobertura territorial</h2>
+                    <p>Principales departamentos</p>
+                </div>
+                <a class="btn-link" href="/mapa">Ver mapa</a>
+            </div>
+
+            @foreach (var item in resumen.Departamentos)
+            {
+                <div class="department-row">
+                    <div><strong>@item.Departamento</strong><small>@item.Terrenos terrenos · @item.ExtensionManzanas.ToString("N2") Mz</small></div>
+                    <div class="department-track"><span style="width:@item.CoberturaAnalisisPorcentaje%"></span></div>
+                    <b>@item.CoberturaAnalisisPorcentaje.ToString("N1")%</b>
+                </div>
+            }
+        </article>
+
+        <article class="panel technicians-panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Carga de técnicos</h2>
+                    <p>Seguimientos asignados</p>
+                </div>
+            </div>
+
+            @if (resumen.Tecnicos.Count == 0)
+            {
+                <div class="dashboard-empty">No hay seguimientos asignados.</div>
+            }
+            else
+            {
+                @foreach (var tecnico in resumen.Tecnicos)
                 {
-                    <div class="alert-indicator-row">
-                        <span class="alert-severity-dot
-                              @(item.Nivel == "CRITICA" ? "critical" : "attention")">
-                        </span>
-
-                        <div>
-                            <strong>@item.Nombre</strong>
-                            <small>@item.Descripcion</small>
-                        </div>
-
-                        <b>@item.Cantidad</b>
+                    <div class="technician-row">
+                        <div class="technician-avatar">@Iniciales(tecnico.Nombre)</div>
+                        <div><strong>@tecnico.Nombre</strong><small>@tecnico.Pendientes pendientes · @tecnico.EnProceso en proceso</small></div>
+                        <b>@tecnico.TotalAbiertos abiertos</b>
                     </div>
                 }
-            </div>
-
-            <div class="executive-risk-callout">
-                <i class="fa-solid fa-chart-pie"></i>
-                <div>
-                    <strong>
-                        @resumen.PorcentajePhCritico.ToString("N1")%
-                        con pH crítico
-                    </strong>
-                    <span>
-                        Sobre terrenos que poseen análisis vigente.
-                    </span>
-                </div>
-            </div>
-        </article>
-
-        <article class="panel executive-departments-panel">
-            <div class="panel-header">
-                <div>
-                    <h2>Cobertura por departamento</h2>
-                    <p>Departamentos con mayor cantidad de terrenos</p>
-                </div>
-                <a class="btn-link" href="/mapa">
-                    Ver mapa
-                    <i class="fa-solid fa-arrow-right"></i>
-                </a>
-            </div>
-
-            @if (resumen.Departamentos.Count == 0)
-            {
-                <div class="executive-empty">
-                    No hay datos territoriales disponibles.
-                </div>
-            }
-            else
-            {
-                <div class="department-performance-list">
-                    @foreach (DepartamentoResumenItem item in
-                        resumen.Departamentos)
-                    {
-                        <div class="department-performance-row">
-                            <div class="department-performance-title">
-                                <strong>@item.Departamento</strong>
-                                <span>
-                                    @item.Terrenos terrenos ·
-                                    @item.ExtensionManzanas.ToString("N2") Mz
-                                </span>
-                            </div>
-
-                            <div class="department-progress">
-                                <div class="department-progress-fill"
-                                     style="width:@item.CoberturaAnalisisPorcentaje%">
-                                </div>
-                            </div>
-
-                            <b>
-                                @item.CoberturaAnalisisPorcentaje.ToString("N1")%
-                            </b>
-                        </div>
-                    }
-                </div>
             }
         </article>
 
-        <article class="panel executive-quick-panel">
-            <div class="panel-header">
-                <div>
-                    <h2>Accesos ejecutivos</h2>
-                    <p>Herramientas de supervisión</p>
-                </div>
-            </div>
-
-            <div class="executive-quick-actions">
-                <a href="/mapa">
-                    <i class="fa-solid fa-map"></i>
-                    <span>
-                        <strong>Mapa inteligente</strong>
-                        <small>Terrenos y ubicación territorial</small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-
-                <a href="/dispositivos-conectados">
-                    <i class="fa-solid fa-map-location-dot"></i>
-                    <span>
-                        <strong>Dispositivos</strong>
-                        <small>Conexión y última ubicación</small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-
-                <a href="/bitacora">
-                    <i class="fa-solid fa-clock-rotate-left"></i>
-                    <span>
-                        <strong>Auditoría</strong>
-                        <small>Actividad y operaciones del sistema</small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-
-                <a href="/usuarios">
-                    <i class="fa-solid fa-user-gear"></i>
-                    <span>
-                        <strong>Usuarios</strong>
-                        <small>Accesos internos y externos</small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
+        <article class="panel quick-actions-panel">
+            <div class="panel-header"><div><h2>Accesos rápidos</h2><p>Operación administrativa</p></div></div>
+            <div class="quick-actions-grid">
+                <a href="/alertas-agricolas"><i class="fa-solid fa-triangle-exclamation"></i><span>Centro de alertas</span></a>
+                <a href="/seguimiento-alertas"><i class="fa-solid fa-list-check"></i><span>Seguimientos</span></a>
+                <a href="/mapa"><i class="fa-solid fa-map"></i><span>Mapa inteligente</span></a>
+                <a href="/dispositivos-conectados"><i class="fa-solid fa-laptop"></i><span>Dispositivos</span></a>
             </div>
         </article>
+    </section>
 
-        <article class="panel executive-alerts-panel">
-            <div class="panel-header">
-                <div>
-                    <h2>Terrenos que requieren atención</h2>
-                    <p>Alertas recientes calculadas desde el último análisis</p>
-                </div>
-                <span class="badge">
-                    @resumen.AlertasRecientes.Count resultados
-                </span>
-            </div>
+    <section class="panel dashboard-alerts-table">
+        <div class="panel-header">
+            <div><h2>Terrenos que requieren atención</h2><p>Alertas recientes y estado del seguimiento</p></div>
+            <a class="btn-link" href="/alertas-agricolas">Ver todas</a>
+        </div>
 
-            @if (resumen.AlertasRecientes.Count == 0)
-            {
-                <div class="executive-empty">
-                    <i class="fa-solid fa-circle-check"></i>
-                    No hay alertas agrícolas para mostrar.
-                </div>
-            }
-            else
-            {
-                <div class="executive-alert-table-wrapper">
-                    <table class="executive-alert-table">
-                        <thead>
+        @if (resumen.AlertasRecientes.Count == 0)
+        {
+            <div class="dashboard-empty"><i class="fa-solid fa-circle-check"></i>No hay alertas activas para mostrar.</div>
+        }
+        else
+        {
+            <div class="responsive-table-wrapper">
+                <table class="data-table">
+                    <thead><tr><th>Nivel</th><th>Terreno</th><th>Ubicación</th><th>Condición</th><th>Seguimiento</th><th>Acción</th></tr></thead>
+                    <tbody>
+                        @foreach (var item in resumen.AlertasRecientes)
+                        {
                             <tr>
-                                <th>Nivel</th>
-                                <th>Terreno</th>
-                                <th>Ubicación</th>
-                                <th>Alerta</th>
-                                <th>Valor</th>
-                                <th>Fecha</th>
+                                <td><span class="executive-alert-badge @(item.Nivel == "CRITICA" ? "critical" : "attention")">@NivelTexto(item.Nivel)</span></td>
+                                <td><strong>@item.CodigoTerreno</strong><small>@item.Propietario</small></td>
+                                <td><strong>@item.Municipio</strong><small>@item.Departamento</small></td>
+                                <td><strong>@item.Tipo</strong><small>@item.Valor?.ToString("N2") @item.Unidad</small></td>
+                                <td>
+                                    @if (item.SeguimientoId.HasValue)
+                                    {
+                                        <span class="followup-state">@EstadoTexto(item.EstadoSeguimiento)</span><small>@(item.Responsable ?? "Sin asignar")</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="followup-state empty">Sin seguimiento</span>
+                                    }
+                                </td>
+                                <td>
+                                    <a class="table-action" href="@(item.SeguimientoId.HasValue ? $"/seguimiento-alertas?id={item.SeguimientoId}" : "/alertas-agricolas")">
+                                        <i class="fa-solid fa-arrow-right"></i>
+                                    </a>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (AlertaTerrenoItem item in
-                                resumen.AlertasRecientes)
-                            {
-                                <tr>
-                                    <td>
-                                        <span class="executive-alert-badge
-                                              @(item.Nivel == "CRITICA"
-                                                ? "critical"
-                                                : "attention")">
-                                            @NivelTexto(item.Nivel)
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <strong>@item.CodigoTerreno</strong>
-                                        <small>@item.Propietario</small>
-                                    </td>
-                                    <td>
-                                        <strong>@item.Municipio</strong>
-                                        <small>@item.Departamento</small>
-                                    </td>
-                                    <td>
-                                        <strong>@item.Tipo</strong>
-                                        <small>@item.Mensaje</small>
-                                    </td>
-                                    <td>
-                                        <strong>
-                                            @(item.Valor?.ToString("N2") ?? "—")
-                                        </strong>
-                                        <small>@item.Unidad</small>
-                                    </td>
-                                    <td>
-                                        @item.FechaAnalisis.ToString("dd/MM/yyyy")
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </article>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </section>
 }
 
 @code {
+    private DashboardEjecutivoResumen resumen = new();
     private bool cargando = true;
-    private DashboardResumen resumen = DashboardResumen.Vacio();
-    private string? aviso;
+    private string? error;
 
-    private string FechaConsultaTexto =>
-        resumen.FechaConsultaUtc == default
-            ? DateTime.Now.ToString("dd/MM/yyyy hh:mm tt")
-            : DateTime.SpecifyKind(
-                    resumen.FechaConsultaUtc,
-                    DateTimeKind.Utc)
-                .ToLocalTime()
-                .ToString("dd/MM/yyyy hh:mm tt");
+    private string FechaConsultaTexto => resumen.FechaConsultaUtc == default
+        ? DateTime.Now.ToString("dd/MM/yyyy hh:mm tt")
+        : DateTime.SpecifyKind(resumen.FechaConsultaUtc, DateTimeKind.Utc)
+            .ToLocalTime().ToString("dd/MM/yyyy hh:mm tt");
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
-            return;
-
+        if (!firstRender) return;
         if (!AuthState.IsAuthenticated)
         {
             Navigation.NavigateTo("/login");
             return;
         }
-
         await CargarDatos();
         StateHasChanged();
     }
@@ -409,31 +261,29 @@ else
     private async Task CargarDatos()
     {
         cargando = true;
-        aviso = null;
-
-        ResultadoDatos<DashboardResumen> resultado =
-            await DashboardService.ObtenerResumenAsync();
-
-        resumen = resultado.Datos;
-        aviso = resultado.Mensaje;
-        cargando = false;
+        error = null;
+        try { resumen = await DashboardService.ObtenerResumenAsync(); }
+        catch (Exception ex) { error = ex.Message; }
+        finally { cargando = false; }
     }
 
-    private double CalcularAltura(int cantidad)
+    private int Altura(int cantidad)
     {
-        int maximo = Math.Max(
-            1,
-            resumen.AnalisisPorMes
-                .DefaultIfEmpty(new AnalisisMesItem())
-                .Max(item => item.Cantidad));
-
-        return Math.Max(
-            7,
-            cantidad * 100d / maximo);
+        int maximo = Math.Max(1, resumen.AnalisisPorMes.Select(x => x.Cantidad).DefaultIfEmpty(0).Max());
+        return Math.Max(6, (int)Math.Round(cantidad * 100d / maximo));
     }
 
-    private static string NivelTexto(string nivel) =>
-        nivel == "CRITICA"
-            ? "Crítica"
-            : "Atención";
+    private static string Iniciales(string nombre) => string.Concat(nombre
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Take(2).Select(x => char.ToUpperInvariant(x[0])));
+
+    private static string NivelTexto(string nivel) => nivel == "CRITICA" ? "Crítica" : "Atención";
+
+    private static string EstadoTexto(string? estado) => estado switch
+    {
+        "EN_PROCESO" => "En proceso",
+        "ATENDIDA" => "Atendida",
+        "DESCARTADA" => "Descartada",
+        _ => "Pendiente"
+    };
 }

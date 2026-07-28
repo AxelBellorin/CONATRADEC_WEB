@@ -26,11 +26,17 @@ public sealed class AuthStateService
 
     public bool Inicializado { get; private set; }
 
+    /// <summary>
+    /// La API actual no genera un token JWT durante el login.
+    /// Por tanto, la sesión se considera válida cuando existe
+    /// un usuario activo restaurado o autenticado.
+    ///
+    /// Cuando el backend implemente JWT, el token podrá seguir
+    /// configurándose de forma opcional sin cambiar esta lógica.
+    /// </summary>
     public bool IsAuthenticated =>
         Usuario is not null &&
-        Usuario.Activo &&
-        !string.IsNullOrWhiteSpace(
-            Usuario.Token);
+        Usuario.Activo;
 
     public bool EsAdministrador =>
         Usuario?.RolNombre.Contains(
@@ -68,8 +74,7 @@ public sealed class AuthStateService
 
             if (completada != lectura)
             {
-                Usuario = null;
-                apiClient.ConfigurarToken(null);
+                LimpiarEstadoEnMemoria();
                 return;
             }
 
@@ -77,28 +82,29 @@ public sealed class AuthStateService
                 await lectura;
 
             if (restaurado is null ||
-                !restaurado.Activo ||
-                string.IsNullOrWhiteSpace(
-                    restaurado.Token))
+                !restaurado.Activo)
             {
-                Usuario = null;
-                apiClient.ConfigurarToken(null);
+                LimpiarEstadoEnMemoria();
                 return;
             }
 
             Usuario = restaurado;
 
+            /*
+             * El token es opcional porque el endpoint actual de login
+             * no devuelve JWT. Si en el futuro el backend lo incorpora,
+             * ApiClientService lo enviará automáticamente.
+             */
             apiClient.ConfigurarToken(
                 restaurado.Token);
         }
         catch
         {
             /*
-             * Si localStorage o JavaScript falla durante desarrollo,
-             * la aplicación continúa y permite volver al login.
+             * Si localStorage o JSInterop falla durante desarrollo,
+             * la aplicación continúa y redirige al login.
              */
-            Usuario = null;
-            apiClient.ConfigurarToken(null);
+            LimpiarEstadoEnMemoria();
         }
         finally
         {
@@ -152,6 +158,10 @@ public sealed class AuthStateService
 
             Usuario = usuario;
 
+            /*
+             * La API actual devuelve null o vacío porque todavía
+             * no implementa JWT. ConfigurarToken acepta ese caso.
+             */
             apiClient.ConfigurarToken(
                 usuario.Token);
 
@@ -234,8 +244,7 @@ public sealed class AuthStateService
 
     public async Task CerrarSesionAsync()
     {
-        Usuario = null;
-        apiClient.ConfigurarToken(null);
+        LimpiarEstadoEnMemoria();
 
         await browserSession.EliminarAsync();
 
@@ -245,6 +254,12 @@ public sealed class AuthStateService
 
     public Task CerrarSesion() =>
         CerrarSesionAsync();
+
+    private void LimpiarEstadoEnMemoria()
+    {
+        Usuario = null;
+        apiClient.ConfigurarToken(null);
+    }
 
     private void NotificarCambio()
     {

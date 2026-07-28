@@ -3,53 +3,211 @@
 @inject SeguimientoAlertasService Service
 @inject NavigationManager Navigation
 
-<PageTitle>Seguimiento de alertas | CONATRADEC</PageTitle>
+<PageTitle>
+    Seguimiento de alertas | CONATRADEC
+</PageTitle>
 
 <div class="page-header">
     <div>
         <p class="eyebrow">Gestión técnica</p>
+
         <h1>Seguimiento de alertas</h1>
-        <p>Asigna responsables, documenta acciones y consulta el historial.</p>
+
+        <p>
+            Asigna responsables, documenta acciones
+            y consulta el historial.
+        </p>
     </div>
+
     <div class="page-header-actions">
-        <a class="btn-secondary" href="/alertas-agricolas">Alertas detectadas</a>
-        <a class="btn-secondary" href="/reportes">Reportes</a>
-        <button class="btn-primary" @onclick="Cargar">Actualizar</button>
+        <a class="btn-secondary"
+           href="/alertas-agricolas">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Alertas detectadas
+        </a>
+
+        <button class="btn-primary"
+                @onclick="Cargar"
+                disabled="@cargando">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
     </div>
 </div>
 
 @if (!string.IsNullOrWhiteSpace(mensaje))
 {
-    <div class="alert @(esError ? "alert-error" : "alert-success")">@mensaje</div>
+    <div class="alert @(esError
+        ? "alert-error"
+        : "alert-success")">
+        @mensaje
+    </div>
 }
+
+<section class="followup-summary-grid">
+    <article>
+        <span>Total</span>
+        <strong>@seguimientos.Count</strong>
+    </article>
+
+    <article class="pending">
+        <span>Pendientes</span>
+        <strong>@Contar("PENDIENTE")</strong>
+    </article>
+
+    <article class="progress">
+        <span>En proceso</span>
+        <strong>@Contar("EN_PROCESO")</strong>
+    </article>
+
+    <article class="closed">
+        <span>Cerrados</span>
+        <strong>
+            @(Contar("ATENDIDA") +
+              Contar("DESCARTADA"))
+        </strong>
+    </article>
+</section>
+
+<section class="panel followup-filters">
+    <div class="form-group followup-search">
+        <label>Buscar</label>
+
+        <InputText class="form-control"
+                   @bind-Value="buscar"
+                   placeholder="Terreno, propietario, alerta o responsable" />
+    </div>
+
+    <div class="form-group">
+        <label>Estado</label>
+
+        <InputSelect class="form-control"
+                     @bind-Value="estado">
+            <option value="">Todos</option>
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="EN_PROCESO">En proceso</option>
+            <option value="ATENDIDA">Atendida</option>
+            <option value="DESCARTADA">Descartada</option>
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Responsable</label>
+
+        <InputSelect class="form-control"
+                     @bind-Value="responsableId">
+            <option value="">Todos</option>
+            <option value="0">Sin asignar</option>
+
+            @foreach (
+                TecnicoAlertaItem tecnico
+                in tecnicos)
+            {
+                <option value="@tecnico.UsuarioId">
+                    @tecnico.NombreCompleto
+                </option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="followup-filter-actions">
+        <button class="btn-primary"
+                @onclick="AplicarFiltros">
+            Aplicar
+        </button>
+
+        <button class="btn-link"
+                @onclick="LimpiarFiltros">
+            Limpiar
+        </button>
+    </div>
+</section>
 
 @if (cargando)
 {
     <LoadingState Mensaje="Cargando seguimientos..." />
 }
+else if (Filtrados.Count == 0)
+{
+    <section class="panel followup-empty-state">
+        <i class="fa-solid fa-clipboard-check"></i>
+        <h2>No hay seguimientos para mostrar</h2>
+        <p>
+            No existen registros que coincidan con
+            los filtros seleccionados.
+        </p>
+    </section>
+}
 else
 {
     <section class="followup-grid">
-        @foreach (SeguimientoAlertaItem item in seguimientos)
+        @foreach (
+            SeguimientoAlertaItem item
+            in Filtrados)
         {
             <article class="followup-card">
                 <div class="followup-card-header">
                     <div>
-                        <span class="executive-alert-badge @ClaseNivel(item.Nivel)">@item.Nivel</span>
+                        <span class="executive-alert-badge @ClaseNivel(item.Nivel)">
+                            @NivelTexto(item.Nivel)
+                        </span>
+
                         <h3>@item.TipoAlerta</h3>
                     </div>
-                    <span class="followup-status @item.Estado.ToLowerInvariant()">
+
+                    <span class="followup-status @ClaseEstado(item.Estado)">
                         @EstadoTexto(item.Estado)
                     </span>
                 </div>
+
+                <div class="followup-terrain">
+                    <i class="fa-solid fa-seedling"></i>
+
+                    <div>
+                        <strong>@item.CodigoTerreno</strong>
+                        <span>@item.Propietario</span>
+                        <small>@item.Ubicacion</small>
+                    </div>
+                </div>
+
                 <dl>
-                    <div><dt>Terreno</dt><dd>#@item.TerrenoId</dd></div>
-                    <div><dt>Responsable</dt><dd>@(item.UsuarioAsignado ?? "Sin asignar")</dd></div>
-                    <div><dt>Último cambio</dt><dd>@item.FechaUltimaModificacionUtc.ToLocalTime().ToString("dd/MM/yyyy hh:mm tt")</dd></div>
+                    <div>
+                        <dt>Responsable</dt>
+                        <dd>
+                            @(item.UsuarioAsignado ??
+                              "Sin asignar")
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt>Creado</dt>
+                        <dd>
+                            @FormatearFecha(item.FechaCreacionUtc)
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt>Último cambio</dt>
+                        <dd>
+                            @FormatearFecha(item.FechaUltimaModificacionUtc)
+                        </dd>
+                    </div>
                 </dl>
-                <p>@(string.IsNullOrWhiteSpace(item.Observacion) ? "Sin observaciones." : item.Observacion)</p>
-                <button class="btn-secondary" @onclick="() => Editar(item)">
-                    Actualizar e historial
+
+                <p class="followup-card-observation">
+                    @(string.IsNullOrWhiteSpace(item.Observacion)
+                        ? "Sin observaciones."
+                        : item.Observacion)
+                </p>
+
+                <button class="btn-secondary"
+                        @onclick="() => Editar(item)">
+                    <i class="fa-solid @(PuedeActualizar
+                        ? "fa-pen-to-square"
+                        : "fa-clock-rotate-left")"></i>
+                    @(PuedeActualizar
+                        ? "Gestionar e historial"
+                        : "Ver historial")
                 </button>
             </article>
         }
@@ -63,57 +221,175 @@ else
             <div class="modal-header">
                 <div>
                     <h2>Seguimiento técnico</h2>
-                    <p>@editando.TipoAlerta · Terreno #@editando.TerrenoId</p>
+                    <p>
+                        @editando.TipoAlerta ·
+                        @editando.CodigoTerreno
+                    </p>
                 </div>
-                <button class="modal-close" @onclick="CerrarModal">×</button>
-            </div>
 
-            <div class="form-group">
-                <label>Estado</label>
-                <InputSelect class="form-control" @bind-Value="formulario.Estado">
-                    <option value="PENDIENTE">Pendiente</option>
-                    <option value="EN_PROCESO">En proceso</option>
-                    <option value="ATENDIDA">Atendida</option>
-                    <option value="DESCARTADA">Descartada</option>
-                </InputSelect>
-            </div>
-
-            <div class="form-group">
-                <label>Técnico responsable</label>
-                <InputSelect class="form-control" @bind-Value="formulario.UsuarioAsignadoId">
-                    <option value="">Sin asignar</option>
-                    @foreach (TecnicoAlertaItem tecnico in tecnicos)
-                    {
-                        <option value="@tecnico.UsuarioId">@tecnico.Etiqueta</option>
-                    }
-                </InputSelect>
-            </div>
-
-            <div class="form-group">
-                <label>Observación técnica</label>
-                <InputTextArea class="form-control followup-observation"
-                               @bind-Value="formulario.Observacion" />
-            </div>
-
-            <div class="modal-actions">
-                <button class="btn-link" @onclick="CerrarModal">Cancelar</button>
-                <button class="btn-primary" @onclick="Guardar" disabled="@guardando">
-                    Guardar cambios
+                <button class="modal-close"
+                        @onclick="CerrarModal">
+                    ×
                 </button>
             </div>
 
-            <h3>Historial</h3>
+            <div class="followup-detail-summary">
+                <div>
+                    <span>Terreno</span>
+                    <strong>@editando.CodigoTerreno</strong>
+                    <small>@editando.Propietario</small>
+                </div>
+
+                <div>
+                    <span>Ubicación</span>
+                    <strong>@editando.Ubicacion</strong>
+                    <small>@editando.Direccion</small>
+                </div>
+
+                <div>
+                    <span>Fecha de apertura</span>
+                    <strong>
+                        @FormatearFecha(editando.FechaCreacionUtc)
+                    </strong>
+                </div>
+            </div>
+
+            <EditForm Model="@formulario"
+                      OnValidSubmit="Guardar">
+                <DataAnnotationsValidator />
+
+                <div class="followup-form-grid">
+                    <div class="form-group">
+                        <label>Estado</label>
+
+                        <InputSelect class="form-control"
+                                     @bind-Value="formulario.Estado"
+                                     disabled="@(!PuedeActualizar)">
+                            <option value="PENDIENTE">
+                                Pendiente
+                            </option>
+
+                            <option value="EN_PROCESO">
+                                En proceso
+                            </option>
+
+                            <option value="ATENDIDA">
+                                Atendida
+                            </option>
+
+                            <option value="DESCARTADA">
+                                Descartada
+                            </option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Técnico responsable</label>
+
+                        <InputSelect class="form-control"
+                                     @bind-Value="formulario.UsuarioAsignadoId"
+                                     disabled="@(!PuedeActualizar)">
+                            <option value="">Sin asignar</option>
+
+                            @foreach (
+                                TecnicoAlertaItem tecnico
+                                in tecnicos)
+                            {
+                                <option value="@tecnico.UsuarioId">
+                                    @tecnico.Etiqueta
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Observación técnica</label>
+
+                    <InputTextArea
+                        class="form-control followup-observation"
+                        @bind-Value="formulario.Observacion"
+                        disabled="@(!PuedeActualizar)" />
+
+                    <div class="field-help">
+                        @formulario.Observacion.Length / 1000 caracteres
+                    </div>
+
+                    <ValidationMessage
+                        For="() => formulario.Observacion" />
+                </div>
+
+                @if (formulario.Estado is
+                    "ATENDIDA" or "DESCARTADA")
+                {
+                    <div class="alert alert-info">
+                        Al guardar este estado se registrará
+                        la fecha de cierre del seguimiento.
+                    </div>
+                }
+
+                <div class="modal-actions">
+                    <button type="button"
+                            class="btn-link"
+                            @onclick="CerrarModal">
+                        Cerrar
+                    </button>
+
+                    @if (PuedeActualizar)
+                    {
+                        <button type="submit"
+                                class="btn-primary"
+                                disabled="@guardando">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            Guardar cambios
+                        </button>
+                    }
+                </div>
+            </EditForm>
+
+            <div class="followup-history-header">
+                <div>
+                    <h3>Historial</h3>
+                    <p>
+                        Registro cronológico de las acciones
+                        realizadas.
+                    </p>
+                </div>
+
+                @if (cargandoHistorial)
+                {
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                }
+            </div>
+
             <div class="timeline">
-                @if (historial.Count == 0)
+                @if (!cargandoHistorial &&
+                     historial.Count == 0)
                 {
                     <p>No hay movimientos registrados.</p>
                 }
-                @foreach (HistorialAlertaItem item in historial)
+
+                @foreach (
+                    HistorialAlertaItem item
+                    in historial)
                 {
                     <article class="timeline-item">
-                        <strong>@item.Accion · @item.Usuario</strong>
-                        <p>@item.Detalle</p>
-                        <small>@item.FechaUtc.ToLocalTime().ToString("dd/MM/yyyy hh:mm tt")</small>
+                        <div class="timeline-icon">
+                            <i class="@IconoHistorial(item.Accion)"></i>
+                        </div>
+
+                        <div>
+                            <strong>
+                                @AccionTexto(item.Accion)
+                            </strong>
+
+                            <span>@item.Usuario</span>
+                            <p>@item.Detalle</p>
+
+                            <small>
+                                @FormatearFecha(item.FechaUtc)
+                            </small>
+                        </div>
                     </article>
                 }
             </div>
@@ -122,38 +398,124 @@ else
 }
 
 @code {
-    private List<SeguimientoAlertaItem> seguimientos = [];
-    private List<TecnicoAlertaItem> tecnicos = [];
-    private List<HistorialAlertaItem> historial = [];
+    [SupplyParameterFromQuery(Name = "id")]
+    public int? SeguimientoId { get; set; }
+
+    private List<SeguimientoAlertaItem> seguimientos =
+        [];
+
+    private List<TecnicoAlertaItem> tecnicos =
+        [];
+
+    private List<HistorialAlertaItem> historial =
+        [];
+
     private SeguimientoAlertaItem? editando;
-    private ActualizarSeguimientoAlerta formulario = new();
+
+    private ActualizarSeguimientoAlerta formulario =
+        new();
+
+    private string buscar =
+        string.Empty;
+
+    private string estado =
+        string.Empty;
+
+    private string responsableId =
+        string.Empty;
+
     private bool cargando = true;
+    private bool cargandoHistorial;
     private bool guardando;
+    private bool enlaceProcesado;
     private string? mensaje;
     private bool esError;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(
+            PermisosWeb.SeguimientoAlertas);
+
+    private List<SeguimientoAlertaItem> Filtrados =>
+        seguimientos
+            .Where(CoincideBusqueda)
+            .Where(CoincideEstado)
+            .Where(CoincideResponsable)
+            .OrderBy(item =>
+                OrdenEstado(item.Estado))
+            .ThenByDescending(item =>
+                item.FechaUltimaModificacionUtc)
+            .ToList();
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender)
+            return;
+
         if (!AuthState.IsAuthenticated)
         {
             Navigation.NavigateTo("/login");
             return;
         }
+
+        if (!AuthState.TienePermisoLectura(
+                PermisosWeb.SeguimientoAlertas) &&
+            !AuthState.EsAdministrador)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
         await Cargar();
+
+        if (SeguimientoId is > 0 &&
+            !enlaceProcesado)
+        {
+            enlaceProcesado = true;
+
+            SeguimientoAlertaItem? seleccionado =
+                seguimientos.FirstOrDefault(item =>
+                    item.SeguimientoAlertaAgricolaId ==
+                    SeguimientoId.Value);
+
+            seleccionado ??=
+                await Service.ObtenerAsync(
+                    SeguimientoId.Value);
+
+            if (seleccionado != null)
+            {
+                await Editar(seleccionado);
+            }
+        }
+
         StateHasChanged();
     }
 
     private async Task Cargar()
     {
         cargando = true;
+        mensaje = null;
+
         try
         {
-            var seguimientosTask = Service.ListarAsync();
-            var tecnicosTask = Service.TecnicosAsync();
-            await Task.WhenAll(seguimientosTask, tecnicosTask);
-            seguimientos = await seguimientosTask;
-            tecnicos = await tecnicosTask;
+            Task<List<SeguimientoAlertaItem>>
+                seguimientosTask =
+                    Service.ListarAsync();
+
+            Task<List<TecnicoAlertaItem>>
+                tecnicosTask =
+                    Service.TecnicosAsync();
+
+            await Task.WhenAll(
+                seguimientosTask,
+                tecnicosTask);
+
+            seguimientos =
+                await seguimientosTask;
+
+            tecnicos =
+                await tecnicosTask;
         }
         catch (Exception ex)
         {
@@ -166,38 +528,107 @@ else
         }
     }
 
-    private async Task Editar(SeguimientoAlertaItem item)
+    private async Task Editar(
+        SeguimientoAlertaItem item)
     {
-        editando = item;
-        formulario = new ActualizarSeguimientoAlerta
+        editando =
+            item;
+
+        formulario =
+            new ActualizarSeguimientoAlerta
+            {
+                Estado =
+                    item.Estado,
+
+                UsuarioAsignadoId =
+                    item.UsuarioAsignadoId,
+
+                Observacion =
+                    item.Observacion,
+
+                UsuarioAccionId =
+                    AuthState.Usuario?
+                        .UsuarioId ?? 0
+            };
+
+        await CargarHistorial(
+            item.SeguimientoAlertaAgricolaId);
+    }
+
+    private async Task CargarHistorial(
+        int id)
+    {
+        cargandoHistorial = true;
+
+        try
         {
-            Estado = item.Estado,
-            UsuarioAsignadoId = item.UsuarioAsignadoId,
-            Observacion = item.Observacion,
-            UsuarioAccionId = AuthState.Usuario?.UsuarioId ?? 0
-        };
-        historial = await Service.HistorialAsync(item.SeguimientoAlertaAgricolaId);
+            historial =
+                await Service.HistorialAsync(id);
+        }
+        catch (Exception ex)
+        {
+            mensaje =
+                $"No fue posible cargar el historial. {ex.Message}";
+
+            esError = true;
+            historial = [];
+        }
+        finally
+        {
+            cargandoHistorial = false;
+        }
     }
 
     private void CerrarModal()
     {
         editando = null;
         historial = [];
+
+        if (SeguimientoId.HasValue)
+        {
+            Navigation.NavigateTo(
+                "/seguimiento-alertas",
+                replace: true);
+        }
     }
 
     private async Task Guardar()
     {
-        if (editando is null) return;
+        if (editando is null)
+            return;
+
         guardando = true;
+        mensaje = null;
+
         try
         {
-            await Service.ActualizarAsync(
-                editando.SeguimientoAlertaAgricolaId, formulario);
-            historial = await Service.HistorialAsync(
-                editando.SeguimientoAlertaAgricolaId);
-            mensaje = "Seguimiento actualizado correctamente.";
+            SeguimientoAlertaItem? actualizado =
+                await Service.ActualizarAsync(
+                    editando
+                        .SeguimientoAlertaAgricolaId,
+                    formulario);
+
+            if (actualizado == null)
+            {
+                throw new InvalidOperationException(
+                    "La API no devolvió el seguimiento actualizado.");
+            }
+
+            editando =
+                actualizado;
+
+            historial =
+                await Service.HistorialAsync(
+                    actualizado
+                        .SeguimientoAlertaAgricolaId);
+
+            mensaje =
+                "Seguimiento actualizado correctamente.";
+
             esError = false;
-            seguimientos = await Service.ListarAsync();
+
+            seguimientos =
+                await Service.ListarAsync();
         }
         catch (Exception ex)
         {
@@ -210,10 +641,120 @@ else
         }
     }
 
-    private static string ClaseNivel(string nivel) =>
-        nivel == "CRITICA" ? "critical" : "attention";
+    private Task AplicarFiltros()
+    {
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
 
-    private static string EstadoTexto(string estado) =>
+    private Task LimpiarFiltros()
+    {
+        buscar =
+            estado =
+            responsableId =
+            string.Empty;
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private bool CoincideBusqueda(
+        SeguimientoAlertaItem item)
+    {
+        if (string.IsNullOrWhiteSpace(buscar))
+            return true;
+
+        string texto =
+            buscar.Trim();
+
+        return
+            item.CodigoTerreno.Contains(
+                texto,
+                StringComparison.OrdinalIgnoreCase) ||
+            item.Propietario.Contains(
+                texto,
+                StringComparison.OrdinalIgnoreCase) ||
+            item.TipoAlerta.Contains(
+                texto,
+                StringComparison.OrdinalIgnoreCase) ||
+            (item.UsuarioAsignado?.Contains(
+                texto,
+                StringComparison.OrdinalIgnoreCase) == true) ||
+            item.Ubicacion.Contains(
+                texto,
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool CoincideEstado(
+        SeguimientoAlertaItem item) =>
+        string.IsNullOrWhiteSpace(estado) ||
+        string.Equals(
+            item.Estado,
+            estado,
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool CoincideResponsable(
+        SeguimientoAlertaItem item)
+    {
+        if (string.IsNullOrWhiteSpace(
+                responsableId))
+        {
+            return true;
+        }
+
+        if (responsableId == "0")
+        {
+            return !item.UsuarioAsignadoId
+                .HasValue;
+        }
+
+        return int.TryParse(
+                   responsableId,
+                   out int id) &&
+               item.UsuarioAsignadoId == id;
+    }
+
+    private int Contar(
+        string valor) =>
+        seguimientos.Count(item =>
+            item.Estado == valor);
+
+    private static int OrdenEstado(
+        string valor) =>
+        valor switch
+        {
+            "PENDIENTE" => 0,
+            "EN_PROCESO" => 1,
+            "ATENDIDA" => 2,
+            "DESCARTADA" => 3,
+            _ => 4
+        };
+
+    private static string ClaseNivel(
+        string nivel) =>
+        nivel == "CRITICA"
+            ? "critical"
+            : nivel == "ATENCION"
+                ? "attention"
+                : "without-analysis";
+
+    private static string NivelTexto(
+        string nivel) =>
+        nivel switch
+        {
+            "CRITICA" => "Crítica",
+            "ATENCION" => "Atención",
+            _ => "Sin análisis"
+        };
+
+    private static string ClaseEstado(
+        string estado) =>
+        estado
+            .ToLowerInvariant()
+            .Replace("_", "-");
+
+    private static string EstadoTexto(
+        string estado) =>
         estado switch
         {
             "EN_PROCESO" => "En proceso",
@@ -221,4 +762,29 @@ else
             "DESCARTADA" => "Descartada",
             _ => "Pendiente"
         };
+
+    private static string AccionTexto(
+        string accion) =>
+        accion switch
+        {
+            "CREADA" => "Seguimiento creado",
+            "ACTUALIZADA" => "Seguimiento actualizado",
+            _ => accion
+        };
+
+    private static string IconoHistorial(
+        string accion) =>
+        accion switch
+        {
+            "CREADA" => "fa-solid fa-plus",
+            "ACTUALIZADA" => "fa-solid fa-pen",
+            _ => "fa-solid fa-circle"
+        };
+
+    private static string FormatearFecha(
+        DateTime fecha) =>
+        fecha
+            .ToLocalTime()
+            .ToString(
+                "dd/MM/yyyy hh:mm tt");
 }

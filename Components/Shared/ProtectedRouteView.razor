@@ -1,0 +1,61 @@
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+
+@if (AuthState.IsAuthenticated)
+{
+    <RouteView RouteData="@RouteData"
+               DefaultLayout="@DefaultLayout" />
+}
+else if (!restauracionTerminada)
+{
+    <LayoutView Layout="@DefaultLayout">
+        <div class="portal-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <span>Restaurando sesión...</span>
+        </div>
+    </LayoutView>
+}
+else
+{
+    <LayoutView Layout="@DefaultLayout">
+        <div class="portal-loading">
+            <span>Redirigiendo al inicio de sesión...</span>
+        </div>
+    </LayoutView>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public RouteData RouteData { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public Type DefaultLayout { get; set; } = default!;
+
+    private bool restauracionSolicitada;
+    private bool restauracionTerminada;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || restauracionSolicitada)
+            return;
+
+        restauracionSolicitada = true;
+
+        if (!AuthState.IsAuthenticated)
+            await AuthState.InicializarAsync();
+
+        restauracionTerminada = true;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo(
+                "/login",
+                forceLoad: false,
+                replace: true);
+
+            return;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+}

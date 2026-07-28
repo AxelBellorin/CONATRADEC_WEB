@@ -23,8 +23,6 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\scopedcss\projectbundle\CONATRADEC.AdminWeb.bundle.scp.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\sanydtemce-{0}-j8n0p352ax-j8n0p352ax.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\ti9450w5jy-{0}-xef6mlarw2-xef6mlarw2.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\722bys1tf3-{0}-lth612izp5-lth612izp5.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\bh50ruxdel-{0}-lth612izp5-lth612izp5.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\staticwebassets.build.json
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\staticwebassets.build.json.cache
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\staticwebassets.development.json
@@ -45,3 +43,9 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\2f8hjytzjz-{0}-cwjreohui9-cwjreohui9.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\rouciqn14c-{0}-32z8cs9e1i-32z8cs9e1i.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\w4idzyjd67-{0}-vqvsgkisvx-vqvsgkisvx.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\scopedcss\Components\Pages\ConfiguracionAlertas.razor.rz.scp.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\scopedcss\Components\Pages\AlertasAgricolas.razor.rz.scp.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\scopedcss\Components\Pages\SeguimientoAlertas.razor.rz.scp.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\scopedcss\Components\Pages\Home.razor.rz.scp.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\722bys1tf3-{0}-lrzpetqa2y-lrzpetqa2y.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\bh50ruxdel-{0}-lrzpetqa2y-lrzpetqa2y.gz

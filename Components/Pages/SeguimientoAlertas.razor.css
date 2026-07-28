@@ -1,0 +1,260 @@
+.followup-summary-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.followup-summary-grid article {
+    padding: 16px;
+    border: 1px solid #dde4e1;
+    border-radius: 14px;
+    background: #fff;
+}
+
+.followup-summary-grid span {
+    display: block;
+    color: #667085;
+    font-size: 13px;
+}
+
+.followup-summary-grid strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 25px;
+}
+
+.followup-summary-grid .pending strong {
+    color: #b76e00;
+}
+
+.followup-summary-grid .progress strong {
+    color: #2563eb;
+}
+
+.followup-summary-grid .closed strong {
+    color: #3b655b;
+}
+
+.followup-filters {
+    display: grid;
+    grid-template-columns:
+        minmax(260px, 2fr)
+        minmax(160px, 1fr)
+        minmax(190px, 1fr)
+        auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 16px;
+}
+
+.followup-filter-actions {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 2px;
+}
+
+.followup-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.followup-card {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 18px;
+    border: 1px solid #dde4e1;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow:
+        0 5px 16px rgba(30, 62, 54, .06);
+}
+
+.followup-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.followup-card-header h3 {
+    margin: 8px 0 0;
+}
+
+.followup-terrain {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #f4f7f6;
+}
+
+.followup-terrain > i {
+    margin-top: 3px;
+    color: #3b655b;
+}
+
+.followup-terrain div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.followup-terrain span,
+.followup-terrain small {
+    color: #667085;
+}
+
+.followup-card dl {
+    display: grid;
+    gap: 9px;
+    margin: 0;
+}
+
+.followup-card dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.followup-card dt {
+    color: #667085;
+}
+
+.followup-card dd {
+    margin: 0;
+    text-align: right;
+    font-weight: 600;
+}
+
+.followup-card-observation {
+    min-height: 42px;
+    margin: 0;
+    color: #475467;
+}
+
+.followup-empty-state {
+    padding: 48px 24px;
+    text-align: center;
+}
+
+.followup-empty-state i {
+    color: #3b655b;
+    font-size: 38px;
+}
+
+.followup-detail-summary {
+    display: grid;
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.followup-detail-summary > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #f4f7f6;
+}
+
+.followup-detail-summary span,
+.followup-detail-summary small {
+    color: #667085;
+}
+
+.followup-form-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.field-help {
+    margin-top: 5px;
+    text-align: right;
+    color: #667085;
+    font-size: 12px;
+}
+
+.followup-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+}
+
+.followup-history-header h3 {
+    margin: 0;
+}
+
+.followup-history-header p {
+    margin: 3px 0 0;
+    color: #667085;
+}
+
+.timeline-item {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 12px;
+}
+
+.timeline-icon {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border-radius: 50%;
+    background: #e8f1ee;
+    color: #3b655b;
+}
+
+.timeline-item > div:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.timeline-item span,
+.timeline-item small {
+    color: #667085;
+}
+
+.timeline-item p {
+    margin: 3px 0;
+}
+
+@media (max-width: 1100px) {
+    .followup-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .followup-filters {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .followup-summary-grid,
+    .followup-grid,
+    .followup-filters,
+    .followup-detail-summary,
+    .followup-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .followup-filter-actions {
+        width: 100%;
+    }
+
+    .followup-filter-actions button {
+        flex: 1;
+    }
+}

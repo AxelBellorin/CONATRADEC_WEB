@@ -5,10 +5,23 @@ namespace CONATRADEC.AdminWeb.Models;
 
 public static class PermisosWeb
 {
-    public const string Portal = "PortalAdministrativoWeb";
-    public const string Roles = "AdministrarRolesWeb";
-    public const string Matriz = "AdministrarMatrizPermisosWeb";
-    public const string Alertas = "CentroAlertasWeb";
+    public const string Portal =
+        "PortalAdministrativoWeb";
+
+    public const string Roles =
+        "AdministrarRolesWeb";
+
+    public const string Matriz =
+        "AdministrarMatrizPermisosWeb";
+
+    public const string Alertas =
+        "CentroAlertasWeb";
+
+    public const string SeguimientoAlertas =
+        "SeguimientoAlertasWeb";
+
+    public const string ConfiguracionAlertas =
+        "ConfiguracionAlertasWeb";
 }
 
 public sealed class RolWebItem
@@ -17,10 +30,12 @@ public sealed class RolWebItem
     public int RolId { get; set; }
 
     [JsonPropertyName("nombreRol")]
-    public string NombreRol { get; set; } = string.Empty;
+    public string NombreRol { get; set; } =
+        string.Empty;
 
     [JsonPropertyName("descripcionRol")]
-    public string DescripcionRol { get; set; } = string.Empty;
+    public string DescripcionRol { get; set; } =
+        string.Empty;
 
     [JsonPropertyName("activo")]
     public bool Activo { get; set; }
@@ -31,14 +46,18 @@ public sealed class RolWebItem
 
 public sealed class RolFormularioWeb
 {
-    [Required(ErrorMessage = "El nombre del rol es obligatorio.")]
+    [Required(
+        ErrorMessage =
+            "El nombre del rol es obligatorio.")]
     [MaxLength(50)]
     [JsonPropertyName("nombreRol")]
-    public string NombreRol { get; set; } = string.Empty;
+    public string NombreRol { get; set; } =
+        string.Empty;
 
     [MaxLength(500)]
     [JsonPropertyName("descripcionRol")]
-    public string DescripcionRol { get; set; } = string.Empty;
+    public string DescripcionRol { get; set; } =
+        string.Empty;
 }
 
 public sealed class RolLiteWeb
@@ -47,7 +66,8 @@ public sealed class RolLiteWeb
     public int RolId { get; set; }
 
     [JsonPropertyName("nombreRol")]
-    public string NombreRol { get; set; } = string.Empty;
+    public string NombreRol { get; set; } =
+        string.Empty;
 
     [JsonPropertyName("esAdministrador")]
     public bool EsAdministrador { get; set; }
@@ -59,11 +79,15 @@ public sealed class InterfazPermisoWeb
     public int InterfazId { get; set; }
 
     [JsonPropertyName("nombreInterfaz")]
-    public string NombreInterfaz { get; set; } = string.Empty;
+    public string NombreInterfaz { get; set; } =
+        string.Empty;
 
     [JsonPropertyName("nombreAmigableInterfaz")]
-    public string NombreAmigableInterfaz { get; set; } =
-        string.Empty;
+    public string NombreAmigableInterfaz
+    {
+        get;
+        set;
+    } = string.Empty;
 
     [JsonPropertyName("leer")]
     public bool Leer { get; set; }
@@ -79,16 +103,22 @@ public sealed class InterfazPermisoWeb
 
     [JsonIgnore]
     public string NombreVisible =>
-        string.IsNullOrWhiteSpace(NombreAmigableInterfaz)
-            ? NombreInterfaz
-            : NombreAmigableInterfaz;
+        string.IsNullOrWhiteSpace(
+            NombreAmigableInterfaz)
+                ? NombreInterfaz
+                : NombreAmigableInterfaz;
 }
 
 public sealed class RolConPermisosWeb
 {
     [JsonPropertyName("rol")]
-    public RolLiteWeb Rol { get; set; } = new();
+    public RolLiteWeb Rol { get; set; } =
+        new();
 
     [JsonPropertyName("interfaz")]
-    public List<InterfazPermisoWeb> Interfaz { get; set; } = [];
+    public List<InterfazPermisoWeb> Interfaz
+    {
+        get;
+        set;
+    } = [];
 }

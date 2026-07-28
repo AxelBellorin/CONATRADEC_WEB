@@ -10,19 +10,28 @@
     <div>
         <p class="eyebrow">Supervisión agrícola</p>
         <h1>Centro de alertas</h1>
-        <p>Identifica terrenos que requieren atención y abre su seguimiento técnico.</p>
+        <p>
+            Identifica terrenos que requieren atención
+            y abre su seguimiento técnico.
+        </p>
     </div>
 
     <div class="page-header-actions">
-        <a class="btn-secondary" href="/seguimiento-alertas">
+        <a class="btn-secondary"
+           href="/seguimiento-alertas">
             <i class="fa-solid fa-list-check"></i>
             Seguimientos
         </a>
-        <a class="btn-secondary" href="/configuracion-alertas">
+
+        <a class="btn-secondary"
+           href="/configuracion-alertas">
             <i class="fa-solid fa-sliders"></i>
             Umbrales
         </a>
-        <button class="btn-primary" @onclick="Cargar" disabled="@cargando">
+
+        <button class="btn-primary"
+                @onclick="Cargar"
+                disabled="@cargando">
             <i class="fa-solid fa-rotate"></i>
             Actualizar
         </button>
@@ -31,50 +40,98 @@
 
 @if (!string.IsNullOrWhiteSpace(mensaje))
 {
-    <div class="alert @(esError ? "alert-error" : "alert-success")">@mensaje</div>
+    <div class="alert @(esError
+        ? "alert-error"
+        : "alert-success")">
+        @mensaje
+    </div>
 }
 
 <section class="alerts-summary-grid">
-    <article><span>Alertas encontradas</span><strong>@resultado.TotalRegistros</strong></article>
-    <article class="critical"><span>Críticas</span><strong>@resultado.Criticas</strong></article>
-    <article class="attention"><span>Atención</span><strong>@resultado.Atencion</strong></article>
-    <article><span>Sin análisis</span><strong>@resultado.SinAnalisis</strong></article>
+    <article>
+        <span>Alertas encontradas</span>
+        <strong>@resultado.TotalRegistros</strong>
+    </article>
+
+    <article class="critical">
+        <span>Críticas</span>
+        <strong>@resultado.Criticas</strong>
+    </article>
+
+    <article class="attention">
+        <span>Atención</span>
+        <strong>@resultado.Atencion</strong>
+    </article>
+
+    <article>
+        <span>Con seguimiento</span>
+        <strong>@CantidadConSeguimiento</strong>
+    </article>
 </section>
 
 <section class="panel alerts-filter-panel">
     <div class="form-group alerts-search">
         <label>Búsqueda</label>
-        <InputText class="form-control" @bind-Value="buscar"
+        <InputText class="form-control"
+                   @bind-Value="buscar"
                    placeholder="Código, propietario o dirección" />
     </div>
+
     <div class="form-group">
         <label>Nivel</label>
-        <InputSelect class="form-control" @bind-Value="nivel">
+        <InputSelect class="form-control"
+                     @bind-Value="nivel">
             <option value="">Todos</option>
             <option value="CRITICA">Crítica</option>
             <option value="ATENCION">Atención</option>
             <option value="SIN_ANALISIS">Sin análisis</option>
         </InputSelect>
     </div>
+
     <div class="form-group">
         <label>Tipo</label>
-        <InputSelect class="form-control" @bind-Value="tipo">
+        <InputSelect class="form-control"
+                     @bind-Value="tipo">
             <option value="">Todos</option>
             <option value="pH">pH</option>
-            <option value="Materia orgánica">Materia orgánica</option>
+            <option value="Materia orgánica">
+                Materia orgánica
+            </option>
             <option value="Acidez">Acidez</option>
-            <option value="Sin análisis">Sin análisis</option>
+            <option value="Sin análisis">
+                Sin análisis
+            </option>
         </InputSelect>
     </div>
+
     <div class="alerts-filter-actions">
-        <button class="btn-primary" @onclick="AplicarFiltros">Aplicar</button>
-        <button class="btn-link" @onclick="LimpiarFiltros">Limpiar</button>
+        <button class="btn-primary"
+                @onclick="AplicarFiltros">
+            Aplicar
+        </button>
+
+        <button class="btn-link"
+                @onclick="LimpiarFiltros">
+            Limpiar
+        </button>
     </div>
 </section>
 
 @if (cargando)
 {
-    <LoadingState Mensaje="Calculando alertas agrícolas..." />
+    <LoadingState
+        Mensaje="Calculando alertas agrícolas..." />
+}
+else if (resultado.Items.Count == 0)
+{
+    <section class="panel alert-empty-state">
+        <i class="fa-solid fa-circle-check"></i>
+        <h2>No hay alertas para mostrar</h2>
+        <p>
+            No se encontraron terrenos que coincidan con
+            los filtros actuales.
+        </p>
+    </section>
 }
 else
 {
@@ -83,42 +140,106 @@ else
             <table class="data-table alerts-table">
                 <thead>
                     <tr>
-                        <th>Nivel</th><th>Terreno</th><th>Ubicación</th>
-                        <th>Alerta</th><th>Valor</th><th>Fecha</th><th>Acciones</th>
+                        <th>Nivel</th>
+                        <th>Terreno</th>
+                        <th>Ubicación</th>
+                        <th>Alerta</th>
+                        <th>Valor</th>
+                        <th>Seguimiento</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
+
                 <tbody>
-                    @foreach (AlertaAgricolaItem item in resultado.Items)
+                    @foreach (
+                        AlertaAgricolaItem item
+                        in resultado.Items)
                     {
-                        SeguimientoAlertaItem? seguimiento = BuscarSeguimiento(item);
+                        SeguimientoAlertaItem? seguimiento =
+                            BuscarSeguimiento(item);
+
                         <tr>
-                            <td><span class="executive-alert-badge @ClaseNivel(item.Nivel)">
-                                @NivelTexto(item.Nivel)</span></td>
-                            <td><strong>@item.CodigoTerreno</strong><small>@item.Propietario</small></td>
-                            <td><strong>@item.Municipio</strong><small>@item.Departamento</small></td>
-                            <td><strong>@item.Tipo</strong><small>@item.Mensaje</small></td>
-                            <td><strong>@(item.Valor?.ToString("N2") ?? "—")</strong><small>@item.Unidad</small></td>
-                            <td>@(item.FechaAnalisis?.ToString("dd/MM/yyyy") ?? "Sin análisis")</td>
+                            <td>
+                                <span class="executive-alert-badge @ClaseNivel(item.Nivel)">
+                                    @NivelTexto(item.Nivel)
+                                </span>
+                            </td>
+
+                            <td>
+                                <strong>@item.CodigoTerreno</strong>
+                                <small>@item.Propietario</small>
+                            </td>
+
+                            <td>
+                                <strong>@item.Municipio</strong>
+                                <small>@item.Departamento</small>
+                            </td>
+
+                            <td>
+                                <strong>@item.Tipo</strong>
+                                <small>@item.Mensaje</small>
+                            </td>
+
+                            <td>
+                                <strong>
+                                    @(item.Valor?.ToString("N2") ?? "—")
+                                </strong>
+                                <small>@item.Unidad</small>
+                            </td>
+
+                            <td>
+                                @if (seguimiento == null)
+                                {
+                                    <span class="followup-status sin-seguimiento">
+                                        Sin seguimiento
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="followup-status @ClaseEstado(seguimiento.Estado)">
+                                        @EstadoTexto(seguimiento.Estado)
+                                    </span>
+
+                                    <small>
+                                        @(seguimiento.UsuarioAsignado ??
+                                          "Sin responsable")
+                                    </small>
+                                }
+                            </td>
+
                             <td>
                                 <div class="alert-followup-actions">
                                     @if (seguimiento is null)
                                     {
-                                        <button class="btn-primary alert-followup-button"
-                                                @onclick="() => AbrirCrear(item)">
-                                            <i class="fa-solid fa-plus"></i>
-                                            Crear seguimiento
-                                        </button>
+                                        @if (PuedeCrearSeguimiento)
+                                        {
+                                            <button class="btn-primary alert-followup-button"
+                                                    @onclick="() => AbrirCrear(item)">
+                                                <i class="fa-solid fa-plus"></i>
+                                                Abrir seguimiento
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="followup-status sin-seguimiento">
+                                                Sin permiso para crear
+                                            </span>
+                                        }
                                     }
                                     else
                                     {
-                                        <a class="btn-secondary alert-followup-button"
-                                           href="/seguimiento-alertas">
+                                        <button class="btn-secondary alert-followup-button"
+                                                @onclick="() => AbrirSeguimiento(seguimiento)">
                                             <i class="fa-solid fa-list-check"></i>
-                                            @EstadoTexto(seguimiento.Estado)
-                                        </a>
+                                            Gestionar
+                                        </button>
                                     }
-                                    <a class="table-action" href="@item.GoogleMapsUrl"
-                                       target="_blank" rel="noopener noreferrer">
+
+                                    <a class="table-action"
+                                       href="@item.GoogleMapsUrl"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       title="Abrir ruta">
                                         <i class="fa-solid fa-route"></i>
                                     </a>
                                 </div>
@@ -137,64 +258,141 @@ else
         <div class="modal-card">
             <div class="modal-header">
                 <div>
-                    <h2>Crear seguimiento</h2>
-                    <p>@alertaSeleccionada.Tipo · @alertaSeleccionada.CodigoTerreno</p>
+                    <h2>Abrir seguimiento</h2>
+                    <p>
+                        @alertaSeleccionada.Tipo ·
+                        @alertaSeleccionada.CodigoTerreno
+                    </p>
                 </div>
-                <button class="modal-close" @onclick="CerrarCrear">×</button>
-            </div>
 
-            <div class="form-group">
-                <label>Técnico responsable</label>
-                <InputSelect class="form-control" @bind-Value="nuevo.UsuarioAsignadoId">
-                    <option value="">Sin asignar</option>
-                    @foreach (TecnicoAlertaItem tecnico in tecnicos)
-                    {
-                        <option value="@tecnico.UsuarioId">@tecnico.Etiqueta</option>
-                    }
-                </InputSelect>
-            </div>
-
-            <div class="form-group">
-                <label>Observación inicial</label>
-                <InputTextArea class="form-control followup-observation"
-                               @bind-Value="nuevo.Observacion" />
-            </div>
-
-            <div class="modal-actions">
-                <button class="btn-link" @onclick="CerrarCrear">Cancelar</button>
-                <button class="btn-primary" disabled="@guardando"
-                        @onclick="CrearSeguimiento">
-                    Guardar seguimiento
+                <button class="modal-close"
+                        @onclick="CerrarCrear">
+                    ×
                 </button>
             </div>
+
+            <div class="followup-alert-summary">
+                <span class="executive-alert-badge @ClaseNivel(alertaSeleccionada.Nivel)">
+                    @NivelTexto(alertaSeleccionada.Nivel)
+                </span>
+
+                <div>
+                    <strong>@alertaSeleccionada.Mensaje</strong>
+                    <small>
+                        @alertaSeleccionada.Municipio,
+                        @alertaSeleccionada.Departamento
+                    </small>
+                </div>
+            </div>
+
+            <EditForm Model="@nuevo"
+                      OnValidSubmit="CrearSeguimiento">
+                <DataAnnotationsValidator />
+
+                <div class="form-group">
+                    <label>Técnico responsable</label>
+
+                    <InputSelect class="form-control"
+                                 @bind-Value="nuevo.UsuarioAsignadoId">
+                        <option value="">Sin asignar</option>
+
+                        @foreach (
+                            TecnicoAlertaItem tecnico
+                            in tecnicos)
+                        {
+                            <option value="@tecnico.UsuarioId">
+                                @tecnico.Etiqueta
+                            </option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="form-group">
+                    <label>Observación inicial</label>
+
+                    <InputTextArea
+                        class="form-control followup-observation"
+                        @bind-Value="nuevo.Observacion" />
+
+                    <ValidationMessage
+                        For="() => nuevo.Observacion" />
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button"
+                            class="btn-link"
+                            @onclick="CerrarCrear">
+                        Cancelar
+                    </button>
+
+                    <button type="submit"
+                            class="btn-primary"
+                            disabled="@guardando">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        Crear seguimiento
+                    </button>
+                </div>
+            </EditForm>
         </div>
     </div>
 }
 
 @code {
-    private AlertasAgricolasPaginada resultado = new();
-    private List<SeguimientoAlertaItem> abiertos = [];
-    private List<TecnicoAlertaItem> tecnicos = [];
+    private AlertasAgricolasPaginada resultado =
+        new();
+
+    private List<SeguimientoAlertaItem> abiertos =
+        [];
+
+    private List<TecnicoAlertaItem> tecnicos =
+        [];
+
     private AlertaAgricolaItem? alertaSeleccionada;
-    private CrearSeguimientoAlerta nuevo = new();
+
+    private CrearSeguimientoAlerta nuevo =
+        new();
+
     private string buscar = string.Empty;
     private string nivel = string.Empty;
     private string tipo = string.Empty;
     private int pagina = 1;
+
     private const int TamanoPagina = 20;
+
     private bool cargando = true;
     private bool guardando;
     private string? mensaje;
     private bool esError;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private int CantidadConSeguimiento =>
+        resultado.Items.Count(item =>
+            BuscarSeguimiento(item) != null);
+
+    private bool PuedeCrearSeguimiento =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(
+            PermisosWeb.SeguimientoAlertas);
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender)
+            return;
+
         if (!AuthState.IsAuthenticated)
         {
             Navigation.NavigateTo("/login");
             return;
         }
+
+        if (!AuthState.TienePermisoLectura(
+                PermisosWeb.Alertas) &&
+            !AuthState.EsAdministrador)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
         await Cargar();
         StateHasChanged();
     }
@@ -203,21 +401,47 @@ else
     {
         cargando = true;
         mensaje = null;
+
         try
         {
-            var alertasTask = AlertasService.ListarAsync(
-                null, null, nivel, tipo, buscar, pagina, TamanoPagina);
-            var abiertosTask = SeguimientoService.AbiertosAsync();
-            var tecnicosTask = SeguimientoService.TecnicosAsync();
+            Task<AlertasAgricolasPaginada>
+                alertasTask =
+                    AlertasService.ListarAsync(
+                        null,
+                        null,
+                        nivel,
+                        tipo,
+                        buscar,
+                        pagina,
+                        TamanoPagina);
 
-            await Task.WhenAll(alertasTask, abiertosTask, tecnicosTask);
-            resultado = await alertasTask;
-            abiertos = await abiertosTask;
-            tecnicos = await tecnicosTask;
+            Task<List<SeguimientoAlertaItem>>
+                abiertosTask =
+                    SeguimientoService.AbiertosAsync();
+
+            Task<List<TecnicoAlertaItem>>
+                tecnicosTask =
+                    SeguimientoService.TecnicosAsync();
+
+            await Task.WhenAll(
+                alertasTask,
+                abiertosTask,
+                tecnicosTask);
+
+            resultado =
+                await alertasTask;
+
+            abiertos =
+                await abiertosTask;
+
+            tecnicos =
+                await tecnicosTask;
         }
         catch (Exception ex)
         {
-            mensaje = $"No fue posible cargar la información. {ex.Message}";
+            mensaje =
+                $"No fue posible cargar la información. {ex.Message}";
+
             esError = true;
         }
         finally
@@ -226,36 +450,80 @@ else
         }
     }
 
-    private SeguimientoAlertaItem? BuscarSeguimiento(AlertaAgricolaItem alerta) =>
-        abiertos.FirstOrDefault(x =>
-            x.TerrenoId == alerta.TerrenoId &&
-            string.Equals(x.TipoAlerta, alerta.Tipo, StringComparison.OrdinalIgnoreCase));
+    private SeguimientoAlertaItem?
+        BuscarSeguimiento(
+            AlertaAgricolaItem alerta) =>
+        abiertos.FirstOrDefault(item =>
+            item.TerrenoId ==
+                alerta.TerrenoId &&
+            string.Equals(
+                item.TipoAlerta,
+                alerta.Tipo,
+                StringComparison.OrdinalIgnoreCase));
 
-    private void AbrirCrear(AlertaAgricolaItem item)
+    private void AbrirCrear(
+        AlertaAgricolaItem item)
     {
-        alertaSeleccionada = item;
-        nuevo = new CrearSeguimientoAlerta
-        {
-            TerrenoId = item.TerrenoId,
-            TipoAlerta = item.Tipo,
-            Nivel = item.Nivel,
-            UsuarioAccionId = AuthState.Usuario?.UsuarioId ?? 0,
-            Observacion = item.Mensaje
-        };
+        alertaSeleccionada =
+            item;
+
+        nuevo =
+            new CrearSeguimientoAlerta
+            {
+                TerrenoId =
+                    item.TerrenoId,
+
+                TipoAlerta =
+                    item.Tipo,
+
+                Nivel =
+                    item.Nivel,
+
+                UsuarioAccionId =
+                    AuthState.Usuario?
+                        .UsuarioId ?? 0,
+
+                Observacion =
+                    item.Mensaje
+            };
     }
 
-    private void CerrarCrear() => alertaSeleccionada = null;
+    private void CerrarCrear()
+    {
+        alertaSeleccionada =
+            null;
+
+        nuevo =
+            new CrearSeguimientoAlerta();
+    }
 
     private async Task CrearSeguimiento()
     {
         guardando = true;
+        mensaje = null;
+
         try
         {
-            await SeguimientoService.CrearAsync(nuevo);
-            mensaje = "Seguimiento creado correctamente.";
+            SeguimientoAlertaItem? creado =
+                await SeguimientoService
+                    .CrearAsync(nuevo);
+
+            if (creado == null)
+            {
+                throw new InvalidOperationException(
+                    "La API no devolvió el seguimiento creado.");
+            }
+
+            mensaje =
+                "Seguimiento creado correctamente.";
+
             esError = false;
-            alertaSeleccionada = null;
-            abiertos = await SeguimientoService.AbiertosAsync();
+            CerrarCrear();
+
+            await Cargar();
+
+            Navigation.NavigateTo(
+                $"/seguimiento-alertas?id={creado.SeguimientoAlertaAgricolaId}");
         }
         catch (Exception ex)
         {
@@ -268,24 +536,62 @@ else
         }
     }
 
-    private async Task AplicarFiltros() { pagina = 1; await Cargar(); }
-    private async Task LimpiarFiltros()
+    private void AbrirSeguimiento(
+        SeguimientoAlertaItem seguimiento)
     {
-        buscar = nivel = tipo = string.Empty;
+        Navigation.NavigateTo(
+            $"/seguimiento-alertas?id={seguimiento.SeguimientoAlertaAgricolaId}");
+    }
+
+    private async Task AplicarFiltros()
+    {
         pagina = 1;
         await Cargar();
     }
 
-    private static string ClaseNivel(string valor) =>
-        valor == "CRITICA" ? "critical" :
-        valor == "ATENCION" ? "attention" : "without-analysis";
+    private async Task LimpiarFiltros()
+    {
+        buscar =
+            nivel =
+            tipo =
+            string.Empty;
 
-    private static string NivelTexto(string valor) =>
-        valor == "CRITICA" ? "Crítica" :
-        valor == "ATENCION" ? "Atención" : "Sin análisis";
+        pagina = 1;
+        await Cargar();
+    }
 
-    private static string EstadoTexto(string valor) =>
-        valor == "EN_PROCESO" ? "En proceso" :
-        valor == "ATENDIDA" ? "Atendida" :
-        valor == "DESCARTADA" ? "Descartada" : "Pendiente";
+    private static string ClaseNivel(
+        string valor) =>
+        valor switch
+        {
+            "CRITICA" => "critical",
+            "ATENCION" => "attention",
+            _ => "without-analysis"
+        };
+
+    private static string NivelTexto(
+        string valor) =>
+        valor switch
+        {
+            "CRITICA" => "Crítica",
+            "ATENCION" => "Atención",
+            _ => "Sin análisis"
+        };
+
+    private static string ClaseEstado(
+        string valor) =>
+        valor.ToLowerInvariant()
+            .Replace(
+                "_",
+                "-");
+
+    private static string EstadoTexto(
+        string valor) =>
+        valor switch
+        {
+            "EN_PROCESO" => "En proceso",
+            "ATENDIDA" => "Atendida",
+            "DESCARTADA" => "Descartada",
+            _ => "Pendiente"
+        };
 }

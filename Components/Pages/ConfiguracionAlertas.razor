@@ -3,15 +3,26 @@
 @inject SeguimientoAlertasService Service
 @inject NavigationManager Navigation
 
-<PageTitle>Configuración de alertas | CONATRADEC</PageTitle>
+<PageTitle>
+    Configuración de alertas | CONATRADEC
+</PageTitle>
 
 <div class="page-header">
     <div>
-        <p class="eyebrow">Parametrización agrícola</p>
+        <p class="eyebrow">
+            Parametrización agrícola
+        </p>
+
         <h1>Umbrales de alertas</h1>
-        <p>Modifica los valores utilizados para clasificar condiciones críticas y de atención.</p>
+
+        <p>
+            Estos valores son utilizados por la API para
+            clasificar las alertas de la web, Android y Windows.
+        </p>
     </div>
-    <a class="btn-secondary" href="/alertas-agricolas">
+
+    <a class="btn-secondary"
+       href="/alertas-agricolas">
         <i class="fa-solid fa-arrow-left"></i>
         Volver a alertas
     </a>
@@ -19,58 +30,120 @@
 
 @if (!string.IsNullOrWhiteSpace(mensaje))
 {
-    <div class="alert @(esError ? "alert-error" : "alert-success")">
+    <div class="alert @(esError
+        ? "alert-error"
+        : "alert-success")">
         @mensaje
     </div>
 }
 
 @if (cargando)
 {
-    <LoadingState Mensaje="Cargando umbrales..." />
+    <LoadingState
+        Mensaje="Cargando umbrales..." />
 }
 else
 {
-    <section class="threshold-grid">
-        @foreach (ConfiguracionAlertaItem item in configuraciones)
-        {
-            <article class="threshold-card">
+    @foreach (string grupo in Grupos)
+    {
+        <section class="threshold-section">
+            <div class="threshold-section-header">
                 <div>
-                    <span class="threshold-key">@item.Clave</span>
-                    <h2>@item.Nombre</h2>
-                    <p>@item.Descripcion</p>
+                    <h2>@TituloGrupo(grupo)</h2>
+                    <p>@DescripcionGrupo(grupo)</p>
                 </div>
+            </div>
 
-                <div class="threshold-value">
-                    <InputNumber class="form-control"
-                                 @bind-Value="item.Valor" />
-                    <span>@item.Unidad</span>
-                </div>
+            <div class="threshold-grid">
+                @foreach (
+                    ConfiguracionAlertaItem item
+                    in ObtenerPorGrupo(grupo))
+                {
+                    <article class="threshold-card">
+                        <div class="threshold-card-content">
+                            <div class="threshold-icon">
+                                <i class="@Icono(item.Clave)"></i>
+                            </div>
 
-                <button class="btn-primary"
-                        disabled="@guardando"
-                        @onclick="() => Guardar(item)">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    Guardar umbral
-                </button>
-            </article>
-        }
-    </section>
+                            <div>
+                                <h3>@item.Nombre</h3>
+                                <p>@item.Descripcion</p>
+                            </div>
+                        </div>
+
+                        <div class="threshold-value">
+                            <InputNumber
+                                class="form-control"
+                                step="0.01"
+                                @bind-Value="item.Valor"
+                                disabled="@(!PuedeActualizar)" />
+
+                            <span class="threshold-unit">
+                                @item.Unidad
+                            </span>
+                        </div>
+
+                        <div class="threshold-card-footer">
+                            <span class="threshold-rule">
+                                @TextoOperador(item.Operador)
+                            </span>
+
+                            @if (PuedeActualizar)
+                            {
+                                <button
+                                    class="btn-primary"
+                                    disabled="@guardando"
+                                    @onclick="() => Guardar(item)">
+                                    <i class="fa-solid fa-floppy-disk"></i>
+                                    Guardar
+                                </button>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+    }
 }
 
 @code {
-    private List<ConfiguracionAlertaItem> configuraciones = [];
+    private static readonly string[] Grupos =
+    [
+        "PH",
+        "SUELO"
+    ];
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(
+            PermisosWeb.ConfiguracionAlertas);
+
+    private List<ConfiguracionAlertaItem>
+        configuraciones = [];
+
     private bool cargando = true;
     private bool guardando;
     private string? mensaje;
     private bool esError;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task
+        OnAfterRenderAsync(
+            bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender)
+            return;
 
         if (!AuthState.IsAuthenticated)
         {
             Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!AuthState.TienePermisoLectura(
+                PermisosWeb.ConfiguracionAlertas) &&
+            !AuthState.EsAdministrador)
+        {
+            Navigation.NavigateTo("/");
             return;
         }
 
@@ -81,9 +154,15 @@ else
     private async Task Cargar()
     {
         cargando = true;
+
         try
         {
-            configuraciones = await Service.ConfiguracionesAsync();
+            configuraciones =
+                (await Service
+                    .ConfiguracionesAsync())
+                .OrderBy(item =>
+                    Orden(item.Clave))
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -96,23 +175,42 @@ else
         }
     }
 
-    private async Task Guardar(ConfiguracionAlertaItem item)
+    private async Task Guardar(
+        ConfiguracionAlertaItem item)
     {
         guardando = true;
         mensaje = null;
 
         try
         {
+            string? errorValidacion =
+                Validar(item);
+
+            if (!string.IsNullOrWhiteSpace(
+                    errorValidacion))
+            {
+                mensaje = errorValidacion;
+                esError = true;
+                return;
+            }
+
             await Service.ActualizarUmbralAsync(
                 item.ConfiguracionAlertaAgricolaId,
                 new ActualizarUmbralAlerta
                 {
                     Valor = item.Valor,
-                    UsuarioAccionId = AuthState.Usuario?.UsuarioId ?? 0
+
+                    UsuarioAccionId =
+                        AuthState.Usuario?
+                            .UsuarioId ?? 0
                 });
 
-            mensaje = $"El umbral «{item.Nombre}» fue actualizado.";
+            mensaje =
+                $"El umbral «{item.Nombre}» fue actualizado.";
+
             esError = false;
+
+            await Cargar();
         }
         catch (Exception ex)
         {
@@ -124,4 +222,117 @@ else
             guardando = false;
         }
     }
+
+    private string? Validar(
+        ConfiguracionAlertaItem item)
+    {
+        if (item.Clave.StartsWith(
+                "PH_",
+                StringComparison.OrdinalIgnoreCase) &&
+            (item.Valor < 0 ||
+             item.Valor > 14))
+        {
+            return
+                "Los valores de pH deben estar entre 0 y 14.";
+        }
+
+        if (item.Valor < 0)
+        {
+            return
+                "El valor del umbral no puede ser negativo.";
+        }
+
+        return null;
+    }
+
+    private IEnumerable<
+        ConfiguracionAlertaItem>
+        ObtenerPorGrupo(
+            string grupo)
+    {
+        return configuraciones
+            .Where(item =>
+                Grupo(item.Clave) == grupo)
+            .OrderBy(item =>
+                Orden(item.Clave));
+    }
+
+    private static string Grupo(
+        string clave) =>
+        clave.StartsWith(
+            "PH_",
+            StringComparison.OrdinalIgnoreCase)
+            ? "PH"
+            : "SUELO";
+
+    private static int Orden(
+        string clave) =>
+        clave.ToUpperInvariant() switch
+        {
+            "PH_BAJO_CRITICO_MAXIMO" => 10,
+            "PH_CRITICO_MAXIMO" => 10,
+            "PH_BAJO_ATENCION_MAXIMO" => 20,
+            "PH_ATENCION_MAXIMO" => 20,
+            "PH_ALTO_ATENCION_MINIMO" => 30,
+            "PH_ALTO_CRITICO_MINIMO" => 40,
+            "MATERIA_ORGANICA_BAJA_MAXIMA" => 50,
+            "ACIDEZ_ALTA_MINIMA" => 60,
+            _ => 100
+        };
+
+    private static string TituloGrupo(
+        string grupo) =>
+        grupo switch
+        {
+            "PH" => "Rango de pH",
+            _ => "Condiciones del suelo"
+        };
+
+    private static string DescripcionGrupo(
+        string grupo) =>
+        grupo switch
+        {
+            "PH" =>
+                "Configura los límites bajos y altos que determinan atención y estado crítico.",
+
+            _ =>
+                "Configura los límites de materia orgánica y acidez total."
+        };
+
+    private static string Icono(
+        string clave)
+    {
+        if (clave.StartsWith(
+                "PH_",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "fa-solid fa-flask";
+        }
+
+        if (clave.Contains(
+                "MATERIA_ORGANICA",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "fa-solid fa-leaf";
+        }
+
+        return "fa-solid fa-vial";
+    }
+
+    private static string TextoOperador(
+        string operador) =>
+        operador.ToUpperInvariant() switch
+        {
+            "MENOR_QUE" =>
+                "Genera alerta cuando el valor es menor.",
+
+            "MAYOR_QUE" =>
+                "Genera alerta cuando el valor es mayor.",
+
+            "MAYOR_O_IGUAL_QUE" =>
+                "Genera alerta desde este valor.",
+
+            _ =>
+                "Valor utilizado para clasificar la alerta."
+        };
 }
