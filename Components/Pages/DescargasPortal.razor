@@ -1,0 +1,229 @@
+@page "/descargas"
+@layout PublicDownloadLayout
+@inject DescargasPublicasService Descargas
+
+<PageTitle>Descargas | CONATRADEC</PageTitle>
+
+<main class="portal-downloads">
+    <section class="portal-shell">
+        <header class="portal-brand">
+            <div class="portal-brand-mark">
+                <i class="fa-solid fa-seedling"></i>
+            </div>
+            <div>
+                <strong>CONATRADEC</strong>
+                <span>Distribución segura de aplicaciones</span>
+            </div>
+        </header>
+
+        <section class="portal-hero">
+            <p class="portal-eyebrow">Portal oficial</p>
+            <h1>Descargar ConatraCafé Soil</h1>
+            <p>
+                Seleccione la plataforma. La descarga solo se autorizará después
+                de ingresar una llave vigente entregada por un administrador.
+            </p>
+        </section>
+
+        @if (cargando)
+        {
+            <div class="portal-loading">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                Consultando versiones publicadas...
+            </div>
+        }
+        else
+        {
+            <section class="portal-grid">
+                <article class="portal-card android">
+                    <div class="portal-platform">
+                        <div class="portal-platform-icon">
+                            <i class="fa-brands fa-android"></i>
+                        </div>
+                        <div>
+                            <h2>Android</h2>
+                            <p>Canal Producción</p>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(android.Error))
+                    {
+                        <div class="portal-card-error">
+                            @android.Error
+                        </div>
+                    }
+                    else if (android.Version == null)
+                    {
+                        <div class="portal-version-empty">
+                            <strong>No disponible</strong>
+                            <span>
+                                Todavía no existe un instalador publicado y
+                                disponible.
+                            </span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="portal-version-grid">
+                            <div>
+                                <span>Versión</span>
+                                <strong>@android.Version.VersionNombre</strong>
+                            </div>
+                            <div>
+                                <span>Compilación</span>
+                                <strong>@android.Version.VersionCodigo</strong>
+                            </div>
+                            <div>
+                                <span>Tamaño</span>
+                                <strong>@android.Version.TamanoVisible</strong>
+                            </div>
+                            <div>
+                                <span>Estado</span>
+                                <strong>Publicada</strong>
+                            </div>
+                        </div>
+
+                        <p class="portal-notes">
+                            @NotasVisibles(android.Version)
+                        </p>
+
+                        <a class="portal-button"
+                           href="/descargas/android">
+                            <i class="fa-solid fa-key"></i>
+                            Ingresar llave para Android
+                        </a>
+                    }
+                </article>
+
+                <article class="portal-card windows">
+                    <div class="portal-platform">
+                        <div class="portal-platform-icon">
+                            <i class="fa-brands fa-windows"></i>
+                        </div>
+                        <div>
+                            <h2>Windows</h2>
+                            <p>Canal Producción</p>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(windows.Error))
+                    {
+                        <div class="portal-card-error">
+                            @windows.Error
+                        </div>
+                    }
+                    else if (windows.Version == null)
+                    {
+                        <div class="portal-version-empty">
+                            <strong>No disponible</strong>
+                            <span>
+                                Todavía no existe un instalador publicado y
+                                disponible.
+                            </span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="portal-version-grid">
+                            <div>
+                                <span>Versión</span>
+                                <strong>@windows.Version.VersionNombre</strong>
+                            </div>
+                            <div>
+                                <span>Compilación</span>
+                                <strong>@windows.Version.VersionCodigo</strong>
+                            </div>
+                            <div>
+                                <span>Tamaño</span>
+                                <strong>@windows.Version.TamanoVisible</strong>
+                            </div>
+                            <div>
+                                <span>Estado</span>
+                                <strong>Publicada</strong>
+                            </div>
+                        </div>
+
+                        <p class="portal-notes">
+                            @NotasVisibles(windows.Version)
+                        </p>
+
+                        <a class="portal-button"
+                           href="/descargas/windows">
+                            <i class="fa-solid fa-key"></i>
+                            Ingresar llave para Windows
+                        </a>
+                    }
+                </article>
+            </section>
+        }
+
+        <aside class="portal-notice">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>
+                Ningún botón de este portal enlaza directamente al APK o al
+                instalador de Windows. Siempre se solicita una llave antes de
+                entregar el archivo.
+            </span>
+        </aside>
+
+        <footer class="portal-footer">
+            Centro Nacional de Trabajadores del Campo · CONATRADEC
+        </footer>
+    </section>
+</main>
+
+@code {
+    private ResultadoPlataforma android = new();
+    private ResultadoPlataforma windows = new();
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Task<ResultadoPlataforma> androidTask =
+            ObtenerResultadoAsync("ANDROID");
+
+        Task<ResultadoPlataforma> windowsTask =
+            ObtenerResultadoAsync("WINDOWS");
+
+        await Task.WhenAll(androidTask, windowsTask);
+
+        android = await androidTask;
+        windows = await windowsTask;
+        cargando = false;
+    }
+
+    private async Task<ResultadoPlataforma> ObtenerResultadoAsync(
+        string plataforma)
+    {
+        try
+        {
+            DescargaPublicaWeb? version =
+                await Descargas.ObtenerUltimaAsync(
+                    plataforma,
+                    "PRODUCCION");
+
+            return new ResultadoPlataforma
+            {
+                Version = version
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ResultadoPlataforma
+            {
+                Error = ex.Message.Trim().Trim('"')
+            };
+        }
+    }
+
+    private static string NotasVisibles(DescargaPublicaWeb version) =>
+        string.IsNullOrWhiteSpace(version.NotasVersion)
+            ? "Última versión oficial disponible."
+            : version.NotasVersion;
+
+    private sealed class ResultadoPlataforma
+    {
+        public DescargaPublicaWeb? Version { get; set; }
+        public string Error { get; set; } = string.Empty;
+    }
+}

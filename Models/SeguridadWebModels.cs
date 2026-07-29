@@ -25,6 +25,9 @@ public static class PermisosWeb
 
     public const string Actualizaciones =
         "GestionActualizacionesWeb";
+
+    public const string LlavesDescarga =
+        "GestionLlavesDescargaWeb";
 }
 
 public sealed class RolWebItem

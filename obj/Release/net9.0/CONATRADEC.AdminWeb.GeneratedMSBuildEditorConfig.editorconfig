@@ -111,6 +111,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTWFpbkxheW91dC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-k15epbudz9
 
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Layout/PublicDownloadLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcUHVibGljRG93bmxvYWRMYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-jnar3yr4s6
+
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/Actualizaciones.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY3R1YWxpemFjaW9uZXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = b-yybolzysan
@@ -123,9 +127,21 @@ build_metadata.AdditionalFiles.CssScope = b-syt6o7gknb
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb25maWd1cmFjaW9uQWxlcnRhcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-cybv9w4lhn
 
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/DescargaProtegida.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xEZXNjYXJnYVByb3RlZ2lkYS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-k2d07wzpst
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/DescargasPortal.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xEZXNjYXJnYXNQb3J0YWwucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-i4ic6n7z2p
+
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/Home.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
 build_metadata.AdditionalFiles.CssScope = b-fwauv8ku64
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/LlavesDescarga.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xMbGF2ZXNEZXNjYXJnYS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-aghhvm3z78
 
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC.AdminWeb/Components/Pages/SeguimientoAlertas.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTZWd1aW1pZW50b0FsZXJ0YXMucmF6b3I=

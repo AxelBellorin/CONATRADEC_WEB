@@ -130,6 +130,16 @@ else
                     </NavLink>
                 }
 
+                @if (AuthState.TienePermisoLectura(
+                         PermisosWeb.LlavesDescarga) ||
+                     AuthState.EsAdministrador)
+                {
+                    <NavLink href="/actualizaciones/llaves">
+                        <i class="fa-solid fa-key"></i>
+                        <span>Llaves de descarga</span>
+                    </NavLink>
+                }
+
                 @if (AuthState.TienePermisoLectura("BitacoraPage") ||
                      AuthState.TienePermisoLectura("bitacoraPage") ||
                      AuthState.EsAdministrador)

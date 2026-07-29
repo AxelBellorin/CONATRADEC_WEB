@@ -3,7 +3,7 @@
 
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        @if (EsPaginaLogin(routeData.PageType))
+        @if (EsPaginaPublica(routeData.PageType))
         {
             <RouteView RouteData="@routeData"
                        DefaultLayout="typeof(MainLayout)" />
@@ -35,9 +35,14 @@
 </Router>
 
 @code {
-    private static bool EsPaginaLogin(Type pageType) =>
-        string.Equals(
-            pageType.Name,
+    private static readonly HashSet<string> PaginasPublicas =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
             "Login",
-            StringComparison.OrdinalIgnoreCase);
+            "DescargasPortal",
+            "DescargaProtegida"
+        };
+
+    private static bool EsPaginaPublica(Type pageType) =>
+        PaginasPublicas.Contains(pageType.Name);
 }

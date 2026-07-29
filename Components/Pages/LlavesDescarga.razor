@@ -1,0 +1,815 @@
+@page "/actualizaciones/llaves"
+@implements IDisposable
+@inject AuthStateService AuthState
+@inject IConfiguration Configuration
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Llaves de descarga | CONATRADEC</PageTitle>
+
+<div class="page-header keys-header">
+    <div>
+        <p class="eyebrow">Distribución controlada</p>
+        <h1>Llaves de descarga</h1>
+        <p>
+            Genere accesos temporales para instalaciones nuevas y revise cada
+            validación realizada desde el portal público.
+        </p>
+    </div>
+
+    <div class="page-header-actions">
+        <a class="btn-secondary" href="/actualizaciones">
+            <i class="fa-solid fa-arrow-left"></i>
+            Versiones
+        </a>
+        <button class="btn-secondary"
+                @onclick="CargarTodoAsync"
+                disabled="@ocupado">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensajeError))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@mensajeError</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(mensajeExito))
+{
+    <div class="alert alert-success">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensajeExito</span>
+    </div>
+}
+
+@if (llaveCreada != null)
+{
+    <section class="panel generated-key-panel">
+        <div class="generated-key-icon">
+            <i class="fa-solid fa-key"></i>
+        </div>
+        <div class="generated-key-content">
+            <p class="eyebrow">Mostrar una sola vez</p>
+            <h2>Copie esta llave ahora</h2>
+            <div class="generated-key-row">
+                <code>@llaveCreada.Llave</code>
+                <button class="btn-primary" @onclick="CopiarLlaveAsync">
+                    <i class="fa-regular fa-copy"></i>
+                    Copiar
+                </button>
+            </div>
+            <p>
+                Destinatario: <strong>@llaveCreada.Destinatario</strong> ·
+                Vence: <strong>@FormatearFecha(llaveCreada.FechaExpiracionUtc)</strong> ·
+                Usos: <strong>@llaveCreada.CantidadMaximaUsos</strong>
+            </p>
+        </div>
+        <button class="icon-button"
+                title="Cerrar"
+                @onclick="CerrarLlaveCreada">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </section>
+}
+
+<section class="keys-metrics">
+    <article class="metric-card">
+        <span>Activas</span>
+        <strong>@llaves.Count(x => x.Estado == "ACTIVA")</strong>
+        <small>Disponibles para utilizar</small>
+    </article>
+    <article class="metric-card">
+        <span>Utilizadas</span>
+        <strong>@llaves.Count(x => x.Estado == "UTILIZADA")</strong>
+        <small>Alcanzaron su límite</small>
+    </article>
+    <article class="metric-card">
+        <span>Vencidas</span>
+        <strong>@llaves.Count(x => x.Estado == "VENCIDA")</strong>
+        <small>Caducaron automáticamente</small>
+    </article>
+    <article class="metric-card">
+        <span>Autorizaciones</span>
+        <strong>@auditoria.Count(x => x.Resultado == "AUTORIZADA")</strong>
+        <small>En los últimos registros</small>
+    </article>
+</section>
+
+@if (PuedeAgregar)
+{
+    <section class="panel key-create-panel">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Nuevo acceso</p>
+                <h2>Generar llave</h2>
+                <p>
+                    La llave completa no se guarda en la base de datos y solo
+                    aparecerá una vez después de generarla.
+                </p>
+            </div>
+            <span class="security-pill">
+                <i class="fa-solid fa-shield-halved"></i>
+                SHA-256 y aleatoriedad segura
+            </span>
+        </div>
+
+        <EditForm Model="nuevaLlave"
+                  OnValidSubmit="GenerarLlaveAsync"
+                  FormName="generar-llave-descarga">
+            <DataAnnotationsValidator />
+
+            <div class="key-form-grid">
+                <div class="form-group">
+                    <label>Plataforma</label>
+                    <InputSelect class="form-control"
+                                 @bind-Value="nuevaLlave.Plataforma">
+                        <option value="ANDROID">Android</option>
+                        <option value="WINDOWS">Windows</option>
+                    </InputSelect>
+                </div>
+
+                <div class="form-group">
+                    <label>Canal</label>
+                    <InputSelect class="form-control"
+                                 @bind-Value="nuevaLlave.Canal">
+                        <option value="PRODUCCION">Producción</option>
+                        <option value="PRUEBAS">Pruebas</option>
+                    </InputSelect>
+                </div>
+
+                <div class="form-group">
+                    <label>Vigencia</label>
+                    <InputSelect class="form-control"
+                                 @bind-Value="nuevaLlave.TipoVigencia">
+                        <option value="1">1 hora</option>
+                        <option value="24">24 horas</option>
+                        <option value="72">3 días</option>
+                        <option value="168">7 días</option>
+                        <option value="PERSONALIZADA">Fecha específica</option>
+                    </InputSelect>
+                </div>
+
+                <div class="form-group">
+                    <label>Cantidad máxima de usos</label>
+                    <InputNumber class="form-control"
+                                 @bind-Value="nuevaLlave.CantidadMaximaUsos" />
+                    <ValidationMessage For="@(() => nuevaLlave.CantidadMaximaUsos)" />
+                </div>
+
+                @if (nuevaLlave.TipoVigencia == "PERSONALIZADA")
+                {
+                    <div class="form-group">
+                        <label>Válida hasta, hora de Nicaragua</label>
+                        <InputDate class="form-control"
+                                   Type="@InputDateType.DateTimeLocal"
+                                   @bind-Value="nuevaLlave.FechaExpiracionLocal" />
+                    </div>
+                }
+
+                <div class="form-group wide-field">
+                    <label>Destinatario o responsable</label>
+                    <InputText class="form-control"
+                               @bind-Value="nuevaLlave.Destinatario"
+                               placeholder="Ej. Técnico Jinotega" />
+                    <ValidationMessage For="@(() => nuevaLlave.Destinatario)" />
+                </div>
+
+                <div class="form-group full-field">
+                    <label>Observación</label>
+                    <InputTextArea class="form-control"
+                                   @bind-Value="nuevaLlave.Observacion"
+                                   placeholder="Motivo de entrega, ubicación o referencia." />
+                </div>
+            </div>
+
+            <div class="key-form-actions">
+                <button type="submit"
+                        class="btn-primary"
+                        disabled="@ocupado">
+                    <i class="fa-solid fa-key"></i>
+                    @(generando ? "Generando..." : "Generar llave")
+                </button>
+                <button type="button"
+                        class="btn-secondary"
+                        @onclick="LimpiarFormulario"
+                        disabled="@ocupado">
+                    Limpiar
+                </button>
+            </div>
+        </EditForm>
+    </section>
+}
+
+<section class="panel key-filter-panel">
+    <div class="form-group">
+        <label>Plataforma</label>
+        <InputSelect class="form-control" @bind-Value="filtroPlataforma">
+            <option value="">Todas</option>
+            <option value="ANDROID">Android</option>
+            <option value="WINDOWS">Windows</option>
+        </InputSelect>
+    </div>
+    <div class="form-group">
+        <label>Canal</label>
+        <InputSelect class="form-control" @bind-Value="filtroCanal">
+            <option value="">Todos</option>
+            <option value="PRODUCCION">Producción</option>
+            <option value="PRUEBAS">Pruebas</option>
+        </InputSelect>
+    </div>
+    <div class="form-group">
+        <label>Estado</label>
+        <InputSelect class="form-control" @bind-Value="filtroEstado">
+            <option value="">Todos</option>
+            <option value="ACTIVA">Activa</option>
+            <option value="UTILIZADA">Utilizada</option>
+            <option value="VENCIDA">Vencida</option>
+            <option value="REVOCADA">Revocada</option>
+            <option value="BLOQUEADA">Bloqueada</option>
+        </InputSelect>
+    </div>
+    <div class="filter-actions">
+        <button class="btn-primary"
+                @onclick="CargarLlavesAsync"
+                disabled="@ocupado">
+            Aplicar
+        </button>
+        <button class="btn-secondary"
+                @onclick="LimpiarFiltrosAsync"
+                disabled="@ocupado">
+            Limpiar
+        </button>
+    </div>
+</section>
+
+<section class="panel keys-list-panel">
+    <div class="section-heading compact">
+        <div>
+            <p class="eyebrow">Control de accesos</p>
+            <h2>Llaves generadas</h2>
+        </div>
+        <span>@llaves.Count registro(s)</span>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="empty-state">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <p>Cargando llaves...</p>
+        </div>
+    }
+    else if (llaves.Count == 0)
+    {
+        <div class="empty-state">
+            <i class="fa-solid fa-key"></i>
+            <p>No existen llaves con los filtros seleccionados.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="keys-table">
+                <thead>
+                    <tr>
+                        <th>Llave</th>
+                        <th>Destino</th>
+                        <th>Responsable</th>
+                        <th>Uso</th>
+                        <th>Vigencia</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (LlaveDescargaWebItem llave in llaves)
+                    {
+                        <tr>
+                            <td><code>@llave.LlaveEnmascarada</code></td>
+                            <td>
+                                <strong>@TextoPlataforma(llave.Plataforma)</strong>
+                                <small>@TextoCanal(llave.Canal)</small>
+                            </td>
+                            <td>
+                                <strong>@llave.Destinatario</strong>
+                                @if (!string.IsNullOrWhiteSpace(llave.Observacion))
+                                {
+                                    <small>@llave.Observacion</small>
+                                }
+                            </td>
+                            <td>@llave.CantidadUsos / @llave.CantidadMaximaUsos</td>
+                            <td>
+                                <strong>@FormatearFecha(llave.FechaExpiracionUtc)</strong>
+                                <small>Creada @FormatearFecha(llave.FechaCreacionUtc)</small>
+                            </td>
+                            <td>
+                                <span class="status-badge @ClaseEstado(llave.Estado)">
+                                    @TextoEstado(llave.Estado)
+                                </span>
+                            </td>
+                            <td class="actions-cell">
+                                @if (PuedeActualizar && llave.Estado == "ACTIVA")
+                                {
+                                    <button class="btn-secondary"
+                                            title="Bloquear temporalmente"
+                                            @onclick="() => BloquearAsync(llave)"
+                                            disabled="@ocupado">
+                                        <i class="fa-solid fa-lock"></i>
+                                        Bloquear
+                                    </button>
+                                    <button class="btn-danger-soft"
+                                            title="Revocar definitivamente"
+                                            @onclick="() => RevocarAsync(llave)"
+                                            disabled="@ocupado">
+                                        <i class="fa-solid fa-ban"></i>
+                                        Revocar
+                                    </button>
+                                }
+                                else if (PuedeActualizar && llave.Estado == "BLOQUEADA")
+                                {
+                                    <button class="btn-secondary"
+                                            title="Reactivar llave"
+                                            @onclick="() => ReactivarAsync(llave)"
+                                            disabled="@ocupado">
+                                        <i class="fa-solid fa-lock-open"></i>
+                                        Reactivar
+                                    </button>
+                                    <button class="btn-danger-soft"
+                                            title="Revocar definitivamente"
+                                            @onclick="() => RevocarAsync(llave)"
+                                            disabled="@ocupado">
+                                        <i class="fa-solid fa-ban"></i>
+                                        Revocar
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<section class="panel audit-panel">
+    <div class="section-heading compact">
+        <div>
+            <p class="eyebrow">Trazabilidad</p>
+            <h2>Auditoría de descargas</h2>
+        </div>
+        <span>Últimos @auditoria.Count eventos</span>
+    </div>
+
+    @if (auditoria.Count == 0)
+    {
+        <div class="empty-state">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <p>Todavía no existen eventos de descarga.</p>
+        </div>
+    }
+    else
+    {
+        <div class="audit-grid">
+            @foreach (AuditoriaDescargaWebItem evento in auditoria)
+            {
+                <article class="audit-card">
+                    <div class="audit-card-head">
+                        <span class="status-badge @ClaseResultado(evento.Resultado)">
+                            @TextoResultado(evento.Resultado)
+                        </span>
+                        <time>@FormatearFecha(evento.FechaUtc)</time>
+                    </div>
+                    <h3>
+                        @(string.IsNullOrWhiteSpace(evento.VersionNombre)
+                            ? TextoPlataforma(evento.Plataforma)
+                            : $"{TextoPlataforma(evento.Plataforma)} {evento.VersionNombre}")
+                    </h3>
+                    <p>@evento.Detalle</p>
+                    <dl>
+                        <div><dt>Destinatario</dt><dd>@Valor(evento.Destinatario)</dd></div>
+                        <div><dt>IP</dt><dd>@Valor(evento.IpCliente)</dd></div>
+                        <div><dt>Dispositivo</dt><dd>@evento.TipoDispositivo / @evento.SistemaOperativo</dd></div>
+                        <div><dt>Navegador</dt><dd>@Valor(evento.Navegador)</dd></div>
+                        <div><dt>ID web</dt><dd class="mono">@Valor(evento.IdentificadorDispositivoWeb)</dd></div>
+                    </dl>
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private readonly NuevaLlaveDescargaWeb nuevaLlave = new();
+    private readonly List<LlaveDescargaWebItem> llaves = [];
+    private readonly List<AuditoriaDescargaWebItem> auditoria = [];
+
+    private LlavesDescargaService? servicio;
+    private LlaveDescargaCreadaWeb? llaveCreada;
+
+    private string filtroPlataforma = string.Empty;
+    private string filtroCanal = string.Empty;
+    private string filtroEstado = string.Empty;
+    private string mensajeError = string.Empty;
+    private string mensajeExito = string.Empty;
+
+    private bool cargando = true;
+    private bool generando;
+    private bool procesando;
+
+    private bool ocupado => cargando || generando || procesando;
+    private int UsuarioId => AuthState.Usuario?.UsuarioId ?? 0;
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(PermisosWeb.LlavesDescarga);
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(PermisosWeb.LlavesDescarga);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.InicializarAsync();
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!AuthState.EsAdministrador &&
+            !AuthState.TienePermisoLectura(PermisosWeb.LlavesDescarga))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        servicio = new LlavesDescargaService(Configuration, AuthState);
+        await CargarTodoAsync();
+    }
+
+    private async Task CargarTodoAsync()
+    {
+        LimpiarMensajes();
+        cargando = true;
+
+        try
+        {
+            await Task.WhenAll(
+                CargarLlavesInternoAsync(),
+                CargarAuditoriaInternoAsync());
+        }
+        catch (Exception ex)
+        {
+            mensajeError = LimpiarMensaje(ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarLlavesAsync()
+    {
+        LimpiarMensajes();
+        cargando = true;
+
+        try
+        {
+            await CargarLlavesInternoAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = LimpiarMensaje(ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarLlavesInternoAsync()
+    {
+        List<LlaveDescargaWebItem> resultado =
+            await ObtenerServicio().ListarAsync(
+                UsuarioId,
+                filtroPlataforma,
+                filtroCanal,
+                filtroEstado);
+
+        llaves.Clear();
+        llaves.AddRange(resultado);
+    }
+
+    private async Task CargarAuditoriaInternoAsync()
+    {
+        List<AuditoriaDescargaWebItem> resultado =
+            await ObtenerServicio().AuditoriaAsync(UsuarioId, 200);
+
+        auditoria.Clear();
+        auditoria.AddRange(resultado);
+    }
+
+    private async Task GenerarLlaveAsync()
+    {
+        LimpiarMensajes();
+        generando = true;
+
+        try
+        {
+            CrearLlaveDescargaApi solicitud = CrearSolicitud();
+
+            llaveCreada = await ObtenerServicio().CrearAsync(
+                UsuarioId,
+                solicitud);
+
+            if (llaveCreada == null)
+                throw new InvalidOperationException("La API no devolvió la llave generada.");
+
+            mensajeExito = "La llave se generó correctamente.";
+            LimpiarFormulario(conservarMensaje: true);
+
+            await Task.WhenAll(
+                CargarLlavesInternoAsync(),
+                CargarAuditoriaInternoAsync());
+        }
+        catch (Exception ex)
+        {
+            mensajeError = LimpiarMensaje(ex.Message);
+        }
+        finally
+        {
+            generando = false;
+        }
+    }
+
+    private CrearLlaveDescargaApi CrearSolicitud()
+    {
+        var solicitud = new CrearLlaveDescargaApi
+        {
+            Plataforma = nuevaLlave.Plataforma,
+            Canal = nuevaLlave.Canal,
+            Destinatario = nuevaLlave.Destinatario.Trim(),
+            Observacion = nuevaLlave.Observacion.Trim(),
+            CantidadMaximaUsos = nuevaLlave.CantidadMaximaUsos
+        };
+
+        if (nuevaLlave.TipoVigencia == "PERSONALIZADA")
+        {
+            if (!nuevaLlave.FechaExpiracionLocal.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "Indique la fecha y hora de vencimiento.");
+            }
+
+            solicitud.FechaExpiracionUtc = ConvertirManaguaAUtc(
+                nuevaLlave.FechaExpiracionLocal.Value);
+        }
+        else
+        {
+            solicitud.VigenciaHoras = int.Parse(nuevaLlave.TipoVigencia);
+        }
+
+        return solicitud;
+    }
+
+    private async Task BloquearAsync(LlaveDescargaWebItem llave)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"¿Bloquear temporalmente la llave {llave.LlaveEnmascarada}?");
+
+        if (!confirmar)
+            return;
+
+        await CambiarEstadoLlaveAsync(
+            () => ObtenerServicio().BloquearAsync(
+                UsuarioId,
+                llave.ActualizacionLlaveDescargaId),
+            "La llave fue bloqueada temporalmente.");
+    }
+
+    private async Task ReactivarAsync(LlaveDescargaWebItem llave)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"¿Reactivar la llave {llave.LlaveEnmascarada}?");
+
+        if (!confirmar)
+            return;
+
+        await CambiarEstadoLlaveAsync(
+            () => ObtenerServicio().ReactivarAsync(
+                UsuarioId,
+                llave.ActualizacionLlaveDescargaId),
+            "La llave fue reactivada correctamente.");
+    }
+
+    private async Task CambiarEstadoLlaveAsync(
+        Func<Task<LlaveDescargaWebItem?>> accion,
+        string mensaje)
+    {
+        LimpiarMensajes();
+        procesando = true;
+
+        try
+        {
+            await accion();
+            mensajeExito = mensaje;
+            await CargarLlavesInternoAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = LimpiarMensaje(ex.Message);
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task RevocarAsync(LlaveDescargaWebItem llave)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"¿Revocar la llave {llave.LlaveEnmascarada} de {llave.Destinatario}?");
+
+        if (!confirmar)
+            return;
+
+        LimpiarMensajes();
+        procesando = true;
+
+        try
+        {
+            await ObtenerServicio().RevocarAsync(
+                UsuarioId,
+                llave.ActualizacionLlaveDescargaId);
+
+            mensajeExito = "La llave fue revocada correctamente.";
+            await CargarLlavesInternoAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = LimpiarMensaje(ex.Message);
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task CopiarLlaveAsync()
+    {
+        if (llaveCreada == null)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "navigator.clipboard.writeText",
+                llaveCreada.Llave);
+
+            mensajeExito = "La llave fue copiada al portapapeles.";
+        }
+        catch
+        {
+            mensajeError =
+                "No fue posible copiarla automáticamente. Seleccione la llave y cópiela manualmente.";
+        }
+    }
+
+    private async Task LimpiarFiltrosAsync()
+    {
+        filtroPlataforma = string.Empty;
+        filtroCanal = string.Empty;
+        filtroEstado = string.Empty;
+        await CargarLlavesAsync();
+    }
+
+    private void LimpiarFormulario() =>
+        LimpiarFormulario(conservarMensaje: false);
+
+    private void LimpiarFormulario(bool conservarMensaje)
+    {
+        nuevaLlave.Plataforma = "ANDROID";
+        nuevaLlave.Canal = "PRODUCCION";
+        nuevaLlave.TipoVigencia = "24";
+        nuevaLlave.FechaExpiracionLocal = null;
+        nuevaLlave.CantidadMaximaUsos = 1;
+        nuevaLlave.Destinatario = string.Empty;
+        nuevaLlave.Observacion = string.Empty;
+
+        if (!conservarMensaje)
+            LimpiarMensajes();
+    }
+
+    private void CerrarLlaveCreada()
+    {
+        llaveCreada = null;
+    }
+
+    private LlavesDescargaService ObtenerServicio() =>
+        servicio ?? throw new InvalidOperationException(
+            "El servicio de llaves no fue inicializado.");
+
+    private static DateTime ConvertirManaguaAUtc(DateTime fechaLocal)
+    {
+        TimeZoneInfo zona = ObtenerZonaManagua();
+
+        DateTime sinZona = DateTime.SpecifyKind(
+            fechaLocal,
+            DateTimeKind.Unspecified);
+
+        return TimeZoneInfo.ConvertTimeToUtc(sinZona, zona);
+    }
+
+    private static string FormatearFecha(DateTime fechaUtc)
+    {
+        DateTime utc = DateTime.SpecifyKind(
+            fechaUtc,
+            DateTimeKind.Utc);
+
+        return TimeZoneInfo.ConvertTimeFromUtc(
+                utc,
+                ObtenerZonaManagua())
+            .ToString("dd/MM/yyyy HH:mm");
+    }
+
+    private static TimeZoneInfo ObtenerZonaManagua()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(
+                "America/Managua");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(
+                "Central America Standard Time");
+        }
+    }
+
+    private static string TextoPlataforma(string plataforma) =>
+        plataforma == "ANDROID" ? "Android" : "Windows";
+
+    private static string TextoCanal(string canal) =>
+        canal == "PRODUCCION" ? "Producción" : "Pruebas";
+
+    private static string TextoEstado(string estado) =>
+        estado switch
+        {
+            "ACTIVA" => "Activa",
+            "UTILIZADA" => "Utilizada",
+            "VENCIDA" => "Vencida",
+            "REVOCADA" => "Revocada",
+            "BLOQUEADA" => "Bloqueada",
+            _ => estado
+        };
+
+    private static string ClaseEstado(string estado) =>
+        estado.ToLowerInvariant();
+
+    private static string ClaseResultado(string resultado) =>
+        resultado.StartsWith("RECHAZADA", StringComparison.Ordinal)
+            ? "resultado-error"
+            : (resultado == "AUTORIZADA" ||
+               resultado == "AUTORIZADA_APLICACION")
+                ? "resultado-ok"
+                : "resultado-info";
+
+    private static string TextoResultado(string resultado) =>
+        resultado switch
+        {
+            "AUTORIZADA" => "Autorizada por llave",
+            "AUTORIZADA_APLICACION" => "Autorizada por la aplicación",
+            "DESCARGA_INICIADA" => "Descarga iniciada",
+            "RECHAZADA_LLAVE" => "Llave incorrecta",
+            "RECHAZADA_ESTADO" => "Llave no disponible",
+            "RECHAZADA_FORMATO" => "Formato inválido",
+            "RECHAZADA_SIN_VERSION" => "Sin versión",
+            "RECHAZADA_BLOQUEO_IP" => "IP bloqueada",
+            _ => resultado
+        };
+
+    private static string Valor(string? texto) =>
+        string.IsNullOrWhiteSpace(texto) ? "—" : texto;
+
+    private void LimpiarMensajes()
+    {
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+    }
+
+    private static string LimpiarMensaje(string mensaje) =>
+        mensaje.Trim().Trim('"');
+
+    public void Dispose()
+    {
+        servicio?.Dispose();
+    }
+}

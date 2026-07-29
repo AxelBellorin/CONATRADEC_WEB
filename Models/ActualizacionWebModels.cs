@@ -18,6 +18,8 @@ public sealed class RespuestaApi<T>
 
 public sealed class ActualizacionWebItem
 {
+    private string urlDescargaApi = string.Empty;
+
     [JsonPropertyName("actualizacionAplicacionId")]
     public int ActualizacionAplicacionId { get; set; }
 
@@ -72,8 +74,22 @@ public sealed class ActualizacionWebItem
     [JsonPropertyName("fechaPublicacionUtc")]
     public DateTime? FechaPublicacionUtc { get; set; }
 
+    /// <summary>
+    /// La API todavía entrega el campo por compatibilidad, pero el portal nunca
+    /// lo usa directamente. Toda descarga administrativa abre la página con llave.
+    /// </summary>
     [JsonPropertyName("urlDescarga")]
-    public string UrlDescarga { get; set; } = string.Empty;
+    public string UrlDescarga
+    {
+        get => !string.Equals(Estado, "PUBLICADA", StringComparison.Ordinal) ||
+               string.IsNullOrWhiteSpace(Plataforma)
+            ? string.Empty
+            : $"/descargas/{Plataforma.ToLowerInvariant()}";
+        set => urlDescargaApi = value ?? string.Empty;
+    }
+
+    [JsonIgnore]
+    public string UrlDescargaApi => urlDescargaApi;
 
     [JsonIgnore]
     public string TamanoVisible => FormatearTamano(TamanoBytes);
@@ -129,7 +145,10 @@ public sealed class ActualizacionNuevaWeb
         ErrorMessage = "Use un formato como 1.0.2.")]
     public string VersionNombre { get; set; } = "1.0.2";
 
-    [Range(1, long.MaxValue, ErrorMessage = "La compilación debe ser mayor que cero.")]
+    [Range(
+        1,
+        long.MaxValue,
+        ErrorMessage = "La compilación debe ser mayor que cero.")]
     public long VersionCodigo { get; set; } = 3;
 
     [MaxLength(4000)]

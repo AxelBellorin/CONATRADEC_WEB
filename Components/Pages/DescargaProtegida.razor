@@ -1,0 +1,214 @@
+@page "/descargas/{Plataforma}"
+@layout PublicDownloadLayout
+@inject DescargasPublicasService Descargas
+@inject NavigationManager Navigation
+
+<PageTitle>Descargar @TextoPlataforma | CONATRADEC</PageTitle>
+
+<main class="download-page">
+    <section class="download-card">
+        <header class="download-brand">
+            <div class="download-logo">
+                <i class="fa-solid fa-seedling"></i>
+            </div>
+            <div>
+                <strong>CONATRADEC</strong>
+                <span>Distribución segura de aplicaciones</span>
+            </div>
+        </header>
+
+        @if (cargando)
+        {
+            <div class="download-state">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <h1>Consultando la versión publicada</h1>
+                <p>Estamos verificando el instalador disponible.</p>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(mensajeError))
+        {
+            <div class="download-state error">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <h1>No fue posible cargar la descarga</h1>
+                <p>@mensajeError</p>
+                <a href="/descargas" class="download-secondary">Volver</a>
+            </div>
+        }
+        else if (version == null)
+        {
+            <div class="download-state warning">
+                <i class="fa-solid fa-clock"></i>
+                <h1>Instalador no disponible</h1>
+                <p>
+                    Todavía no existe una versión de @TextoPlataforma
+                    publicada en el canal de Producción.
+                </p>
+                <a href="/descargas" class="download-secondary">Volver</a>
+            </div>
+        }
+        else
+        {
+            <div class="download-heading">
+                <div class="platform-icon @ClasePlataforma">
+                    <i class="@IconoPlataforma"></i>
+                </div>
+                <div>
+                    <p class="eyebrow">Instalador oficial</p>
+                    <h1>CONATRADEC para @TextoPlataforma</h1>
+                    <p>
+                        Ingrese la llave entregada por el administrador para
+                        autorizar esta descarga.
+                    </p>
+                </div>
+            </div>
+
+            <section class="version-panel">
+                <div>
+                    <span>Última versión</span>
+                    <strong>@version.VersionNombre</strong>
+                    <small>Build @version.VersionCodigo</small>
+                </div>
+                <div>
+                    <span>Tamaño</span>
+                    <strong>@version.TamanoVisible</strong>
+                    <small>@version.NombreArchivo</small>
+                </div>
+                <div>
+                    <span>Canal</span>
+                    <strong>Producción</strong>
+                    <small>Versión publicada</small>
+                </div>
+            </section>
+
+            @if (!string.IsNullOrWhiteSpace(version.NotasVersion))
+            {
+                <section class="release-notes">
+                    <h2>Novedades</h2>
+                    <p>@version.NotasVersion</p>
+                </section>
+            }
+
+            <form method="post"
+                  action="@Descargas.UrlValidacionFormulario"
+                  class="download-form">
+                <input type="hidden"
+                       name="Plataforma"
+                       value="@plataformaNormalizada" />
+                <input type="hidden"
+                       name="Canal"
+                       value="PRODUCCION" />
+                <input type="hidden"
+                       name="UrlRetorno"
+                       value="@UrlRetorno" />
+
+                <label for="download-key">Llave de descarga</label>
+                <div class="key-input-row">
+                    <input id="download-key"
+                           name="Llave"
+                           type="text"
+                           maxlength="24"
+                           autocomplete="off"
+                           autocapitalize="characters"
+                           spellcheck="false"
+                           placeholder="CNTR-7KPM-4DXQ-9RTA"
+                           required />
+                    <button type="submit">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        Validar y descargar
+                    </button>
+                </div>
+                <small>
+                    La llave no se coloca en la URL y se enviará mediante una
+                    solicitud segura al servidor.
+                </small>
+            </form>
+
+            <section class="installation-help">
+                <h2>Instrucciones de instalación</h2>
+                @if (plataformaNormalizada == "ANDROID")
+                {
+                    <ol>
+                        <li>Descargue el archivo APK autorizado.</li>
+                        <li>Abra el archivo desde las descargas del dispositivo.</li>
+                        <li>Autorice la instalación desde esta fuente cuando Android lo solicite.</li>
+                    </ol>
+                }
+                else
+                {
+                    <ol>
+                        <li>Descargue el instalador autorizado.</li>
+                        <li>Abra el archivo descargado como usuario normal.</li>
+                        <li>Siga las instrucciones mostradas por Windows.</li>
+                    </ol>
+                }
+            </section>
+
+            <footer class="download-security">
+                <i class="fa-solid fa-lock"></i>
+                <span>
+                    La autorización es temporal y permite reanudar solicitudes
+                    parciales durante la descarga.
+                </span>
+            </footer>
+        }
+    </section>
+</main>
+
+@code {
+    [Parameter]
+    public string Plataforma { get; set; } = string.Empty;
+
+    private DescargaPublicaWeb? version;
+    private string plataformaNormalizada = string.Empty;
+    private string mensajeError = string.Empty;
+    private bool cargando = true;
+
+    private string TextoPlataforma =>
+        plataformaNormalizada == "ANDROID" ? "Android" : "Windows";
+
+    private string ClasePlataforma =>
+        plataformaNormalizada == "ANDROID" ? "android" : "windows";
+
+    private string IconoPlataforma =>
+        plataformaNormalizada == "ANDROID"
+            ? "fa-brands fa-android"
+            : "fa-brands fa-windows";
+
+    private string UrlRetorno =>
+        new Uri(
+            new Uri(Navigation.BaseUri),
+            $"descargas/{plataformaNormalizada.ToLowerInvariant()}")
+        .AbsoluteUri;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        cargando = true;
+        mensajeError = string.Empty;
+        version = null;
+
+        plataformaNormalizada =
+            DescargasPublicasService.NormalizarPlataforma(Plataforma);
+
+        if (string.IsNullOrWhiteSpace(plataformaNormalizada))
+        {
+            mensajeError = "La plataforma solicitada no es válida.";
+            cargando = false;
+            return;
+        }
+
+        try
+        {
+            version = await Descargas.ObtenerUltimaAsync(
+                plataformaNormalizada,
+                "PRODUCCION");
+        }
+        catch (Exception ex)
+        {
+            mensajeError = ex.Message.Trim().Trim('"');
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}
