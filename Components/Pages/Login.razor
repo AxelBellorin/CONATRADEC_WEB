@@ -4,40 +4,58 @@
 
 <PageTitle>Iniciar sesión | CONATRADEC</PageTitle>
 
-<div class="login-page">
+<div class="@ClasePagina">
     <section class="login-visual">
         <div class="login-visual-content">
-            <div class="login-logo">
-                <i class="fa-solid fa-seedling"></i>
+            <div class="login-copy">
+                <div class="login-logo">
+                    <i class="fa-solid fa-seedling"></i>
+                </div>
+
+                <p class="eyebrow">CONATRADEC</p>
+
+                <h1>
+                    Gestión agrícola en una sola plataforma
+                </h1>
+
+                <p>
+                    Supervisa terrenos, análisis de suelo,
+                    indicadores y actividad administrativa
+                    desde cualquier computadora.
+                </p>
+
+                <div class="login-feature-list">
+                    <span>
+                        <i class="fa-solid fa-chart-pie"></i>
+                        Indicadores consolidados
+                    </span>
+
+                    <span>
+                        <i class="fa-solid fa-map"></i>
+                        Mapa dinámico de terrenos
+                    </span>
+
+                    <span>
+                        <i class="fa-solid fa-shield-halved"></i>
+                        Acceso por permisos
+                    </span>
+                </div>
             </div>
 
-            <p class="eyebrow">CONATRADEC</p>
+            <div class="login-mascot-stage"
+                 aria-hidden="true">
+                <span class="mascot-glow"></span>
+                <span class="coffee-bean bean-one"></span>
+                <span class="coffee-bean bean-two"></span>
+                <span class="coffee-bean bean-three"></span>
 
-            <h1>
-                Gestión agrícola en una sola plataforma
-            </h1>
+                <img class="login-mascot"
+                     src="images/mascota-conatradec.webp"
+                     width="720"
+                     height="734"
+                     alt="" />
 
-            <p>
-                Supervisa terrenos, análisis de suelo,
-                indicadores y actividad administrativa
-                desde cualquier computadora.
-            </p>
-
-            <div class="login-feature-list">
-                <span>
-                    <i class="fa-solid fa-chart-pie"></i>
-                    Indicadores consolidados
-                </span>
-
-                <span>
-                    <i class="fa-solid fa-map"></i>
-                    Mapa dinámico de terrenos
-                </span>
-
-                <span>
-                    <i class="fa-solid fa-shield-halved"></i>
-                    Acceso por permisos
-                </span>
+                <span class="mascot-ground-shadow"></span>
             </div>
         </div>
     </section>
@@ -45,8 +63,11 @@
     <section class="login-panel">
         <div class="login-card">
             <div class="login-card-header">
-                <span class="mobile-logo">
-                    <i class="fa-solid fa-seedling"></i>
+                <span class="mobile-logo mobile-mascot-logo">
+                    <img src="images/mascota-conatradec.webp"
+                         width="720"
+                         height="734"
+                         alt="Mascota de CONATRADEC" />
                 </span>
 
                 <p class="eyebrow">
@@ -68,13 +89,15 @@
 
                 @if (!string.IsNullOrWhiteSpace(error))
                 {
-                    <div class="alert alert-error">
+                    <div class="alert alert-error"
+                         role="alert"
+                         aria-live="polite">
                         <i class="fa-solid fa-circle-exclamation"></i>
                         <span>@error</span>
                     </div>
                 }
 
-                <div class="form-group">
+                <div class="form-group login-field-user">
                     <label for="usuario">
                         Usuario o correo
                     </label>
@@ -94,7 +117,7 @@
                         For="() => modelo.UsuarioOEmail" />
                 </div>
 
-                <div class="form-group">
+                <div class="form-group login-field-password">
                     <label for="clave">
                         Contraseña
                     </label>
@@ -116,7 +139,7 @@
                 </div>
 
                 <button type="submit"
-                        class="btn-primary btn-block"
+                        class="btn-primary btn-block login-submit"
                         disabled="@procesando">
                     @if (procesando)
                     {
@@ -148,6 +171,10 @@
 
     private bool procesando;
     private string? error;
+
+    private string ClasePagina =>
+        $"login-page{(procesando ? " is-processing" : string.Empty)}" +
+        $"{(!string.IsNullOrWhiteSpace(error) ? " has-error" : string.Empty)}";
 
     private async Task IniciarSesionAsync()
     {
