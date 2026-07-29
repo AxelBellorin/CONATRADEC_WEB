@@ -68,6 +68,98 @@
     </article>
 </section>
 
+<section class="panel update-public-panel">
+    <div class="update-section-title public-title">
+        <div>
+            <p class="eyebrow">Distribución pública</p>
+            <h2>Enlaces permanentes de instalación</h2>
+            <p>
+                Comparta estas direcciones una sola vez. Cada enlace busca
+                automáticamente la última versión publicada en Producción.
+            </p>
+        </div>
+
+        <a class="btn-secondary"
+           href="@UrlPortalDescargas"
+           target="_blank"
+           rel="noopener noreferrer">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            Ver portal público
+        </a>
+    </div>
+
+    <div class="update-public-grid">
+        <article class="update-public-card android">
+            <div class="update-public-icon">
+                <i class="fa-brands fa-android"></i>
+            </div>
+            <div class="update-public-content">
+                <strong>Instalador Android</strong>
+                <small>Siempre entrega el último APK publicado.</small>
+                <div class="update-public-url-row">
+                    <input class="form-control"
+                           value="@UrlInstalacionAndroid"
+                           readonly
+                           aria-label="URL pública de Android" />
+                    <button type="button"
+                            class="btn-secondary"
+                            title="Copiar enlace de Android"
+                            @onclick="CopiarAndroidAsync">
+                        <i class="fa-regular fa-copy"></i>
+                        Copiar
+                    </button>
+                    <a class="btn-secondary icon-link"
+                       href="@UrlInstalacionAndroid"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       title="Probar enlace de Android">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                </div>
+            </div>
+        </article>
+
+        <article class="update-public-card windows">
+            <div class="update-public-icon">
+                <i class="fa-brands fa-windows"></i>
+            </div>
+            <div class="update-public-content">
+                <strong>Instalador Windows</strong>
+                <small>Siempre entrega el último paquete publicado.</small>
+                <div class="update-public-url-row">
+                    <input class="form-control"
+                           value="@UrlInstalacionWindows"
+                           readonly
+                           aria-label="URL pública de Windows" />
+                    <button type="button"
+                            class="btn-secondary"
+                            title="Copiar enlace de Windows"
+                            @onclick="CopiarWindowsAsync">
+                        <i class="fa-regular fa-copy"></i>
+                        Copiar
+                    </button>
+                    <a class="btn-secondary icon-link"
+                       href="@UrlInstalacionWindows"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       title="Probar enlace de Windows">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <div class="update-public-note">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>
+            Una versión guardada como borrador no cambia estos enlaces. El
+            archivo nuevo se entrega únicamente después de pulsar
+            <strong>Publicar</strong>.
+        </span>
+    </div>
+</section>
+
 @if (PuedeAgregar)
 {
     <section class="panel update-upload-panel">
@@ -97,7 +189,8 @@
                     <label>Plataforma</label>
                     <InputSelect class="form-control"
                                  @bind-Value="nuevaVersion.Plataforma"
-                                 @bind-Value:after="CambiarDestinoAsync">
+                                 @bind-Value:after="CambiarDestinoAsync"
+                                 disabled="@subiendo">
                         <option value="ANDROID">Android</option>
                         <option value="WINDOWS">Windows</option>
                     </InputSelect>
@@ -107,7 +200,8 @@
                     <label>Canal</label>
                     <InputSelect class="form-control"
                                  @bind-Value="nuevaVersion.Canal"
-                                 @bind-Value:after="CambiarDestinoAsync">
+                                 @bind-Value:after="CambiarDestinoAsync"
+                                 disabled="@subiendo">
                         <option value="PRODUCCION">Producción</option>
                         <option value="PRUEBAS">Pruebas</option>
                     </InputSelect>
@@ -117,20 +211,24 @@
                     <label>Versión visible</label>
                     <InputText class="form-control"
                                @bind-Value="nuevaVersion.VersionNombre"
-                               placeholder="Ej. 1.0.2" />
+                               placeholder="Ej. 1.0.2"
+                               disabled="@subiendo" />
                     <ValidationMessage For="@(() => nuevaVersion.VersionNombre)" />
                 </div>
 
                 <div class="form-group">
                     <label>Número de compilación</label>
                     <InputNumber class="form-control"
-                                 @bind-Value="nuevaVersion.VersionCodigo" />
+                                 @bind-Value="nuevaVersion.VersionCodigo"
+                                 disabled="@subiendo" />
                     <ValidationMessage For="@(() => nuevaVersion.VersionCodigo)" />
                 </div>
 
                 <div class="form-group update-file-field">
                     <label>Archivo de instalación</label>
-                    <InputFile @key="inputFileKey" OnChange="SeleccionarArchivo" />
+                    <InputFile @key="inputFileKey"
+                               OnChange="SeleccionarArchivo"
+                               disabled="@subiendo" />
                     <small>
                         @DescripcionArchivoPermitido
                         Tamaño máximo: 1 GB.
@@ -149,12 +247,14 @@
                     <label>Novedades de la versión</label>
                     <InputTextArea class="form-control update-notes"
                                    @bind-Value="nuevaVersion.NotasVersion"
-                                   placeholder="Describa mejoras, correcciones y cambios importantes." />
+                                   placeholder="Describa mejoras, correcciones y cambios importantes."
+                                   disabled="@subiendo" />
                     <ValidationMessage For="@(() => nuevaVersion.NotasVersion)" />
                 </div>
 
                 <label class="update-checkbox-card">
-                    <InputCheckbox @bind-Value="nuevaVersion.Obligatoria" />
+                    <InputCheckbox @bind-Value="nuevaVersion.Obligatoria"
+                                   disabled="@subiendo" />
                     <span>
                         <strong>Actualización obligatoria</strong>
                         <small>
@@ -164,7 +264,8 @@
                 </label>
 
                 <label class="update-checkbox-card">
-                    <InputCheckbox @bind-Value="nuevaVersion.DefinirVersionMinima" />
+                    <InputCheckbox @bind-Value="nuevaVersion.DefinirVersionMinima"
+                                   disabled="@subiendo" />
                     <span>
                         <strong>Definir compilación mínima</strong>
                         <small>
@@ -179,7 +280,8 @@
                     <div class="form-group">
                         <label>Compilación mínima permitida</label>
                         <InputNumber class="form-control"
-                                     @bind-Value="nuevaVersion.VersionMinimaCodigo" />
+                                     @bind-Value="nuevaVersion.VersionMinimaCodigo"
+                                     disabled="@subiendo" />
                     </div>
                 }
             </div>
@@ -198,9 +300,45 @@
                     </span>
                     <button type="button"
                             class="btn-link"
-                            @onclick="AplicarSugerencia">
+                            @onclick="AplicarSugerencia"
+                            disabled="@subiendo">
                         Aplicar
                     </button>
+                </div>
+            }
+
+            @if (subiendo)
+            {
+                <div class="update-upload-progress"
+                     role="status"
+                     aria-live="polite"
+                     aria-label="Progreso de carga del archivo">
+                    <div class="update-upload-progress-head">
+                        <div>
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <strong>@estadoSubida</strong>
+                        </div>
+                        <strong>@porcentajeSubida%</strong>
+                    </div>
+
+                    <div class="update-upload-progress-track"
+                         role="progressbar"
+                         aria-valuemin="0"
+                         aria-valuemax="100"
+                         aria-valuenow="@porcentajeSubida">
+                        <span style="@EstiloProgreso"></span>
+                    </div>
+
+                    <div class="update-upload-progress-detail">
+                        <span>
+                            @FormatearTamano(bytesSubidos)
+                            de
+                            @FormatearTamano(totalBytesSubida)
+                        </span>
+                        <span>
+                            No cierre esta página hasta finalizar.
+                        </span>
+                    </div>
                 </div>
             }
 
@@ -209,7 +347,7 @@
                         class="btn-primary"
                         disabled="@ocupado">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
-                    @(subiendo ? "Subiendo archivo..." : "Guardar como borrador")
+                    @(subiendo ? $"Subiendo... {porcentajeSubida}%" : "Guardar como borrador")
                 </button>
 
                 <button type="button"
@@ -490,6 +628,11 @@ else
     private bool procesando;
     private int inputFileKey;
 
+    private int porcentajeSubida;
+    private long bytesSubidos;
+    private long totalBytesSubida;
+    private string estadoSubida = "Preparando la transferencia...";
+
     private bool ocupado => cargando || subiendo || procesando;
 
     private int UsuarioId => AuthState.Usuario?.UsuarioId ?? 0;
@@ -510,6 +653,18 @@ else
         nuevaVersion.Plataforma == "ANDROID"
             ? "Seleccione un archivo APK. "
             : "Seleccione MSIX, MSIXBUNDLE, APPINSTALLER o EXE. ";
+
+    private string UrlPortalDescargas =>
+        ConstruirUrlWeb("descargas");
+
+    private string UrlInstalacionAndroid =>
+        ConstruirUrlWeb("instalar/android");
+
+    private string UrlInstalacionWindows =>
+        ConstruirUrlWeb("instalar/windows");
+
+    private string EstiloProgreso =>
+        $"width: {Math.Clamp(porcentajeSubida, 0, 100)}%;";
 
     protected override async Task OnInitializedAsync()
     {
@@ -580,6 +735,7 @@ else
     {
         nuevaVersion.Archivo = null;
         inputFileKey++;
+        ReiniciarProgreso();
         await CargarSugerenciaAsync();
     }
 
@@ -595,6 +751,7 @@ else
     private void SeleccionarArchivo(InputFileChangeEventArgs args)
     {
         LimpiarMensajes();
+        ReiniciarProgreso();
 
         IBrowserFile archivo = args.File;
         string extension = Path.GetExtension(archivo.Name).ToLowerInvariant();
@@ -614,7 +771,7 @@ else
             return;
         }
 
-        if (archivo.Size > CONATRADEC.AdminWeb.Services.ActualizacionesService.TamanoMaximoArchivo)
+        if (archivo.Size > ActualizacionesService.TamanoMaximoArchivo)
         {
             nuevaVersion.Archivo = null;
             mensajeError = "El archivo no puede superar 1 GB.";
@@ -622,6 +779,7 @@ else
         }
 
         nuevaVersion.Archivo = archivo;
+        totalBytesSubida = archivo.Size;
     }
 
     private async Task SubirAsync()
@@ -641,13 +799,15 @@ else
             return;
         }
 
+        PrepararProgreso(nuevaVersion.Archivo.Size);
         subiendo = true;
 
         try
         {
             await ActualizacionesApi.SubirAsync(
                 UsuarioId,
-                nuevaVersion);
+                nuevaVersion,
+                ActualizarProgresoAsync);
 
             mensajeExito =
                 "La actualización se guardó como borrador correctamente.";
@@ -662,6 +822,60 @@ else
         finally
         {
             subiendo = false;
+            ReiniciarProgreso();
+        }
+    }
+
+    private Task ActualizarProgresoAsync(
+        ProgresoSubidaArchivo progreso) =>
+        InvokeAsync(() =>
+        {
+            porcentajeSubida = Math.Clamp(
+                progreso.Porcentaje,
+                0,
+                100);
+
+            bytesSubidos = Math.Max(
+                0,
+                progreso.BytesEnviados);
+
+            totalBytesSubida = Math.Max(
+                progreso.TotalBytes,
+                totalBytesSubida);
+
+            estadoSubida = progreso.Estado;
+            StateHasChanged();
+        });
+
+    private Task CopiarAndroidAsync() =>
+        CopiarEnlaceAsync(
+            UrlInstalacionAndroid,
+            "Android");
+
+    private Task CopiarWindowsAsync() =>
+        CopiarEnlaceAsync(
+            UrlInstalacionWindows,
+            "Windows");
+
+    private async Task CopiarEnlaceAsync(
+        string url,
+        string plataforma)
+    {
+        LimpiarMensajes();
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "navigator.clipboard.writeText",
+                url);
+
+            mensajeExito =
+                $"El enlace público de {plataforma} fue copiado.";
+        }
+        catch
+        {
+            mensajeError =
+                "No fue posible copiar el enlace automáticamente. Puede seleccionarlo y copiarlo manualmente.";
         }
     }
 
@@ -681,7 +895,8 @@ else
                     UsuarioId,
                     version.ActualizacionAplicacionId);
 
-                mensajeExito = "La versión fue publicada correctamente.";
+                mensajeExito =
+                    "La versión fue publicada correctamente. Los enlaces públicos ya entregan esta compilación.";
             });
     }
 
@@ -828,6 +1043,28 @@ else
         if (!conservarMensaje)
             LimpiarMensajes();
     }
+
+    private void PrepararProgreso(long totalBytes)
+    {
+        porcentajeSubida = 0;
+        bytesSubidos = 0;
+        totalBytesSubida = totalBytes;
+        estadoSubida = "Preparando la transferencia...";
+    }
+
+    private void ReiniciarProgreso()
+    {
+        porcentajeSubida = 0;
+        bytesSubidos = 0;
+        totalBytesSubida = nuevaVersion.Archivo?.Size ?? 0;
+        estadoSubida = "Preparando la transferencia...";
+    }
+
+    private string ConstruirUrlWeb(string ruta) =>
+        new Uri(
+            new Uri(Navigation.BaseUri),
+            ruta.TrimStart('/'))
+        .AbsoluteUri;
 
     private void LimpiarMensajes()
     {

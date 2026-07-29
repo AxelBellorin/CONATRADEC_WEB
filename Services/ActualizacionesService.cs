@@ -1,5 +1,6 @@
-﻿using CONATRADEC.AdminWeb.Models;
+using CONATRADEC.AdminWeb.Models;
 using Microsoft.AspNetCore.Components.Forms;
+using System.Buffers;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -80,6 +81,7 @@ public sealed class ActualizacionesService
     public async Task<ActualizacionWebItem?> SubirAsync(
         int usuarioId,
         ActualizacionNuevaWeb modelo,
+        Func<ProgresoSubidaArchivo, Task>? reportarProgreso = null,
         CancellationToken cancellationToken = default)
     {
         if (modelo.Archivo == null)
@@ -97,7 +99,11 @@ public sealed class ActualizacionesService
                 cancellationToken);
 
         using var archivoContenido =
-            new StreamContent(stream);
+            new ProgressStreamContent(
+                stream,
+                modelo.Archivo.Size,
+                reportarProgreso,
+                cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(
                 modelo.Archivo.ContentType))
@@ -152,6 +158,14 @@ public sealed class ActualizacionesService
                 "VersionMinimaCodigo");
         }
 
+        await ReportarAsync(
+            reportarProgreso,
+            new ProgresoSubidaArchivo(
+                0,
+                modelo.Archivo.Size,
+                0,
+                "Preparando la transferencia..."));
+
         RespuestaApi<ActualizacionWebItem>? respuesta =
             await EnviarAsync<RespuestaApi<ActualizacionWebItem>>(
                 HttpMethod.Post,
@@ -159,6 +173,14 @@ public sealed class ActualizacionesService
                 usuarioId,
                 contenido,
                 cancellationToken);
+
+        await ReportarAsync(
+            reportarProgreso,
+            new ProgresoSubidaArchivo(
+                modelo.Archivo.Size,
+                modelo.Archivo.Size,
+                100,
+                "Carga completada."));
 
         return respuesta?.Data;
     }
@@ -412,4 +434,124 @@ public sealed class ActualizacionesService
 
         return texto.Trim().Trim('"');
     }
+
+    private static Task ReportarAsync(
+        Func<ProgresoSubidaArchivo, Task>? reportar,
+        ProgresoSubidaArchivo progreso) =>
+        reportar?.Invoke(progreso) ?? Task.CompletedTask;
+
+    private sealed class ProgressStreamContent : HttpContent
+    {
+        private const int TamanoBuffer = 256 * 1024;
+
+        private readonly Stream origen;
+        private readonly long longitud;
+        private readonly Func<ProgresoSubidaArchivo, Task>? reportar;
+        private readonly CancellationToken cancellationTokenInicial;
+
+        public ProgressStreamContent(
+            Stream origen,
+            long longitud,
+            Func<ProgresoSubidaArchivo, Task>? reportar,
+            CancellationToken cancellationTokenInicial)
+        {
+            this.origen = origen;
+            this.longitud = longitud;
+            this.reportar = reportar;
+            this.cancellationTokenInicial = cancellationTokenInicial;
+
+            Headers.ContentLength = longitud;
+        }
+
+        protected override Task SerializeToStreamAsync(
+            Stream stream,
+            TransportContext? context) =>
+            CopiarAsync(
+                stream,
+                cancellationTokenInicial);
+
+        protected override Task SerializeToStreamAsync(
+            Stream stream,
+            TransportContext? context,
+            CancellationToken cancellationToken) =>
+            CopiarAsync(
+                stream,
+                cancellationToken);
+
+        protected override bool TryComputeLength(
+            out long length)
+        {
+            length = longitud;
+            return true;
+        }
+
+        private async Task CopiarAsync(
+            Stream destino,
+            CancellationToken cancellationToken)
+        {
+            byte[] buffer =
+                ArrayPool<byte>.Shared.Rent(TamanoBuffer);
+
+            long enviados = 0;
+            int ultimoPorcentaje = -1;
+
+            try
+            {
+                while (true)
+                {
+                    int leidos = await origen.ReadAsync(
+                        buffer.AsMemory(0, TamanoBuffer),
+                        cancellationToken);
+
+                    if (leidos == 0)
+                        break;
+
+                    await destino.WriteAsync(
+                        buffer.AsMemory(0, leidos),
+                        cancellationToken);
+
+                    enviados += leidos;
+
+                    int porcentaje = longitud <= 0
+                        ? 0
+                        : (int)Math.Min(
+                            99,
+                            enviados * 100L / longitud);
+
+                    if (porcentaje <= ultimoPorcentaje)
+                        continue;
+
+                    ultimoPorcentaje = porcentaje;
+
+                    await ReportarAsync(
+                        reportar,
+                        new ProgresoSubidaArchivo(
+                            enviados,
+                            longitud,
+                            porcentaje,
+                            "Subiendo el archivo al servidor..."));
+                }
+
+                await destino.FlushAsync(cancellationToken);
+
+                await ReportarAsync(
+                    reportar,
+                    new ProgresoSubidaArchivo(
+                        longitud,
+                        longitud,
+                        100,
+                        "Archivo transferido. Calculando SHA-256 y guardando el borrador..."));
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+    }
 }
+
+public sealed record ProgresoSubidaArchivo(
+    long BytesEnviados,
+    long TotalBytes,
+    int Porcentaje,
+    string Estado);

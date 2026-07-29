@@ -19,6 +19,7 @@
     min-height: 118px;
 }
 
+.update-public-panel,
 .update-upload-panel,
 .update-filter-panel {
     margin-bottom: 1.25rem;
@@ -56,6 +57,134 @@
     white-space: nowrap;
 }
 
+.update-public-panel {
+    position: relative;
+    overflow: hidden;
+}
+
+.update-public-panel::after {
+    content: "";
+    position: absolute;
+    top: -90px;
+    right: -70px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(242, 201, 76, .13);
+    pointer-events: none;
+}
+
+.public-title {
+    position: relative;
+    z-index: 1;
+}
+
+.update-public-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.update-public-card {
+    display: flex;
+    align-items: flex-start;
+    gap: .9rem;
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid #dbe7e2;
+    border-radius: 1rem;
+    background: #fbfdfc;
+}
+
+.update-public-card.android {
+    border-left: 4px solid #4f8f47;
+}
+
+.update-public-card.windows {
+    border-left: 4px solid #2f78b7;
+}
+
+.update-public-icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border-radius: 14px;
+    background: #edf5f2;
+    color: #315c52;
+    font-size: 1.35rem;
+}
+
+.update-public-card.android .update-public-icon {
+    background: #eef8ed;
+    color: #3d7c35;
+}
+
+.update-public-card.windows .update-public-icon {
+    background: #edf5ff;
+    color: #2563a9;
+}
+
+.update-public-content {
+    min-width: 0;
+    flex: 1;
+}
+
+.update-public-content > strong {
+    display: block;
+    color: #17362f;
+    font-size: 1rem;
+}
+
+.update-public-content > small {
+    display: block;
+    margin-top: .2rem;
+    color: #64748b;
+}
+
+.update-public-url-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: .55rem;
+    margin-top: .8rem;
+}
+
+.update-public-url-row input {
+    min-width: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: .8rem;
+}
+
+.update-public-url-row .btn-secondary {
+    white-space: nowrap;
+}
+
+.icon-link {
+    display: inline-grid;
+    place-items: center;
+    min-width: 42px;
+    padding-inline: .75rem;
+}
+
+.update-public-note {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: .65rem;
+    margin-top: 1rem;
+    padding: .8rem 1rem;
+    border: 1px solid #dbe7e2;
+    border-radius: .8rem;
+    background: #f5f9f7;
+    color: #435c55;
+    font-size: .88rem;
+    line-height: 1.5;
+}
+
 .update-form-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -80,6 +209,7 @@
     color: #315c52;
     font-size: .86rem;
     font-weight: 700;
+    overflow-wrap: anywhere;
 }
 
 .update-checkbox-card {
@@ -91,6 +221,11 @@
     border-radius: .85rem;
     background: #fbfdfc;
     cursor: pointer;
+}
+
+.update-checkbox-card:has(input:disabled) {
+    cursor: not-allowed;
+    opacity: .72;
 }
 
 .update-checkbox-card input {
@@ -120,6 +255,84 @@
 
 .update-suggestion .btn-link {
     margin-left: auto;
+}
+
+.update-upload-progress {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #b8d5ca;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #f4faf7, #fbfdfc);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+
+.update-upload-progress-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    color: #244a41;
+}
+
+.update-upload-progress-head > div {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-width: 0;
+}
+
+.update-upload-progress-head > div strong {
+    overflow-wrap: anywhere;
+}
+
+.update-upload-progress-track {
+    height: 14px;
+    margin-top: .85rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #dce9e4;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, .12);
+}
+
+.update-upload-progress-track span {
+    display: block;
+    height: 100%;
+    min-width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #315c52, #4d8878);
+    transition: width .2s ease;
+}
+
+.update-upload-progress-track span::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        110deg,
+        transparent 0,
+        rgba(255, 255, 255, .28) 40%,
+        transparent 75%);
+    animation: update-progress-shimmer 1.4s linear infinite;
+}
+
+.update-upload-progress-detail {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: .6rem;
+    color: #64748b;
+    font-size: .8rem;
+}
+
+@keyframes update-progress-shimmer {
+    from {
+        transform: translateX(-100%);
+    }
+
+    to {
+        transform: translateX(100%);
+    }
 }
 
 .update-form-actions,
@@ -332,12 +545,21 @@
 
 @media (max-width: 1100px) {
     .update-metrics,
-    .update-form-grid {
+    .update-form-grid,
+    .update-public-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .update-filter-panel {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .update-public-url-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .update-public-url-row .icon-link {
+        display: none;
     }
 }
 
@@ -346,7 +568,8 @@
     .update-form-grid,
     .update-filter-panel,
     .update-version-grid,
-    .update-version-details {
+    .update-version-details,
+    .update-public-grid {
         grid-template-columns: 1fr;
     }
 
@@ -373,5 +596,27 @@
 
     .update-suggestion .btn-link {
         margin-left: 0;
+    }
+
+    .update-public-card {
+        flex-direction: column;
+    }
+
+    .update-public-url-row {
+        grid-template-columns: 1fr;
+    }
+
+    .update-public-url-row .btn-secondary,
+    .update-public-url-row .icon-link {
+        width: 100%;
+        display: inline-flex;
+        justify-content: center;
+    }
+
+    .update-upload-progress-head,
+    .update-upload-progress-detail {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: .35rem;
     }
 }
