@@ -6,20 +6,25 @@ using System.Text.Json;
 
 namespace CONATRADEC.AdminWeb.Services;
 
-public sealed class ApiClientService
+public sealed class ApiClientService : IDisposable
 {
     private readonly HttpClient httpClient;
+    private readonly WebActivityService actividad;
+
     private readonly JsonSerializerOptions jsonOptions =
         new(JsonSerializerDefaults.Web);
 
-    public ApiClientService(HttpClient httpClient)
+    public ApiClientService(
+        HttpClient httpClient,
+        WebActivityService actividad)
     {
         this.httpClient = httpClient;
+        this.actividad = actividad;
     }
 
     /// <summary>
-    /// Se dispara solamente cuando el backend confirma que la versión de
-    /// sesión ya no es vigente.
+    /// Se dispara cuando el backend confirma que el token o la sesión ya no
+    /// son válidos.
     /// </summary>
     public event EventHandler? SesionInvalidada;
 
@@ -30,13 +35,18 @@ public sealed class ApiClientService
         httpClient.DefaultRequestHeaders.Authorization =
             string.IsNullOrWhiteSpace(token)
                 ? null
-                : new AuthenticationHeaderValue("Bearer", token);
+                : new AuthenticationHeaderValue(
+                    "Bearer",
+                    token);
     }
 
     public Task<T?> GetAsync<T>(
         string ruta,
         CancellationToken cancellationToken = default) =>
-        GetAsync<T>(ruta, null, cancellationToken);
+        GetAsync<T>(
+            ruta,
+            null,
+            cancellationToken);
 
     public async Task<T?> GetAsync<T>(
         string ruta,
@@ -52,8 +62,8 @@ public sealed class ApiClientService
             request,
             encabezados);
 
-        using var response =
-            await httpClient.SendAsync(
+        using HttpResponseMessage response =
+            await EnviarAsync(
                 request,
                 cancellationToken);
 
@@ -71,11 +81,19 @@ public sealed class ApiClientService
         TRequest datos,
         CancellationToken cancellationToken = default)
     {
-        using var response =
-            await httpClient.PostAsJsonAsync(
-                ruta,
-                datos,
-                jsonOptions,
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                ruta)
+            {
+                Content = JsonContent.Create(
+                    datos,
+                    options: jsonOptions)
+            };
+
+        using HttpResponseMessage response =
+            await EnviarAsync(
+                request,
                 cancellationToken);
 
         await ValidarRespuestaAsync(
@@ -87,16 +105,43 @@ public sealed class ApiClientService
             cancellationToken);
     }
 
+    public async Task PostSinContenidoAsync(
+        string ruta,
+        CancellationToken cancellationToken = default)
+    {
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                ruta);
+
+        using HttpResponseMessage response =
+            await EnviarAsync(
+                request,
+                cancellationToken);
+
+        await ValidarRespuestaAsync(
+            response,
+            cancellationToken);
+    }
+
     public async Task<TResponse?> PutAsync<TRequest, TResponse>(
         string ruta,
         TRequest datos,
         CancellationToken cancellationToken = default)
     {
-        using var response =
-            await httpClient.PutAsJsonAsync(
-                ruta,
-                datos,
-                jsonOptions,
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Put,
+                ruta)
+            {
+                Content = JsonContent.Create(
+                    datos,
+                    options: jsonOptions)
+            };
+
+        using HttpResponseMessage response =
+            await EnviarAsync(
+                request,
                 cancellationToken);
 
         await ValidarRespuestaAsync(
@@ -122,8 +167,8 @@ public sealed class ApiClientService
             request,
             encabezados);
 
-        using var response =
-            await httpClient.SendAsync(
+        using HttpResponseMessage response =
+            await EnviarAsync(
                 request,
                 cancellationToken);
 
@@ -136,9 +181,14 @@ public sealed class ApiClientService
         string ruta,
         CancellationToken cancellationToken = default)
     {
-        using var response =
-            await httpClient.DeleteAsync(
-                ruta,
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Delete,
+                ruta);
+
+        using HttpResponseMessage response =
+            await EnviarAsync(
+                request,
                 cancellationToken);
 
         await ValidarRespuestaAsync(
@@ -156,7 +206,7 @@ public sealed class ApiClientService
         using var contenido =
             new MultipartFormDataContent();
 
-        await using var stream =
+        await using Stream stream =
             archivo.OpenReadStream(
                 tamanoMaximo,
                 cancellationToken);
@@ -176,15 +226,55 @@ public sealed class ApiClientService
             nombreCampo,
             archivo.Name);
 
-        using var response =
-            await httpClient.PostAsync(
-                ruta,
-                contenido,
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                ruta)
+            {
+                Content = contenido
+            };
+
+        using HttpResponseMessage response =
+            await EnviarAsync(
+                request,
                 cancellationToken);
 
         await ValidarRespuestaAsync(
             response,
             cancellationToken);
+    }
+
+    private async Task<HttpResponseMessage> EnviarAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        long versionActividad = 0;
+
+        if (httpClient.DefaultRequestHeaders.Authorization != null)
+        {
+            versionActividad =
+                actividad.ObtenerVersionPendiente();
+
+            if (versionActividad > 0)
+            {
+                request.Headers.TryAddWithoutValidation(
+                    "X-Actividad-Usuario",
+                    "true");
+            }
+        }
+
+        HttpResponseMessage response =
+            await httpClient.SendAsync(
+                request,
+                cancellationToken);
+
+        if (versionActividad > 0)
+        {
+            actividad.Confirmar(
+                versionActividad);
+        }
+
+        return response;
     }
 
     private static void AgregarEncabezados(
@@ -194,7 +284,8 @@ public sealed class ApiClientService
         if (encabezados is null)
             return;
 
-        foreach (var encabezado in encabezados)
+        foreach (KeyValuePair<string, string> encabezado
+                 in encabezados)
         {
             if (string.IsNullOrWhiteSpace(
                     encabezado.Value))
@@ -294,9 +385,21 @@ public sealed class ApiClientService
         if (string.IsNullOrWhiteSpace(contenido))
             return false;
 
-        return contenido.Contains(
+        string[] codigos =
+        [
             "SESSION_INVALIDATED",
-            StringComparison.OrdinalIgnoreCase);
+            "SESSION_INACTIVITY_TIMEOUT",
+            "SESSION_TOKEN_EXPIRED",
+            "SESSION_NOT_ACTIVE",
+            "AUTH_TOKEN_REQUIRED",
+            "AUTH_TOKEN_INVALID"
+        ];
+
+        return codigos.Any(
+            codigo =>
+                contenido.Contains(
+                    codigo,
+                    StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ExtraerMensaje(
@@ -309,7 +412,7 @@ public sealed class ApiClientService
 
         try
         {
-            using var documento =
+            using JsonDocument documento =
                 JsonDocument.Parse(contenido);
 
             JsonElement raiz =
@@ -357,7 +460,7 @@ public sealed class ApiClientService
                             .EnumerateArray()
                             .Where(item =>
                                 item.ValueKind ==
-                                JsonValueKind.String)
+                                    JsonValueKind.String)
                             .Select(item =>
                                 item.GetString())
                             .Where(item =>
@@ -380,4 +483,10 @@ public sealed class ApiClientService
 
         return contenido.Trim('"');
     }
+
+    public void Dispose()
+    {
+        httpClient.Dispose();
+    }
+
 }

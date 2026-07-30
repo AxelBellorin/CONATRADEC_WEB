@@ -57,3 +57,4 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\scopedcss\Components\Pages\ControlAnalisis.razor.rz.scp.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\722bys1tf3-{0}-v06887sj7k-v06887sj7k.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\bh50ruxdel-{0}-v06887sj7k-v06887sj7k.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\4qst83yaa2-{0}-7va3x84ojg-7va3x84ojg.gz

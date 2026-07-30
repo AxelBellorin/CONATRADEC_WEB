@@ -1,6 +1,11 @@
 @inherits LayoutComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
 @inject AuthStateService AuthState
+@inject WebActivityService Actividad
+@inject ApiClientService ApiClient
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 @if (!AuthState.IsAuthenticated)
 {
@@ -227,6 +232,8 @@ else
 
 @code {
     private bool menuAbierto;
+    private bool monitorInactividadActivo;
+    private DotNetObjectReference<MainLayout>? referenciaDotNet;
 
     private bool PuedeVerSupervision =>
         AuthState.EsAdministrador ||
@@ -238,6 +245,81 @@ else
             PermisosWeb.ConfiguracionAlertas) ||
         AuthState.TienePermisoLectura(
             PermisosWeb.AuditoriaAnalisis);
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (AuthState.IsAuthenticated &&
+            !monitorInactividadActivo)
+        {
+            referenciaDotNet ??=
+                DotNetObjectReference.Create(this);
+
+            int minutos = Math.Clamp(
+                AuthState.Usuario?.MinutosInactividad ?? 15,
+                1,
+                1440);
+
+            await JS.InvokeVoidAsync(
+                "conatradecSessionInactivity.start",
+                referenciaDotNet,
+                minutos * 60_000);
+
+            monitorInactividadActivo = true;
+        }
+        else if (!AuthState.IsAuthenticated &&
+                 monitorInactividadActivo)
+        {
+            await DetenerMonitorInactividadAsync();
+        }
+    }
+
+    [JSInvokable]
+    public async Task RegistrarActividadNavegadorAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+            return;
+
+        Actividad.RegistrarActividad();
+
+        try
+        {
+            /*
+             * El JavaScript limita esta llamada a una vez cada treinta
+             * segundos. De ese modo el servidor conoce la actividad real
+             * aunque el usuario esté completando un formulario sin guardar.
+             */
+            await ApiClient.GetAsync<object>(
+                "api/sesion/validar");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // ApiClientService ya inició el cierre centralizado.
+        }
+        catch (HttpRequestException)
+        {
+            // Una pérdida temporal de red no cierra la sesión local.
+        }
+        catch (TaskCanceledException)
+        {
+            // La siguiente interacción volverá a intentar la validación.
+        }
+    }
+
+    [JSInvokable]
+    public async Task CerrarSesionPorInactividadAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+            return;
+
+        await DetenerMonitorInactividadAsync();
+        await AuthState.CerrarSesionAsync();
+
+        Navigation.NavigateTo(
+            "/login",
+            forceLoad: false,
+            replace: true);
+    }
 
     private void ToggleMenu()
     {
@@ -272,10 +354,42 @@ else
 
     private async Task CerrarSesionAsync()
     {
+        await DetenerMonitorInactividadAsync();
         await AuthState.CerrarSesionAsync();
 
         Navigation.NavigateTo(
             "/login",
             forceLoad: false);
+    }
+
+    private async Task DetenerMonitorInactividadAsync()
+    {
+        if (!monitorInactividadActivo)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecSessionInactivity.stop");
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
+        monitorInactividadActivo = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await DetenerMonitorInactividadAsync();
+        }
+        catch
+        {
+        }
+
+        referenciaDotNet?.Dispose();
+        referenciaDotNet = null;
     }
 }

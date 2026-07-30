@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CONATRADEC.AdminWeb")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+29192ba9dbcd437798ef3a463c8e9da0e584f0b7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7dc7992b2ad922b3bfd5fca4cbd38b87c18b76a8")]
 [assembly: System.Reflection.AssemblyProductAttribute("CONATRADEC.AdminWeb")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CONATRADEC.AdminWeb")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

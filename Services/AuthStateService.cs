@@ -1,4 +1,4 @@
-﻿using CONATRADEC.AdminWeb.Models;
+using CONATRADEC.AdminWeb.Models;
 using Microsoft.AspNetCore.Components;
 
 namespace CONATRADEC.AdminWeb.Services;
@@ -10,6 +10,7 @@ public sealed class AuthStateService
 
     private readonly ApiClientService apiClient;
     private readonly BrowserSessionService browserSession;
+    private readonly WebActivityService actividad;
     private readonly NavigationManager navigation;
 
     private bool inicializando;
@@ -18,16 +19,14 @@ public sealed class AuthStateService
     public AuthStateService(
         ApiClientService apiClient,
         BrowserSessionService browserSession,
+        WebActivityService actividad,
         NavigationManager navigation)
     {
         this.apiClient = apiClient;
         this.browserSession = browserSession;
+        this.actividad = actividad;
         this.navigation = navigation;
 
-        /*
-         * ApiClientService avisa únicamente cuando la API responde
-         * SESSION_INVALIDATED o X-Sesion-Invalidada=true.
-         */
         this.apiClient.SesionInvalidada +=
             AlRecibirSesionInvalidada;
     }
@@ -41,6 +40,9 @@ public sealed class AuthStateService
     public bool IsAuthenticated =>
         Usuario is not null &&
         Usuario.Activo &&
+        !string.IsNullOrWhiteSpace(Usuario.Token) &&
+        Usuario.ExpiraTokenUtc.HasValue &&
+        Usuario.ExpiraTokenUtc.Value > DateTime.UtcNow &&
         Usuario.UsuarioId > 0 &&
         Usuario.VersionSesion > 0;
 
@@ -87,10 +89,7 @@ public sealed class AuthStateService
             UsuarioSesion? restaurado =
                 await lectura;
 
-            if (restaurado is null ||
-                !restaurado.Activo ||
-                restaurado.UsuarioId <= 0 ||
-                restaurado.VersionSesion <= 0)
+            if (!EsSesionValida(restaurado))
             {
                 LimpiarEstadoEnMemoria();
                 await browserSession.EliminarAsync();
@@ -98,9 +97,10 @@ public sealed class AuthStateService
             }
 
             Usuario = restaurado;
+            actividad.Reiniciar();
 
             apiClient.ConfigurarToken(
-                restaurado.Token);
+                restaurado!.Token);
         }
         catch
         {
@@ -145,9 +145,23 @@ public sealed class AuthStateService
                 usuario.VersionSesion <= 0)
             {
                 return ResultadoOperacion.Fallido(
-                    "La API no devolvió una versión de sesión válida. " +
+                    "La API no devolvió una sesión válida. " +
                     "Verifique que el backend actualizado esté publicado.");
             }
+
+            if (string.IsNullOrWhiteSpace(usuario.Token) ||
+                !usuario.ExpiraTokenUtc.HasValue ||
+                usuario.ExpiraTokenUtc.Value <= DateTime.UtcNow)
+            {
+                return ResultadoOperacion.Fallido(
+                    "La API no devolvió un token de seguridad vigente. " +
+                    "Publique primero el backend actualizado.");
+            }
+
+            usuario.MinutosInactividad = Math.Clamp(
+                usuario.MinutosInactividad,
+                1,
+                1440);
 
             bool accesoPortal =
                 usuario.Permisos.Any(
@@ -165,6 +179,7 @@ public sealed class AuthStateService
             }
 
             Usuario = usuario;
+            actividad.Reiniciar();
 
             apiClient.ConfigurarToken(
                 usuario.Token);
@@ -200,18 +215,15 @@ public sealed class AuthStateService
     }
 
     /// <summary>
-    /// Devuelve las cabeceras obligatorias para las llamadas que identifican
-    /// al usuario ante VersionSesionMiddleware.
+    /// Se conserva por compatibilidad con los servicios actuales. El backend
+    /// reemplaza estos valores por la identidad firmada dentro del JWT.
     /// </summary>
     public IReadOnlyDictionary<string, string>
         CrearEncabezadosSesion()
     {
         UsuarioSesion? usuario = Usuario;
 
-        if (usuario is null ||
-            !usuario.Activo ||
-            usuario.UsuarioId <= 0 ||
-            usuario.VersionSesion <= 0)
+        if (!EsSesionValida(usuario))
         {
             throw new UnauthorizedAccessException(
                 "La sesión local no es válida. Inicie sesión nuevamente.");
@@ -220,7 +232,7 @@ public sealed class AuthStateService
         return new Dictionary<string, string>
         {
             ["X-Usuario-Id"] =
-                usuario.UsuarioId.ToString(),
+                usuario!.UsuarioId.ToString(),
             ["X-Version-Sesion"] =
                 usuario.VersionSesion.ToString()
         };
@@ -275,6 +287,19 @@ public sealed class AuthStateService
 
     public async Task CerrarSesionAsync()
     {
+        try
+        {
+            if (IsAuthenticated)
+            {
+                await apiClient.PostSinContenidoAsync(
+                    "api/sesion/cerrar");
+            }
+        }
+        catch
+        {
+            // El cierre local no depende de que la API responda.
+        }
+
         LimpiarEstadoEnMemoria();
 
         await browserSession.EliminarAsync();
@@ -286,11 +311,6 @@ public sealed class AuthStateService
     public Task CerrarSesion() =>
         CerrarSesionAsync();
 
-    /// <summary>
-    /// Permite que servicios especializados, como el cargador de paquetes de
-    /// actualización, apliquen el mismo cierre de sesión automático que usa
-    /// ApiClientService cuando la API confirma SESSION_INVALIDATED.
-    /// </summary>
     public Task InvalidarSesionDesdeApiAsync() =>
         InvalidarSesionDesdeServidorAsync();
 
@@ -312,10 +332,6 @@ public sealed class AuthStateService
 
         try
         {
-            /*
-             * Se limpia primero la memoria para impedir nuevas llamadas
-             * con la versión anterior mientras se elimina localStorage.
-             */
             LimpiarEstadoEnMemoria();
             Inicializado = true;
             NotificarCambio();
@@ -326,7 +342,7 @@ public sealed class AuthStateService
             }
             catch
             {
-                // La navegación al login no debe depender de localStorage.
+                // La navegación al login no depende de localStorage.
             }
 
             navigation.NavigateTo(
@@ -345,6 +361,7 @@ public sealed class AuthStateService
     private void LimpiarEstadoEnMemoria()
     {
         Usuario = null;
+        actividad.Reiniciar();
         apiClient.ConfigurarToken(null);
     }
 
@@ -354,6 +371,16 @@ public sealed class AuthStateService
             this,
             EventArgs.Empty);
     }
+
+    private static bool EsSesionValida(
+        UsuarioSesion? usuario) =>
+        usuario is not null &&
+        usuario.Activo &&
+        usuario.UsuarioId > 0 &&
+        usuario.VersionSesion > 0 &&
+        !string.IsNullOrWhiteSpace(usuario.Token) &&
+        usuario.ExpiraTokenUtc.HasValue &&
+        usuario.ExpiraTokenUtc.Value > DateTime.UtcNow;
 
     private static string LimpiarMensaje(
         string mensaje) =>

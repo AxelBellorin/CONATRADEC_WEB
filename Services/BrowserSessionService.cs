@@ -7,15 +7,16 @@ namespace CONATRADEC.AdminWeb.Services;
 public sealed class BrowserSessionService
 {
     /*
-     * Se cambia a v4 porque las sesiones v3 no guardaban VersionSesion.
-     * Así se obliga únicamente una vez a iniciar sesión de nuevo después
-     * de publicar esta corrección.
+     * v5 incorpora JWT, expiración absoluta y tiempo de inactividad.
      */
     private const string ClaveSesion =
-        "conatradec.portal.session.v4";
+        "conatradec.portal.session.v5";
 
-    private const string ClaveSesionAnterior =
-        "conatradec.portal.session.v3";
+    private static readonly string[] ClavesAnteriores =
+    [
+        "conatradec.portal.session.v4",
+        "conatradec.portal.session.v3"
+    ];
 
     private readonly IJSRuntime jsRuntime;
 
@@ -46,10 +47,7 @@ public sealed class BrowserSessionService
             ClaveSesion,
             json);
 
-        // La sesión antigua ya no es compatible con VersionSesion.
-        await jsRuntime.InvokeVoidAsync(
-            "localStorage.removeItem",
-            ClaveSesionAnterior);
+        await EliminarClavesAnterioresAsync();
     }
 
     public async Task<UsuarioSesion?> LeerAsync()
@@ -60,18 +58,23 @@ public sealed class BrowserSessionService
                 ClaveSesion);
 
         if (string.IsNullOrWhiteSpace(json))
+        {
+            await EliminarClavesAnterioresAsync();
             return null;
+        }
 
         try
         {
             SesionPersistida? sesion =
-                JsonSerializer.Deserialize<
-                    SesionPersistida>(
+                JsonSerializer.Deserialize<SesionPersistida>(
                     json,
                     opciones);
 
             if (sesion is null ||
-                sesion.VersionSesion <= 0)
+                sesion.VersionSesion <= 0 ||
+                string.IsNullOrWhiteSpace(sesion.Token) ||
+                !sesion.ExpiraTokenUtc.HasValue ||
+                sesion.ExpiraTokenUtc.Value <= DateTime.UtcNow)
             {
                 await EliminarAsync();
                 return null;
@@ -92,8 +95,16 @@ public sealed class BrowserSessionService
             "localStorage.removeItem",
             ClaveSesion);
 
-        await jsRuntime.InvokeVoidAsync(
-            "localStorage.removeItem",
-            ClaveSesionAnterior);
+        await EliminarClavesAnterioresAsync();
+    }
+
+    private async ValueTask EliminarClavesAnterioresAsync()
+    {
+        foreach (string clave in ClavesAnteriores)
+        {
+            await jsRuntime.InvokeVoidAsync(
+                "localStorage.removeItem",
+                clave);
+        }
     }
 }

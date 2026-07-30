@@ -84,6 +84,7 @@ builder.Services.AddHttpClient<DescargasPublicasService>(
         client.Timeout = TimeSpan.FromMinutes(2);
     });
 
+builder.Services.AddScoped<WebActivityService>();
 builder.Services.AddScoped<BrowserSessionService>();
 builder.Services.AddScoped<AuthStateService>();
 builder.Services.AddScoped<SeguridadWebService>();

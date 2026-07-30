@@ -49,6 +49,18 @@ public sealed class UsuarioSesion
     [JsonPropertyName("token")]
     public string? Token { get; set; }
 
+    /// <summary>
+    /// Fecha UTC de expiración absoluta del JWT.
+    /// </summary>
+    [JsonPropertyName("expiraTokenUtc")]
+    public DateTime? ExpiraTokenUtc { get; set; }
+
+    /// <summary>
+    /// Tiempo máximo sin actividad humana permitido por el backend.
+    /// </summary>
+    [JsonPropertyName("minutosInactividad")]
+    public int MinutosInactividad { get; set; } = 15;
+
     [JsonPropertyName("urlImagenUsuario")]
     public string UrlImagenUsuario { get; set; } = string.Empty;
 

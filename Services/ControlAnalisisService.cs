@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -40,12 +41,14 @@ public sealed class ControlAnalisisService
             cancellationToken);
     }
 
-    public async Task<ControlAnalisisEstadoEliminacion?> ObtenerEstadoEliminacionAsync(
-        int analisisSueloId,
-        CancellationToken cancellationToken = default)
+    public async Task<ControlAnalisisEstadoEliminacion?>
+        ObtenerEstadoEliminacionAsync(
+            int analisisSueloId,
+            CancellationToken cancellationToken = default)
     {
         AuditoriaApiRespuesta<ControlAnalisisEstadoEliminacion>? respuesta =
-            await apiClient.GetAsync<AuditoriaApiRespuesta<ControlAnalisisEstadoEliminacion>>(
+            await apiClient.GetAsync<
+                AuditoriaApiRespuesta<ControlAnalisisEstadoEliminacion>>(
                 $"api/control-analisis/{analisisSueloId}/estado-eliminacion",
                 authState.CrearEncabezadosSesion(),
                 cancellationToken);
@@ -57,31 +60,32 @@ public sealed class ControlAnalisisService
         int analisisSueloCalculoId,
         CancellationToken cancellationToken = default)
     {
-        UsuarioSesion usuario = authState.Usuario ??
-            throw new UnauthorizedAccessException("No existe una sesión activa.");
+        UsuarioSesion usuario = ObtenerSesionActiva();
 
-        using HttpClient client = new()
-        {
-            BaseAddress = apiClient.BaseAddress,
-            Timeout = TimeSpan.FromMinutes(2)
-        };
+        using HttpClient client = CrearCliente(usuario);
 
-        if (!string.IsNullOrWhiteSpace(usuario.Token))
-        {
-            client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", usuario.Token);
-        }
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"api/control-analisis/{analisisSueloCalculoId}/pdf");
 
-        client.DefaultRequestHeaders.TryAddWithoutValidation(
-            "X-Usuario-Id",
-            usuario.UsuarioId.ToString());
-        client.DefaultRequestHeaders.TryAddWithoutValidation(
-            "X-Version-Sesion",
-            usuario.VersionSesion.ToString());
+        /* Abrir el PDF es una acción explícita del usuario. */
+        request.Headers.TryAddWithoutValidation(
+            "X-Actividad-Usuario",
+            "true");
 
-        byte[] bytes = await client.GetByteArrayAsync(
-            $"api/control-analisis/{analisisSueloCalculoId}/pdf",
+        using HttpResponseMessage response =
+            await client.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+
+        await ValidarRespuestaAsync(
+            response,
             cancellationToken);
+
+        byte[] bytes =
+            await response.Content.ReadAsByteArrayAsync(
+                cancellationToken);
 
         return $"data:application/pdf;base64,{Convert.ToBase64String(bytes)}";
     }
@@ -91,48 +95,177 @@ public sealed class ControlAnalisisService
         string motivo,
         CancellationToken cancellationToken)
     {
-        UsuarioSesion usuario = authState.Usuario ??
-            throw new UnauthorizedAccessException("No existe una sesión activa.");
+        UsuarioSesion usuario = ObtenerSesionActiva();
 
-        using HttpClient client = new()
+        using HttpClient client = CrearCliente(usuario);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            ruta)
         {
-            BaseAddress = apiClient.BaseAddress,
-            Timeout = TimeSpan.FromSeconds(60)
+            Content = JsonContent.Create(
+                new ControlAnalisisMotivoRequest
+                {
+                    Motivo = motivo
+                })
         };
 
-        if (!string.IsNullOrWhiteSpace(usuario.Token))
+        /* Eliminar o recuperar es una acción explícita del usuario. */
+        request.Headers.TryAddWithoutValidation(
+            "X-Actividad-Usuario",
+            "true");
+
+        using HttpResponseMessage response =
+            await client.SendAsync(
+                request,
+                cancellationToken);
+
+        await ValidarRespuestaAsync(
+            response,
+            cancellationToken);
+    }
+
+    private UsuarioSesion ObtenerSesionActiva()
+    {
+        UsuarioSesion usuario = authState.Usuario ??
+            throw new UnauthorizedAccessException(
+                "No existe una sesión activa.");
+
+        if (string.IsNullOrWhiteSpace(usuario.Token))
         {
-            client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", usuario.Token);
+            throw new UnauthorizedAccessException(
+                "La sesión no contiene un token de seguridad.");
         }
+
+        return usuario;
+    }
+
+    private HttpClient CrearCliente(
+        UsuarioSesion usuario)
+    {
+        var client = new HttpClient
+        {
+            BaseAddress = apiClient.BaseAddress,
+            Timeout = TimeSpan.FromMinutes(2)
+        };
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                usuario.Token);
 
         client.DefaultRequestHeaders.TryAddWithoutValidation(
             "X-Usuario-Id",
             usuario.UsuarioId.ToString());
+
         client.DefaultRequestHeaders.TryAddWithoutValidation(
             "X-Version-Sesion",
             usuario.VersionSesion.ToString());
 
-        using HttpResponseMessage response = await client.PostAsJsonAsync(
-            ruta,
-            new ControlAnalisisMotivoRequest { Motivo = motivo },
-            cancellationToken);
+        return client;
+    }
 
-        string contenido = await response.Content.ReadAsStringAsync(cancellationToken);
+    private async Task ValidarRespuestaAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
         if (response.IsSuccessStatusCode)
             return;
 
-        string mensaje = contenido;
+        string contenido =
+            await response.Content.ReadAsStringAsync(
+                cancellationToken);
+
+        string mensaje = ExtraerMensaje(contenido);
+
+        if (EsSesionInvalidada(response, contenido))
+        {
+            await authState.InvalidarSesionDesdeApiAsync();
+
+            throw new UnauthorizedAccessException(
+                mensaje);
+        }
+
+        if (response.StatusCode is
+            HttpStatusCode.Unauthorized or
+            HttpStatusCode.Forbidden)
+        {
+            throw new UnauthorizedAccessException(
+                mensaje);
+        }
+
+        throw new HttpRequestException(
+            mensaje,
+            null,
+            response.StatusCode);
+    }
+
+    private static bool EsSesionInvalidada(
+        HttpResponseMessage response,
+        string contenido)
+    {
+        bool porEncabezado =
+            response.Headers.TryGetValues(
+                "X-Sesion-Invalidada",
+                out IEnumerable<string>? valores) &&
+            valores.Any(valor =>
+                string.Equals(
+                    valor,
+                    "true",
+                    StringComparison.OrdinalIgnoreCase));
+
+        if (porEncabezado)
+            return true;
+
+        string[] codigos =
+        [
+            "SESSION_INVALIDATED",
+            "SESSION_INACTIVITY_TIMEOUT",
+            "SESSION_TOKEN_EXPIRED",
+            "SESSION_NOT_ACTIVE",
+            "AUTH_TOKEN_REQUIRED",
+            "AUTH_TOKEN_INVALID"
+        ];
+
+        return codigos.Any(codigo =>
+            contenido.Contains(
+                codigo,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string ExtraerMensaje(
+        string contenido)
+    {
+        if (string.IsNullOrWhiteSpace(contenido))
+            return "La API no devolvió detalles del error.";
+
         try
         {
-            using JsonDocument document = JsonDocument.Parse(contenido);
-            if (document.RootElement.TryGetProperty("message", out JsonElement value))
-                mensaje = value.GetString() ?? contenido;
+            using JsonDocument document =
+                JsonDocument.Parse(contenido);
+
+            foreach (string propiedad in new[]
+                     {
+                         "message",
+                         "mensaje",
+                         "title",
+                         "error"
+                     })
+            {
+                if (document.RootElement.TryGetProperty(
+                        propiedad,
+                        out JsonElement value) &&
+                    value.ValueKind == JsonValueKind.String)
+                {
+                    return value.GetString() ?? contenido;
+                }
+            }
         }
         catch (JsonException)
         {
+            // La API también puede devolver texto plano.
         }
 
-        throw new HttpRequestException(mensaje.Trim('"'), null, response.StatusCode);
+        return contenido.Trim().Trim('"');
     }
 }

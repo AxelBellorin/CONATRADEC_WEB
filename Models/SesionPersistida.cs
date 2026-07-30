@@ -37,13 +37,15 @@ public sealed class SesionPersistida
     [JsonPropertyName("token")]
     public string Token { get; set; } = string.Empty;
 
+    [JsonPropertyName("expiraTokenUtc")]
+    public DateTime? ExpiraTokenUtc { get; set; }
+
+    [JsonPropertyName("minutosInactividad")]
+    public int MinutosInactividad { get; set; } = 15;
+
     [JsonPropertyName("urlImagenUsuario")]
     public string UrlImagenUsuario { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Debe conservarse en localStorage para que todas las llamadas
-    /// autenticadas envíen la misma versión recibida durante el login.
-    /// </summary>
     [JsonPropertyName("versionSesion")]
     public int VersionSesion { get; set; }
 
@@ -68,6 +70,11 @@ public sealed class SesionPersistida
                 usuario.ProcedenciaNombre,
             EsInterno = usuario.EsInterno,
             Token = usuario.Token ?? string.Empty,
+            ExpiraTokenUtc = usuario.ExpiraTokenUtc,
+            MinutosInactividad = Math.Clamp(
+                usuario.MinutosInactividad,
+                1,
+                1440),
             UrlImagenUsuario =
                 usuario.UrlImagenUsuario,
             VersionSesion = usuario.VersionSesion,
@@ -75,18 +82,12 @@ public sealed class SesionPersistida
                 .Select(item =>
                     new PermisoPersistido
                     {
-                        InterfazId =
-                            item.InterfazId,
-                        NombreInterfaz =
-                            item.NombreInterfaz,
-                        Leer =
-                            item.Leer == true,
-                        Agregar =
-                            item.Agregar == true,
-                        Actualizar =
-                            item.Actualizar == true,
-                        Eliminar =
-                            item.Eliminar == true
+                        InterfazId = item.InterfazId,
+                        NombreInterfaz = item.NombreInterfaz,
+                        Leer = item.Leer == true,
+                        Agregar = item.Agregar == true,
+                        Actualizar = item.Actualizar == true,
+                        Eliminar = item.Eliminar == true
                     })
                 .ToList()
         };
@@ -109,6 +110,11 @@ public sealed class SesionPersistida
                 ProcedenciaNombre,
             EsInterno = EsInterno,
             Token = Token,
+            ExpiraTokenUtc = ExpiraTokenUtc,
+            MinutosInactividad = Math.Clamp(
+                MinutosInactividad,
+                1,
+                1440),
             UrlImagenUsuario =
                 UrlImagenUsuario,
             VersionSesion = VersionSesion,
@@ -116,16 +122,12 @@ public sealed class SesionPersistida
                 .Select(item =>
                     new PermisoInterfaz
                     {
-                        InterfazId =
-                            item.InterfazId,
-                        NombreInterfaz =
-                            item.NombreInterfaz,
+                        InterfazId = item.InterfazId,
+                        NombreInterfaz = item.NombreInterfaz,
                         Leer = item.Leer,
                         Agregar = item.Agregar,
-                        Actualizar =
-                            item.Actualizar,
-                        Eliminar =
-                            item.Eliminar
+                        Actualizar = item.Actualizar,
+                        Eliminar = item.Eliminar
                     })
                 .ToList()
         };

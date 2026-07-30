@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using System.Buffers;
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -15,16 +16,19 @@ public sealed class ActualizacionesService
 
     private readonly HttpClient httpClient;
     private readonly AuthStateService authState;
+    private readonly WebActivityService actividad;
 
     private readonly JsonSerializerOptions jsonOptions =
         new(JsonSerializerDefaults.Web);
 
     public ActualizacionesService(
         HttpClient httpClient,
-        AuthStateService authState)
+        AuthStateService authState,
+        WebActivityService actividad)
     {
         this.httpClient = httpClient;
         this.authState = authState;
+        this.actividad = actividad;
     }
 
     public async Task<List<ActualizacionWebItem>> ListarAsync(
@@ -109,7 +113,7 @@ public sealed class ActualizacionesService
                 modelo.Archivo.ContentType))
         {
             archivoContenido.Headers.ContentType =
-                new System.Net.Http.Headers.MediaTypeHeaderValue(
+                new MediaTypeHeaderValue(
                     modelo.Archivo.ContentType);
         }
 
@@ -263,31 +267,34 @@ public sealed class ActualizacionesService
         HttpContent? contenido,
         CancellationToken cancellationToken)
     {
+        UsuarioSesion usuario = authState.Usuario ??
+            throw new UnauthorizedAccessException(
+                "No existe una sesión activa.");
+
+        if (usuario.UsuarioId != usuarioId)
+        {
+            throw new UnauthorizedAccessException(
+                "La sesión activa no corresponde al usuario solicitado.");
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.Token))
+        {
+            throw new UnauthorizedAccessException(
+                "La sesión no contiene un token de seguridad.");
+        }
+
         using var request =
             new HttpRequestMessage(
                 metodo,
                 ruta);
 
-        /*
-         * VersionSesionMiddleware exige ambas cabeceras cuando se identifica
-         * al usuario. Antes este servicio enviaba solamente X-Usuario-Id y la
-         * API interpretaba todas las llamadas como una sesión antigua.
-         */
+        request.Headers.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                usuario.Token);
+
         IReadOnlyDictionary<string, string> encabezados =
             authState.CrearEncabezadosSesion();
-
-        string usuarioSesion =
-            encabezados["X-Usuario-Id"];
-
-        if (!string.Equals(
-                usuarioSesion,
-                usuarioId.ToString(
-                    CultureInfo.InvariantCulture),
-                StringComparison.Ordinal))
-        {
-            throw new UnauthorizedAccessException(
-                "La sesión activa no corresponde al usuario solicitado.");
-        }
 
         foreach (
             KeyValuePair<string, string> encabezado
@@ -298,8 +305,17 @@ public sealed class ActualizacionesService
                 encabezado.Value);
         }
 
-        request.Content =
-            contenido;
+        long versionActividad =
+            actividad.ObtenerVersionPendiente();
+
+        if (versionActividad > 0)
+        {
+            request.Headers.TryAddWithoutValidation(
+                "X-Actividad-Usuario",
+                "true");
+        }
+
+        request.Content = contenido;
 
         using HttpResponseMessage response =
             await httpClient.SendAsync(
@@ -307,15 +323,15 @@ public sealed class ActualizacionesService
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
 
+        if (versionActividad > 0)
+        {
+            actividad.Confirmar(versionActividad);
+        }
+
         string texto =
             await response.Content.ReadAsStringAsync(
                 cancellationToken);
 
-        /*
-         * También procesa una invalidación real de sesión para conservar el
-         * mismo comportamiento del resto del portal: limpiar sesión y volver
-         * automáticamente al login.
-         */
         if (EsSesionInvalidada(
                 response,
                 texto))
@@ -375,8 +391,20 @@ public sealed class ActualizacionesService
             return false;
 
         return contenido.Contains(
-            "SESSION_INVALIDATED",
-            StringComparison.OrdinalIgnoreCase);
+                   "SESSION_INVALIDATED",
+                   StringComparison.OrdinalIgnoreCase) ||
+               contenido.Contains(
+                   "SESSION_INACTIVITY_TIMEOUT",
+                   StringComparison.OrdinalIgnoreCase) ||
+               contenido.Contains(
+                   "SESSION_TOKEN_EXPIRED",
+                   StringComparison.OrdinalIgnoreCase) ||
+               contenido.Contains(
+                   "SESSION_NOT_ACTIVE",
+                   StringComparison.OrdinalIgnoreCase) ||
+               contenido.Contains(
+                   "AUTH_TOKEN_INVALID",
+                   StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AgregarParametro(

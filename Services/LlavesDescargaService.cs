@@ -1,6 +1,7 @@
 using CONATRADEC.AdminWeb.Models;
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -10,14 +11,27 @@ public sealed class LlavesDescargaService : IDisposable
 {
     private readonly HttpClient httpClient;
     private readonly AuthStateService authState;
+    private readonly WebActivityService actividad;
+
     private readonly JsonSerializerOptions jsonOptions =
         new(JsonSerializerDefaults.Web);
 
     public LlavesDescargaService(
         IConfiguration configuration,
-        AuthStateService authState)
+        AuthStateService authState,
+        WebActivityService? actividad = null)
     {
         this.authState = authState;
+
+        /*
+         * WebActivityService normalmente llega desde la inyección de
+         * dependencias. El valor opcional conserva compatibilidad con
+         * cualquier creación manual anterior que todavía utilice únicamente
+         * IConfiguration y AuthStateService.
+         */
+        this.actividad =
+            actividad ??
+            new WebActivityService();
 
         string baseUrl = configuration["ApiSettings:BaseUrl"]
             ?? throw new InvalidOperationException(
@@ -155,7 +169,28 @@ public sealed class LlavesDescargaService : IDisposable
         HttpContent? contenido,
         CancellationToken cancellationToken)
     {
+        UsuarioSesion usuario = authState.Usuario ??
+            throw new UnauthorizedAccessException(
+                "No existe una sesión activa.");
+
+        if (usuario.UsuarioId != usuarioId)
+        {
+            throw new UnauthorizedAccessException(
+                "La sesión activa no corresponde al usuario solicitado.");
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.Token))
+        {
+            throw new UnauthorizedAccessException(
+                "La sesión no contiene un token de seguridad.");
+        }
+
         using var request = new HttpRequestMessage(metodo, ruta);
+
+        request.Headers.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                usuario.Token);
 
         IReadOnlyDictionary<string, string> encabezados =
             authState.CrearEncabezadosSesion();
@@ -178,12 +213,27 @@ public sealed class LlavesDescargaService : IDisposable
                 encabezado.Value);
         }
 
+        long versionActividad =
+            actividad.ObtenerVersionPendiente();
+
+        if (versionActividad > 0)
+        {
+            request.Headers.TryAddWithoutValidation(
+                "X-Actividad-Usuario",
+                "true");
+        }
+
         request.Content = contenido;
 
         using HttpResponseMessage response = await httpClient.SendAsync(
             request,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
+
+        if (versionActividad > 0)
+        {
+            actividad.Confirmar(versionActividad);
+        }
 
         string texto = await response.Content.ReadAsStringAsync(
             cancellationToken);
@@ -229,9 +279,23 @@ public sealed class LlavesDescargaService : IDisposable
                 "true",
                 StringComparison.OrdinalIgnoreCase));
 
-        return porEncabezado ||
-               contenido.Contains(
+        if (porEncabezado)
+            return true;
+
+        return contenido.Contains(
                    "SESSION_INVALIDATED",
+                   StringComparison.OrdinalIgnoreCase) ||
+               contenido.Contains(
+                   "SESSION_INACTIVITY_TIMEOUT",
+                   StringComparison.OrdinalIgnoreCase) ||
+               contenido.Contains(
+                   "SESSION_TOKEN_EXPIRED",
+                   StringComparison.OrdinalIgnoreCase) ||
+               contenido.Contains(
+                   "SESSION_NOT_ACTIVE",
+                   StringComparison.OrdinalIgnoreCase) ||
+               contenido.Contains(
+                   "AUTH_TOKEN_INVALID",
                    StringComparison.OrdinalIgnoreCase);
     }
 
