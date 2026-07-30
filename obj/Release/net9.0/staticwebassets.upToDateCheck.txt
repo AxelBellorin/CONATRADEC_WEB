@@ -1,16 +1,16 @@
 wwwroot\css\alertas-integracion.css
+wwwroot\css\animations.css
 wwwroot\css\app.css
 wwwroot\css\dashboard-ejecutivo.css
-wwwroot\data\nicaragua.geojson
+wwwroot\css\mapa-alertas.css
 wwwroot\css\seguimiento-alertas.css
 wwwroot\css\seguridad-web.css
+wwwroot\data\nicaragua.geojson
 wwwroot\favicon.svg
+wwwroot\images\mascota-conatradec.webp
 wwwroot\js\dispositivosMapa.js
 wwwroot\js\mapa.js
-wwwroot\css\mapa-alertas.css
 wwwroot\js\mapaInteligente.js
-wwwroot\css\animations.css
-wwwroot\images\mascota-conatradec.webp
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\mapa-alertas.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\seguridad-web.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\seguimiento-alertas.css

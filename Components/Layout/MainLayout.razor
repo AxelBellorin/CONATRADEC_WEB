@@ -78,6 +78,16 @@ else
                     </NavLink>
                 }
 
+                @if (AuthState.TienePermisoLectura(
+                         PermisosWeb.AuditoriaAnalisis) ||
+                     AuthState.EsAdministrador)
+                {
+                    <NavLink href="/control-analisis">
+                        <i class="fa-solid fa-magnifying-glass-chart"></i>
+                        <span>Control de análisis</span>
+                    </NavLink>
+                }
+
                 <div class="nav-section">
                     Administración
                 </div>
@@ -225,7 +235,9 @@ else
         AuthState.TienePermisoLectura(
             PermisosWeb.SeguimientoAlertas) ||
         AuthState.TienePermisoLectura(
-            PermisosWeb.ConfiguracionAlertas);
+            PermisosWeb.ConfiguracionAlertas) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.AuditoriaAnalisis);
 
     private void ToggleMenu()
     {

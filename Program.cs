@@ -94,6 +94,8 @@ builder.Services.AddScoped<AlertasAgricolasService>();
 builder.Services.AddScoped<SeguimientoAlertasService>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<BitacoraService>();
+builder.Services.AddScoped<AuditoriaAnalisisService>();
+builder.Services.AddScoped<ControlAnalisisService>();
 builder.Services.AddScoped<UsuariosInactivosService>();
 builder.Services.AddScoped<DispositivosConexionService>();
 builder.Services.AddScoped<LlavesDescargaService>();

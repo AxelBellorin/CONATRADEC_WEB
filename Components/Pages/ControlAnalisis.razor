@@ -1,0 +1,894 @@
+@page "/control-analisis"
+@using CONATRADEC.AdminWeb.Models
+@inject AuthStateService AuthState
+@inject AuditoriaAnalisisService AuditoriaService
+@inject ControlAnalisisService ControlService
+@inject NavigationManager Navigation
+
+<PageTitle>Control de análisis | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Supervisión agrícola</p>
+        <h1>Control de análisis</h1>
+        <p>Visualiza el expediente técnico, consulta el PDF, audita, elimina y recupera análisis de suelo.</p>
+    </div>
+    <div class="page-header-actions">
+        <button class="btn-secondary" @onclick="Cargar" disabled="@cargando">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+<section class="panel audit-analysis-filters">
+    <div class="form-group filter-search">
+        <label>Búsqueda general</label>
+        <InputText class="form-control"
+                   @bind-Value="filtro.Buscar"
+                   placeholder="Identificador, terreno, propietario, técnico o laboratorio" />
+    </div>
+
+    <div class="form-group">
+        <label>Técnico</label>
+        <InputSelect class="form-control" @bind-Value="filtro.UsuarioId">
+            <option value="">Todos</option>
+            @foreach (AuditoriaUsuarioOpcion usuario in catalogos.Usuarios)
+            {
+                <option value="@usuario.UsuarioId">@usuario.Nombre</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Laboratorio</label>
+        <InputSelect class="form-control" @bind-Value="filtro.Laboratorio">
+            <option value="">Todos</option>
+            @foreach (string laboratorio in catalogos.Laboratorios)
+            {
+                <option value="@laboratorio">@laboratorio</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Procedencia</label>
+        <InputSelect class="form-control" @bind-Value="filtro.Origen">
+            <option value="">Todas</option>
+            @foreach (AuditoriaOpcion opcion in catalogos.Origenes)
+            {
+                <option value="@opcion.Valor">@opcion.Nombre</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Estado</label>
+        <InputSelect class="form-control" @bind-Value="filtro.Estado">
+            <option value="">Todos</option>
+            @foreach (AuditoriaOpcion opcion in catalogos.Estados)
+            {
+                <option value="@opcion.Valor">@opcion.Nombre</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Laboratorio desde</label>
+        <InputDate TValue="DateOnly?"
+                   class="form-control"
+                   @bind-Value="filtro.FechaLaboratorioDesde" />
+    </div>
+
+    <div class="form-group">
+        <label>Laboratorio hasta</label>
+        <InputDate TValue="DateOnly?"
+                   class="form-control"
+                   @bind-Value="filtro.FechaLaboratorioHasta" />
+    </div>
+
+    <div class="form-group">
+        <label>Registrado desde</label>
+        <InputDate TValue="DateTime?"
+                   class="form-control"
+                   @bind-Value="filtro.FechaRegistroDesde" />
+    </div>
+
+    <div class="form-group">
+        <label>Registrado hasta</label>
+        <InputDate TValue="DateTime?"
+                   class="form-control"
+                   @bind-Value="filtro.FechaRegistroHasta" />
+    </div>
+
+    <div class="form-group">
+        <label>pH mínimo</label>
+        <InputNumber TValue="decimal?"
+                     class="form-control"
+                     @bind-Value="filtro.PhMinimo"
+                     step="0.01" />
+    </div>
+
+    <div class="form-group">
+        <label>pH máximo</label>
+        <InputNumber TValue="decimal?"
+                     class="form-control"
+                     @bind-Value="filtro.PhMaximo"
+                     step="0.01" />
+    </div>
+
+    <div class="form-group">
+        <label>Fórmula nutricional</label>
+        <InputSelect TValue="bool?" class="form-control" @bind-Value="filtro.TieneFormula">
+            <option value="">Todos</option>
+            <option value="true">Con fórmula</option>
+            <option value="false">Sin fórmula</option>
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Enmienda calcárea</label>
+        <InputSelect TValue="bool?" class="form-control" @bind-Value="filtro.TieneEnmienda">
+            <option value="">Todos</option>
+            <option value="true">Con enmienda</option>
+            <option value="false">Sin enmienda</option>
+        </InputSelect>
+    </div>
+
+    <div class="form-group">
+        <label>Fertilización mixta</label>
+        <InputSelect TValue="bool?" class="form-control" @bind-Value="filtro.TieneMixta">
+            <option value="">Todos</option>
+            <option value="true">Con mixta</option>
+            <option value="false">Sin mixta</option>
+        </InputSelect>
+    </div>
+
+    <div class="filter-actions">
+        <button class="btn-primary" @onclick="AplicarFiltros" disabled="@cargando">
+            <i class="fa-solid fa-filter"></i>
+            Aplicar filtros
+        </button>
+        <button class="btn-link" @onclick="LimpiarFiltros" disabled="@cargando">
+            Limpiar
+        </button>
+    </div>
+</section>
+
+<section class="audit-summary-grid">
+    <article class="audit-summary-card">
+        <div class="summary-icon"><i class="fa-solid fa-flask"></i></div>
+        <div><span>Total</span><strong>@resultado.Resumen.Total</strong></div>
+    </article>
+    <article class="audit-summary-card success">
+        <div class="summary-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div><span>Activos</span><strong>@resultado.Resumen.Activos</strong></div>
+    </article>
+    <article class="audit-summary-card danger">
+        <div class="summary-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div><span>Inconsistentes</span><strong>@resultado.Resumen.Inconsistentes</strong></div>
+    </article>
+    <article class="audit-summary-card muted">
+        <div class="summary-icon"><i class="fa-solid fa-ban"></i></div>
+        <div><span>Inactivos</span><strong>@resultado.Resumen.Inactivos</strong></div>
+    </article>
+    <article class="audit-summary-card online">
+        <div class="summary-icon"><i class="fa-solid fa-wifi"></i></div>
+        <div><span>En línea</span><strong>@resultado.Resumen.Online</strong></div>
+    </article>
+    <article class="audit-summary-card offline">
+        <div class="summary-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+        <div><span>Sincronizados</span><strong>@resultado.Resumen.Offline</strong></div>
+    </article>
+</section>
+
+@if (cargando)
+{
+    <LoadingState Mensaje="Cargando auditoría de análisis..." />
+}
+else
+{
+    <section class="panel table-panel">
+        <div class="table-summary">
+            <span>Registros encontrados</span>
+            <strong>@resultado.TotalRegistros</strong>
+        </div>
+
+        <div class="responsive-table-wrapper">
+            <table class="data-table audit-analysis-table">
+                <thead>
+                    <tr>
+                        <th>Análisis</th>
+                        <th>Terreno / propietario</th>
+                        <th>Técnico</th>
+                        <th>Fechas</th>
+                        <th>Origen</th>
+                        <th>Módulos</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (resultado.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="8" class="table-empty">
+                                No se encontraron análisis con los filtros seleccionados.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (AuditoriaAnalisisItem item in resultado.Items)
+                        {
+                            <tr class="@(item.TieneInconsistencia ? "row-warning" : string.Empty)">
+                                <td data-label="Análisis">
+                                    <strong>@item.Identificador</strong>
+                                    <small>@item.Laboratorio</small>
+                                    <small>pH @item.Ph.ToString("0.00")</small>
+                                </td>
+                                <td data-label="Terreno">
+                                    <strong>@item.CodigoTerreno</strong>
+                                    <small>@item.Propietario</small>
+                                </td>
+                                <td data-label="Técnico">@item.UsuarioNombre</td>
+                                <td data-label="Fechas">
+                                    <span>Lab: @item.FechaLaboratorio.ToString("dd/MM/yyyy")</span>
+                                    <small>Registro: @FechaLocal(item.FechaRegistro)</small>
+                                </td>
+                                <td data-label="Origen">
+                                    <span class="origin-badge @item.Origen.ToLowerInvariant()">
+                                        <i class="fa-solid @(item.Origen == "OFFLINE" ? "fa-cloud-arrow-up" : "fa-wifi")"></i>
+                                        @(item.Origen == "OFFLINE" ? "Offline" : "En línea")
+                                    </span>
+                                </td>
+                                <td data-label="Módulos">
+                                    <div class="module-badges">
+                                        <span class="module-badge enabled" title="Requerimiento anual">REQ</span>
+                                        <span class="module-badge @(item.TieneFormula ? "enabled" : string.Empty)" title="Fórmula nutricional">FÓR</span>
+                                        <span class="module-badge @(item.TieneEnmienda ? "enabled" : string.Empty)" title="Enmienda calcárea">ENC</span>
+                                        <span class="module-badge @(item.TieneMixta ? "enabled" : string.Empty)" title="Fertilización mixta">MIX</span>
+                                    </div>
+                                </td>
+                                <td data-label="Estado">
+                                    <span class="audit-state @ClaseEstado(item.Estado)">
+                                        @NombreEstado(item.Estado)
+                                    </span>
+                                    @if (item.Alertas.Count > 0)
+                                    {
+                                        <small>@item.Alertas.Count alerta(s)</small>
+                                    }
+                                </td>
+                                <td data-label="Acciones">
+                                    <div class="table-actions-group">
+                                        <button class="table-action"
+                                                @onclick="() => VerDetalle(item.AnalisisSueloId)"
+                                                title="Ver expediente técnico y auditoría">
+                                            <i class="fa-regular fa-eye"></i>
+                                        </button>
+                                        <button class="table-action"
+                                                @onclick="() => VerPdf(item.AnalisisSueloCalculoId)"
+                                                title="Ver PDF">
+                                            <i class="fa-regular fa-file-pdf"></i>
+                                        </button>
+                                        @if (item.Activo)
+                                        {
+                                            <button class="table-action danger-action"
+                                                    @onclick="() => AbrirAccion(item, false)"
+                                                    title="Eliminar análisis">
+                                                <i class="fa-regular fa-trash-can"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="table-action recover-action"
+                                                    @onclick="() => AbrirAccion(item, true)"
+                                                    title="Recuperar análisis">
+                                                <i class="fa-solid fa-rotate-left"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-bar">
+            <button class="btn-secondary"
+                    disabled="@(resultado.Pagina <= 1)"
+                    @onclick="PaginaAnterior">
+                <i class="fa-solid fa-chevron-left"></i>
+                Anterior
+            </button>
+            <span>Página <strong>@resultado.Pagina</strong> de <strong>@resultado.TotalPaginas</strong></span>
+            <button class="btn-secondary"
+                    disabled="@(resultado.Pagina >= resultado.TotalPaginas)"
+                    @onclick="PaginaSiguiente">
+                Siguiente
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+    </section>
+}
+
+@if (mostrandoDetalle)
+{
+    <div class="modal-backdrop" @onclick="CerrarDetalle">
+        <article class="modal-card audit-analysis-detail" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Expediente de auditoría</p>
+                    <h2>@(detalle?.Resumen.Identificador ?? "Cargando...")</h2>
+                </div>
+                <div class="detail-header-actions">
+                    @if (detalle is not null)
+                    {
+                        <button class="btn-secondary" @onclick="() => VerPdf(detalle.Resumen.AnalisisSueloCalculoId)">
+                            <i class="fa-regular fa-file-pdf"></i> Ver PDF
+                        </button>
+                        @if (detalle.Resumen.Activo)
+                        {
+                            <button class="btn-danger" @onclick="() => AbrirAccionDesdeDetalle(false)">
+                                <i class="fa-regular fa-trash-can"></i> Eliminar
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn-primary" @onclick="() => AbrirAccionDesdeDetalle(true)">
+                                <i class="fa-solid fa-rotate-left"></i> Recuperar
+                            </button>
+                        }
+                    }
+                    <button class="modal-close" @onclick="CerrarDetalle">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            @if (cargandoDetalle)
+            {
+                <LoadingState Mensaje="Reconstruyendo historial del análisis..." />
+            }
+            else if (detalle is not null)
+            {
+                <div class="detail-scroll">
+                    <section class="detail-section">
+                        <div class="section-title">
+                            <h3>Resumen actual</h3>
+                            <span class="audit-state @ClaseEstado(detalle.Resumen.Estado)">
+                                @NombreEstado(detalle.Resumen.Estado)
+                            </span>
+                        </div>
+
+                        <div class="detail-grid">
+                            <DetailItem Etiqueta="Técnico" Valor="@detalle.Resumen.UsuarioNombre" />
+                            <DetailItem Etiqueta="Terreno" Valor="@detalle.Resumen.Terreno.CodigoTerreno" />
+                            <DetailItem Etiqueta="Propietario" Valor="@detalle.Resumen.Terreno.Propietario" />
+                            <DetailItem Etiqueta="Laboratorio" Valor="@detalle.Resumen.Laboratorio" />
+                            <DetailItem Etiqueta="Fecha laboratorio" Valor="@detalle.Resumen.FechaLaboratorio.ToString("dd/MM/yyyy")" />
+                            <DetailItem Etiqueta="Fecha registro" Valor="@FechaLocal(detalle.Resumen.FechaRegistro)" />
+                            <DetailItem Etiqueta="Cultivo" Valor="@detalle.Resumen.TipoCultivo" />
+                            <DetailItem Etiqueta="Tipo de análisis" Valor="@detalle.Resumen.TipoAnalisis" />
+                            <DetailItem Etiqueta="pH" Valor="@detalle.Resumen.Ph.ToString("0.00")" />
+                            <DetailItem Etiqueta="Materia orgánica" Valor="@Numero(detalle.Resumen.MateriaOrganica)" />
+                            <DetailItem Etiqueta="Acidez total" Valor="@Numero(detalle.Resumen.AcidezTotal)" />
+                            <DetailItem Etiqueta="Procedencia" Valor="@(detalle.Resumen.Origen == "OFFLINE" ? "Sincronizado sin conexión" : "Creado en línea")" />
+                        </div>
+                    </section>
+
+                    @if (detalle.Inconsistencias.Count > 0)
+                    {
+                        <section class="detail-section inconsistency-section">
+                            <h3>Inconsistencias detectadas</h3>
+                            <ul>
+                                @foreach (string inconsistencia in detalle.Inconsistencias)
+                                {
+                                    <li><i class="fa-solid fa-triangle-exclamation"></i>@inconsistencia</li>
+                                }
+                            </ul>
+                        </section>
+                    }
+
+                    <section class="detail-section">
+                        <h3>Estado de los cálculos</h3>
+                        <div class="calculation-grid">
+                            <ModuloCard Titulo="Requerimiento anual"
+                                        Icono="fa-flask"
+                                        Disponible="true"
+                                        Detalle="Resultados principales guardados" />
+                            <ModuloCard Titulo="Fórmula nutricional"
+                                        Icono="fa-scale-balanced"
+                                        Disponible="@(detalle.Modulos.FormulaNutricional is not null)"
+                                        Detalle="@DescripcionFormula(detalle.Modulos.FormulaNutricional)" />
+                            <ModuloCard Titulo="Enmienda calcárea"
+                                        Icono="fa-mountain-sun"
+                                        Disponible="@(detalle.Modulos.EnmiendaCalcarea is not null)"
+                                        Detalle="@DescripcionEnmienda(detalle.Modulos.EnmiendaCalcarea)" />
+                            <ModuloCard Titulo="Fertilización mixta"
+                                        Icono="fa-seedling"
+                                        Disponible="@(detalle.Modulos.FertilizacionMixta is not null)"
+                                        Detalle="@DescripcionMixta(detalle.Modulos.FertilizacionMixta)" />
+                        </div>
+                    </section>
+
+                    @if (detalle.ProcedenciaOffline is not null)
+                    {
+                        <section class="detail-section">
+                            <h3>Sincronización offline</h3>
+                            <div class="detail-grid">
+                                <DetailItem Etiqueta="Operación" Valor="@detalle.ProcedenciaOffline.TipoOperacion" />
+                                <DetailItem Etiqueta="Estado" Valor="@detalle.ProcedenciaOffline.Estado" />
+                                <DetailItem Etiqueta="Versión del motor" Valor="@detalle.ProcedenciaOffline.VersionMotor" />
+                                <DetailItem Etiqueta="Calculado localmente" Valor="@FechaUtcLocal(detalle.ProcedenciaOffline.FechaCalculoLocalUtc)" />
+                                <DetailItem Etiqueta="Recibido por servidor" Valor="@FechaUtcLocal(detalle.ProcedenciaOffline.FechaRecepcionUtc)" />
+                                <DetailItem Etiqueta="Completado" Valor="@FechaUtcLocal(detalle.ProcedenciaOffline.FechaCompletadoUtc)" />
+                            </div>
+                            <div class="hash-block">
+                                <strong>Hash del paquete</strong>
+                                <code>@detalle.ProcedenciaOffline.HashPaquete</code>
+                            </div>
+                        </section>
+                    }
+
+                    <section class="detail-section">
+                        <h3>Resultados por elemento</h3>
+                        <div class="responsive-table-wrapper compact-table">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Elemento</th>
+                                        <th>Ingresado</th>
+                                        <th>Convertido lb/mz</th>
+                                        <th>Requerimiento</th>
+                                        <th>Clasificación</th>
+                                        <th>Complementario</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (AuditoriaElementoCalculado elemento in detalle.ElementosCalculados)
+                                    {
+                                        <tr>
+                                            <td><strong>@elemento.Simbolo</strong> · @elemento.Nombre</td>
+                                            <td>@elemento.CantidadIngresada.ToString("N4")</td>
+                                            <td>@Numero(elemento.CantidadConvertidaLbMz)</td>
+                                            <td>@Numero(elemento.RequerimientoCalculado)</td>
+                                            <td>@(elemento.Clasificacion ?? "—")</td>
+                                            <td>@(elemento.IncluirCalculosComplementarios ? "Sí" : "No")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="detail-section">
+                        <div class="section-title">
+                            <h3>Historial de cambios</h3>
+                            <span>@detalle.Historial.Count eventos</span>
+                        </div>
+
+                        @if (detalle.Historial.Count == 0)
+                        {
+                            <div class="empty-detail">No se encontraron cambios históricos para las entidades relacionadas.</div>
+                        }
+                        else
+                        {
+                            <div class="audit-timeline">
+                                @foreach (AuditoriaHistorialItem evento in detalle.Historial)
+                                {
+                                    <article class="timeline-item @(evento.Exitoso ? string.Empty : "failed")">
+                                        <div class="timeline-marker">
+                                            <i class="fa-solid @IconoOperacion(evento.Operacion)"></i>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <div class="timeline-head">
+                                                <strong>@NombreOperacion(evento.Operacion) · @evento.Entidad</strong>
+                                                <time>@FechaUtcLocal(evento.FechaHoraUtc)</time>
+                                            </div>
+                                            <p>@NombreActor(evento) · @evento.Modulo</p>
+                                            @if (!string.IsNullOrWhiteSpace(evento.PropiedadesModificadas))
+                                            {
+                                                <small>Propiedades: @evento.PropiedadesModificadas</small>
+                                            }
+                                            <details>
+                                                <summary>Ver valores registrados</summary>
+                                                <div class="change-values">
+                                                    <div>
+                                                        <strong>Anterior</strong>
+                                                        <pre>@evento.ValoresAnteriores</pre>
+                                                    </div>
+                                                    <div>
+                                                        <strong>Nuevo</strong>
+                                                        <pre>@evento.ValoresNuevos</pre>
+                                                    </div>
+                                                </div>
+                                                <code>@evento.Endpoint</code>
+                                            </details>
+                                        </div>
+                                    </article>
+                                }
+                            </div>
+                        }
+                    </section>
+                </div>
+            }
+        </article>
+    </div>
+}
+
+
+@if (mostrandoPdf)
+{
+    <div class="modal-backdrop" @onclick="CerrarPdf">
+        <article class="modal-card pdf-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Reporte técnico</p>
+                    <h2>Vista previa del PDF</h2>
+                </div>
+                <button class="modal-close" @onclick="CerrarPdf"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            @if (cargandoPdf)
+            {
+                <LoadingState Mensaje="Generando reporte PDF..." />
+            }
+            else if (!string.IsNullOrWhiteSpace(pdfDataUri))
+            {
+                <iframe class="pdf-frame" src="@pdfDataUri" title="Reporte PDF del análisis"></iframe>
+            }
+        </article>
+    </div>
+}
+
+@if (mostrandoAccion && itemAccion is not null)
+{
+    <div class="modal-backdrop" @onclick="CerrarAccion">
+        <article class="modal-card action-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Control administrativo</p>
+                    <h2>@(accionRecuperar ? "Recuperar análisis" : "Eliminar análisis")</h2>
+                </div>
+                <button class="modal-close" @onclick="CerrarAccion"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p>
+                Análisis <strong>@itemAccion.Identificador</strong>.
+                @(accionRecuperar
+                    ? "Se restaurarán solamente las versiones que estaban activas antes de eliminarlo."
+                    : "El PDF y el estado exacto serán guardados antes de desactivarlo.")
+            </p>
+            <div class="form-group">
+                <label>Motivo obligatorio</label>
+                <InputTextArea class="form-control action-reason"
+                               @bind-Value="motivoAccion"
+                               placeholder="Explique por qué se realiza esta acción" />
+                <small>Mínimo 5 y máximo 500 caracteres.</small>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" @onclick="CerrarAccion" disabled="@procesandoAccion">Cancelar</button>
+                <button class="@(accionRecuperar ? "btn-primary" : "btn-danger")"
+                        @onclick="ConfirmarAccion"
+                        disabled="@(procesandoAccion || motivoAccion.Trim().Length < 5)">
+                    @if (procesandoAccion)
+                    {
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                    }
+                    @(accionRecuperar ? "Recuperar análisis" : "Eliminar análisis")
+                </button>
+            </div>
+        </article>
+    </div>
+}
+
+@code {
+    private AuditoriaAnalisisFiltro filtro = new();
+    private AuditoriaAnalisisPaginada resultado = new();
+    private AuditoriaAnalisisCatalogos catalogos = new();
+    private AuditoriaAnalisisDetalle? detalle;
+    private bool cargando = true;
+    private bool cargandoDetalle;
+    private bool mostrandoDetalle;
+    private bool mostrandoPdf;
+    private bool cargandoPdf;
+    private string? pdfDataUri;
+    private bool mostrandoAccion;
+    private bool accionRecuperar;
+    private bool procesandoAccion;
+    private string motivoAccion = string.Empty;
+    private AuditoriaAnalisisItem? itemAccion;
+    private string? error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!AuthState.EsAdministrador &&
+            !AuthState.TienePermisoLectura(PermisosWeb.AuditoriaAnalisis))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        await Inicializar();
+        StateHasChanged();
+    }
+
+    private async Task Inicializar()
+    {
+        try
+        {
+            catalogos = await AuditoriaService.ObtenerCatalogosAsync();
+            await Cargar();
+        }
+        catch (Exception ex)
+        {
+            error = $"No fue posible abrir la auditoría de análisis. {ex.Message}";
+            cargando = false;
+        }
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        error = null;
+
+        try
+        {
+            resultado = await AuditoriaService.ListarAsync(filtro);
+        }
+        catch (Exception ex)
+        {
+            error = $"No fue posible cargar los análisis. {ex.Message}";
+            resultado = new AuditoriaAnalisisPaginada();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AplicarFiltros()
+    {
+        filtro.Pagina = 1;
+        await Cargar();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        filtro = new AuditoriaAnalisisFiltro();
+        await Cargar();
+    }
+
+    private async Task PaginaAnterior()
+    {
+        if (filtro.Pagina <= 1)
+            return;
+
+        filtro.Pagina--;
+        await Cargar();
+    }
+
+    private async Task PaginaSiguiente()
+    {
+        if (filtro.Pagina >= resultado.TotalPaginas)
+            return;
+
+        filtro.Pagina++;
+        await Cargar();
+    }
+
+    private async Task VerDetalle(int analisisSueloId)
+    {
+        mostrandoDetalle = true;
+        cargandoDetalle = true;
+        detalle = null;
+        error = null;
+
+        try
+        {
+            detalle = await AuditoriaService.ObtenerDetalleAsync(analisisSueloId);
+        }
+        catch (Exception ex)
+        {
+            error = $"No fue posible reconstruir la auditoría del análisis. {ex.Message}";
+            mostrandoDetalle = false;
+        }
+        finally
+        {
+            cargandoDetalle = false;
+        }
+    }
+
+    private void CerrarDetalle()
+    {
+        mostrandoDetalle = false;
+        detalle = null;
+    }
+
+    private async Task VerPdf(int analisisSueloCalculoId)
+    {
+        mostrandoPdf = true;
+        cargandoPdf = true;
+        pdfDataUri = null;
+        error = null;
+
+        try
+        {
+            pdfDataUri = await ControlService.ObtenerPdfDataUriAsync(analisisSueloCalculoId);
+        }
+        catch (Exception ex)
+        {
+            error = $"No fue posible visualizar el PDF. {ex.Message}";
+            mostrandoPdf = false;
+        }
+        finally
+        {
+            cargandoPdf = false;
+        }
+    }
+
+    private void CerrarPdf()
+    {
+        mostrandoPdf = false;
+        pdfDataUri = null;
+    }
+
+    private void AbrirAccion(AuditoriaAnalisisItem item, bool recuperar)
+    {
+        itemAccion = item;
+        accionRecuperar = recuperar;
+        motivoAccion = string.Empty;
+        mostrandoAccion = true;
+    }
+
+    private void AbrirAccionDesdeDetalle(bool recuperar)
+    {
+        if (detalle is null)
+            return;
+
+        itemAccion = new AuditoriaAnalisisItem
+        {
+            AnalisisSueloId = detalle.Resumen.AnalisisSueloId,
+            AnalisisSueloCalculoId = detalle.Resumen.AnalisisSueloCalculoId,
+            Identificador = detalle.Resumen.Identificador,
+            Activo = detalle.Resumen.Activo
+        };
+        accionRecuperar = recuperar;
+        motivoAccion = string.Empty;
+        mostrandoAccion = true;
+    }
+
+    private void CerrarAccion()
+    {
+        if (procesandoAccion)
+            return;
+
+        mostrandoAccion = false;
+        itemAccion = null;
+        motivoAccion = string.Empty;
+    }
+
+    private async Task ConfirmarAccion()
+    {
+        if (itemAccion is null || motivoAccion.Trim().Length < 5)
+            return;
+
+        procesandoAccion = true;
+        error = null;
+
+        try
+        {
+            if (accionRecuperar)
+                await ControlService.RecuperarAsync(itemAccion.AnalisisSueloId, motivoAccion.Trim());
+            else
+                await ControlService.EliminarAsync(itemAccion.AnalisisSueloId, motivoAccion.Trim());
+
+            mostrandoAccion = false;
+            mostrandoDetalle = false;
+            itemAccion = null;
+            detalle = null;
+            motivoAccion = string.Empty;
+            await Cargar();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesandoAccion = false;
+        }
+    }
+
+    private static string FechaLocal(DateTime fecha) =>
+        fecha.ToLocalTime().ToString("dd/MM/yyyy hh:mm tt");
+
+    private static string FechaUtcLocal(DateTime fechaUtc) =>
+        DateTime.SpecifyKind(fechaUtc, DateTimeKind.Utc)
+            .ToLocalTime()
+            .ToString("dd/MM/yyyy hh:mm:ss tt");
+
+    private static string FechaUtcLocal(DateTime? fechaUtc) =>
+        fechaUtc.HasValue ? FechaUtcLocal(fechaUtc.Value) : "—";
+
+    private static string Numero(decimal? valor) =>
+        valor.HasValue ? valor.Value.ToString("N4") : "—";
+
+    private static string ClaseEstado(string estado) =>
+        estado.ToUpperInvariant() switch
+        {
+            "CORRECTO" => "correct",
+            "ACTIVO" => "correct",
+            "INACTIVO" => "inactive",
+            "INCONSISTENTE" => "inconsistent",
+            _ => "neutral"
+        };
+
+    private static string NombreEstado(string estado) =>
+        estado.ToUpperInvariant() switch
+        {
+            "CORRECTO" => "Correcto",
+            "ACTIVO" => "Activo",
+            "INACTIVO" => "Inactivo",
+            "INCONSISTENTE" => "Inconsistente",
+            _ => estado
+        };
+
+    private static string DescripcionFormula(AuditoriaFormula? formula) =>
+        formula is null
+            ? "No calculada"
+            : $"{formula.NombreFormula} · {formula.MezclaTotalQq:N2} qq";
+
+    private static string DescripcionEnmienda(AuditoriaEnmienda? enmienda) =>
+        enmienda is null
+            ? "No calculada"
+            : $"{enmienda.NecesidadEncaladoLbMz:N2} lb/mz";
+
+    private static string DescripcionMixta(AuditoriaMixta? mixta) =>
+        mixta is null
+            ? "No calculada"
+            : $"{mixta.CantidadFuentes} fuentes · {mixta.CantidadDetalles} aportes";
+
+    private static string IconoOperacion(string operacion) =>
+        operacion.ToUpperInvariant() switch
+        {
+            "CREAR" => "fa-plus",
+            "ACTUALIZAR" => "fa-pen",
+            "ELIMINAR" => "fa-trash",
+            _ => "fa-clock-rotate-left"
+        };
+
+    private static string NombreOperacion(string operacion) =>
+        operacion.ToUpperInvariant() switch
+        {
+            "CREAR" => "Creación",
+            "ACTUALIZAR" => "Actualización",
+            "ELIMINAR" => "Eliminación",
+            _ => operacion
+        };
+
+    private static string NombreActor(AuditoriaHistorialItem evento) =>
+        string.IsNullOrWhiteSpace(evento.UsuarioNombre)
+            ? evento.UsuarioId.HasValue
+                ? $"Usuario #{evento.UsuarioId}"
+                : "Sistema"
+            : evento.UsuarioNombre;
+}

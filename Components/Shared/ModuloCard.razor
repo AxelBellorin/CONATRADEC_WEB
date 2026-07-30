@@ -1,0 +1,24 @@
+<article class="calculation-card @(Disponible ? "available" : "missing")">
+    <div class="calculation-icon">
+        <i class="fa-solid @Icono"></i>
+    </div>
+    <div>
+        <strong>@Titulo</strong>
+        <span>@Detalle</span>
+    </div>
+    <i class="fa-solid @(Disponible ? "fa-circle-check" : "fa-minus") calculation-state"></i>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Titulo { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Icono { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool Disponible { get; set; }
+
+    [Parameter]
+    public string Detalle { get; set; } = string.Empty;
+}
