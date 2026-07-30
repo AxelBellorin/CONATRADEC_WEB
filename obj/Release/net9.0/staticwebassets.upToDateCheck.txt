@@ -1,24 +1,24 @@
 wwwroot\css\alertas-integracion.css
-wwwroot\css\animations.css
 wwwroot\css\app.css
 wwwroot\css\dashboard-ejecutivo.css
-wwwroot\css\mapa-alertas.css
+wwwroot\data\nicaragua.geojson
 wwwroot\css\seguimiento-alertas.css
 wwwroot\css\seguridad-web.css
-wwwroot\data\nicaragua.geojson
 wwwroot\favicon.svg
-wwwroot\images\mascota-conatradec.webp
 wwwroot\js\dispositivosMapa.js
 wwwroot\js\mapa.js
+wwwroot\css\mapa-alertas.css
 wwwroot\js\mapaInteligente.js
+wwwroot\css\animations.css
+wwwroot\images\mascota-conatradec.webp
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\mapa-alertas.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\seguridad-web.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\seguimiento-alertas.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\favicon.svg
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\alertas-integracion.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\mapaInteligente.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\mapa.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\dispositivosMapa.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\app.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\dashboard-ejecutivo.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\mapa-alertas.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\seguimiento-alertas.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\seguridad-web.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\favicon.svg
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\dispositivosMapa.js
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\mapa.js
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\mapaInteligente.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\animations.css
