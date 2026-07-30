@@ -24,7 +24,15 @@ builder.Services.AddHttpClient(
             "application/geo+json, application/json");
     });
 
-builder.Services.AddHttpClient<ApiClientService>(
+/*
+ * ApiClientService debe ser scoped en Blazor Server.
+ *
+ * El registro anterior como cliente tipado era transitorio: el login
+ * configuraba el JWT en una instancia, pero otras páginas recibían una
+ * instancia diferente sin Authorization.
+ */
+builder.Services.AddHttpClient(
+    "CONATRADEC_API_AUTENTICADA",
     (serviceProvider, client) =>
     {
         IConfiguration configuration =
@@ -41,6 +49,21 @@ builder.Services.AddHttpClient<ApiClientService>(
                 : $"{baseUrl}/");
 
         client.Timeout = TimeSpan.FromSeconds(30);
+    });
+
+builder.Services.AddScoped<ApiClientService>(
+    serviceProvider =>
+    {
+        IHttpClientFactory httpClientFactory =
+            serviceProvider.GetRequiredService<IHttpClientFactory>();
+
+        WebActivityService actividad =
+            serviceProvider.GetRequiredService<WebActivityService>();
+
+        return new ApiClientService(
+            httpClientFactory.CreateClient(
+                "CONATRADEC_API_AUTENTICADA"),
+            actividad);
     });
 
 builder.Services.AddHttpClient<ActualizacionesService>(

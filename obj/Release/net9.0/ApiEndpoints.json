@@ -1,7 +1,7 @@
 [
   {
     "ContainingType": "Program",
-    "Method": "\u003C\u003CMain\u003E$\u003Eg__RedirigirAlFormularioProtegido|0_5",
+    "Method": "\u003C\u003CMain\u003E$\u003Eg__RedirigirAlFormularioProtegido|0_6",
     "RelativePath": "descargar/{plataforma}",
     "HttpMethod": "GET",
     "IsController": false,
@@ -23,7 +23,7 @@
   },
   {
     "ContainingType": "Program",
-    "Method": "\u003C\u003CMain\u003E$\u003Eg__RedirigirAlFormularioProtegido|0_5",
+    "Method": "\u003C\u003CMain\u003E$\u003Eg__RedirigirAlFormularioProtegido|0_6",
     "RelativePath": "instalar/{plataforma}",
     "HttpMethod": "GET",
     "IsController": false,
@@ -45,7 +45,7 @@
   },
   {
     "ContainingType": "Program\u002B\u003C\u003Ec",
-    "Method": "\u003C\u003CMain\u003E$\u003Eb__0_4",
+    "Method": "\u003C\u003CMain\u003E$\u003Eb__0_5",
     "RelativePath": "mapa-datos/municipios.geojson",
     "HttpMethod": "GET",
     "IsController": false,
