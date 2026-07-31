@@ -272,27 +272,29 @@
 
                     <div class="form-group">
                         <label>Departamento</label>
-                        <InputSelect class="form-control"
-                                     @bind-Value="filtro.DepartamentoId"
-                                     @bind-Value:after="DepartamentoCambiado">
+                        <select class="form-control"
+                                value="@filtro.DepartamentoId"
+                                @onchange="DepartamentoCambiadoAsync">
                             <option value="">Todos</option>
                             @foreach (CatalogoSimple item in departamentos)
                             {
                                 <option value="@item.Id">@item.Nombre</option>
                             }
-                        </InputSelect>
+                        </select>
                     </div>
 
                     <div class="form-group">
                         <label>Municipio</label>
-                        <InputSelect class="form-control"
-                                     @bind-Value="filtro.MunicipioId">
+                        <select class="form-control"
+                                value="@filtro.MunicipioId"
+                                disabled="@(!filtro.DepartamentoId.HasValue)"
+                                @onchange="MunicipioCambiadoAsync">
                             <option value="">Todos</option>
                             @foreach (MunicipioSelectorItem item in MunicipiosDisponibles)
                             {
                                 <option value="@item.MunicipioId">@item.NombreMunicipio</option>
                             }
-                        </InputSelect>
+                        </select>
                     </div>
 
                     <div class="geo-filter-columns">
@@ -1053,9 +1055,25 @@
         await CargarMapaAsync();
     }
 
-    private Task DepartamentoCambiado()
+    private Task DepartamentoCambiadoAsync(ChangeEventArgs args)
     {
+        filtro.DepartamentoId =
+            int.TryParse(args.Value?.ToString(), out int departamentoId)
+                ? departamentoId
+                : null;
+
         filtro.MunicipioId = null;
+
+        return Task.CompletedTask;
+    }
+
+    private Task MunicipioCambiadoAsync(ChangeEventArgs args)
+    {
+        filtro.MunicipioId =
+            int.TryParse(args.Value?.ToString(), out int municipioId)
+                ? municipioId
+                : null;
+
         return Task.CompletedTask;
     }
 
@@ -1429,5 +1447,4 @@
         public int Id { get; set; }
         public string Nombre { get; set; } = string.Empty;
     }
-
 }
