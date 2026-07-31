@@ -1,6 +1,9 @@
 @page "/parametrizacion-acceso"
+@using CONATRADEC.AdminWeb.Models
+@using Microsoft.JSInterop
 @inject AuthStateService AuthState
 @inject ParametrizacionAccesoService Servicio
+@inject IJSRuntime JS
 
 <PageTitle>Propietarios y acceso | CONATRADEC</PageTitle>
 
@@ -44,7 +47,7 @@ else
         @if (PuedeLeerPropietarios)
         {
             <button class="@ClaseTab("PROPIETARIOS")"
-                    @onclick='() => tab = "PROPIETARIOS"'>
+                    @onclick='() => CambiarTab("PROPIETARIOS")'>
                 Propietarios
             </button>
         }
@@ -52,7 +55,7 @@ else
         @if (PuedeLeerVinculaciones)
         {
             <button class="@ClaseTab("PORTAL")"
-                    @onclick='() => tab = "PORTAL"'>
+                    @onclick='() => CambiarTab("PORTAL")'>
                 Usuarios del portal
             </button>
         }
@@ -60,7 +63,7 @@ else
         @if (PuedeLeerAsignaciones)
         {
             <button class="@ClaseTab("ASIGNACIONES")"
-                    @onclick='() => tab = "ASIGNACIONES"'>
+                    @onclick='() => CambiarTab("ASIGNACIONES")'>
                 Asignaciones
             </button>
         }
@@ -68,7 +71,7 @@ else
         @if (PuedeLeerCoberturas)
         {
             <button class="@ClaseTab("COBERTURAS")"
-                    @onclick='() => tab = "COBERTURAS"'>
+                    @onclick='() => CambiarTab("COBERTURAS")'>
                 Coberturas
             </button>
         }
@@ -80,66 +83,110 @@ else
             <article class="access-card">
                 <div class="access-card-title">
                     <div>
-                        <span>Registro</span>
-                        <h2>@(formulario.PropietarioId > 0 ? "Editar propietario" : "Nuevo propietario")</h2>
+                        <span>Gestión</span>
+                        <h2>
+                            @if (!formularioVisible)
+                            {
+                                <text>Administrar propietarios</text>
+                            }
+                            else if (formulario.PropietarioId > 0)
+                            {
+                                <text>Editar propietario</text>
+                            }
+                            else
+                            {
+                                <text>Nuevo propietario</text>
+                            }
+                        </h2>
                     </div>
 
-                    @if (formulario.PropietarioId > 0)
+                    @if (formularioVisible)
                     {
-                        <button class="btn-link" @onclick="LimpiarFormulario">
-                            Nuevo
+                        <button type="button"
+                                class="btn-link"
+                                @onclick="CancelarFormulario">
+                            Cancelar
                         </button>
                     }
                 </div>
 
-                <EditForm Model="formulario"
-                          OnValidSubmit="GuardarPropietarioAsync">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary />
+                @if (!formularioVisible)
+                {
+                    <div class="access-empty">
+                        <i class="fa-solid fa-address-card"></i>
+                        <h3>Seleccione una acción</h3>
+                        <p>
+                            Use Ver, Editar o Eliminar en el directorio. El clic
+                            sobre la tarjeta ya no abre automáticamente la edición.
+                        </p>
 
-                    <div class="form-group">
-                        <label>Identificación</label>
-                        <InputText class="form-control"
-                                   @bind-Value="formulario.Identificacion" />
+                        @if (PuedeAgregarPropietarios)
+                        {
+                            <button type="button"
+                                    class="btn-primary"
+                                    @onclick="NuevoPropietario">
+                                <i class="fa-solid fa-user-plus"></i>
+                                Nuevo propietario
+                            </button>
+                        }
                     </div>
+                }
+                else
+                {
+                    <EditForm Model="formulario"
+                              OnValidSubmit="GuardarPropietarioAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
 
-                    <div class="form-group">
-                        <label>Nombre completo</label>
-                        <InputText class="form-control"
-                                   @bind-Value="formulario.NombreCompleto" />
-                    </div>
-
-                    <div class="access-two-columns">
                         <div class="form-group">
-                            <label>Teléfono</label>
+                            <label>Identificación</label>
                             <InputText class="form-control"
-                                       @bind-Value="formulario.Telefono" />
+                                       @bind-Value="formulario.Identificacion" />
                         </div>
 
                         <div class="form-group">
-                            <label>Correo</label>
+                            <label>Nombre completo</label>
                             <InputText class="form-control"
-                                       @bind-Value="formulario.Correo" />
+                                       @bind-Value="formulario.NombreCompleto" />
                         </div>
-                    </div>
 
-                    <div class="form-group">
-                        <label>Dirección</label>
-                        <InputTextArea class="form-control"
-                                       @bind-Value="formulario.Direccion" />
-                    </div>
+                        <div class="access-two-columns">
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <InputText class="form-control"
+                                           @bind-Value="formulario.Telefono" />
+                            </div>
 
-                    <label class="access-check">
-                        <InputCheckbox @bind-Value="formulario.Activo" />
-                        <span>Propietario activo</span>
-                    </label>
+                            <div class="form-group">
+                                <label>Correo</label>
+                                <InputText class="form-control"
+                                           @bind-Value="formulario.Correo" />
+                            </div>
+                        </div>
 
-                    <button class="btn-primary"
-                            disabled="@(!PuedeGuardarPropietario || cargando)">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                        Guardar
-                    </button>
-                </EditForm>
+                        <div class="form-group">
+                            <label>Dirección</label>
+                            <InputTextArea class="form-control"
+                                           @bind-Value="formulario.Direccion" />
+                        </div>
+
+                        <div class="access-message success">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>
+                                El estado activo no se modifica desde el formulario.
+                                La desactivación se realiza únicamente mediante Eliminar.
+                            </span>
+                        </div>
+
+                        <button class="btn-primary"
+                                disabled="@(!PuedeGuardarPropietario || cargando)">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            @(formulario.PropietarioId > 0
+                                ? "Actualizar"
+                                : "Guardar")
+                        </button>
+                    </EditForm>
+                }
             </article>
 
             <article class="access-card access-list-card">
@@ -153,10 +200,11 @@ else
 
                 <div class="access-search">
                     <input class="form-control"
-                           placeholder="Buscar por nombre o identificación"
+                           placeholder="Buscar por nombre, identificación o correo"
                            @bind="buscarPropietario"
                            @bind:event="oninput" />
-                    <button class="btn-secondary"
+                    <button type="button"
+                            class="btn-secondary"
                             @onclick="CargarPropietariosAsync">
                         Buscar
                     </button>
@@ -165,14 +213,17 @@ else
                 <div class="access-list">
                     @foreach (PropietarioAccesoItem item in propietarios)
                     {
-                        <button class="access-list-item"
-                                @onclick="() => SeleccionarPropietarioAsync(item)">
+                        <div class="access-list-item static">
                             <span class="access-avatar">
                                 @Iniciales(item.NombreCompleto)
                             </span>
+
                             <span>
                                 <strong>@item.NombreCompleto</strong>
-                                <small>@item.Identificacion · @item.TotalTerrenos terreno(s)</small>
+                                <small>
+                                    @item.Identificacion ·
+                                    @item.TotalTerrenos terreno(s)
+                                </small>
                                 <small>
                                     Portal:
                                     @(string.IsNullOrWhiteSpace(item.UsuarioPortal)
@@ -180,80 +231,186 @@ else
                                         : item.UsuarioPortal)
                                 </small>
                             </span>
-                            <i class="fa-solid fa-chevron-right"></i>
-                        </button>
+
+                            <div class="access-inline-actions">
+                                <button type="button"
+                                        class="btn-secondary"
+                                        title="Visualizar"
+                                        @onclick="() => VerPropietarioAsync(item)">
+                                    <i class="fa-solid fa-eye"></i>
+                                    Ver
+                                </button>
+
+                                @if (PuedeActualizarPropietarios)
+                                {
+                                    <button type="button"
+                                            class="btn-primary"
+                                            title="Editar"
+                                            @onclick="() => EditarPropietario(item)">
+                                        <i class="fa-solid fa-pen"></i>
+                                        Editar
+                                    </button>
+                                }
+
+                                @if (PuedeEliminarPropietarios)
+                                {
+                                    <button type="button"
+                                            class="access-danger-button"
+                                            title="Eliminar"
+                                            @onclick="() => EliminarPropietarioAsync(item)">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
                     }
                 </div>
             </article>
         </section>
 
-        @if (detalleSeleccionado is not null)
+        @if (cargandoDetalle)
         {
-            <section class="access-card access-owner-detail">
-                <div class="access-card-title">
-                    <div>
-                        <span>Terrenos vinculados</span>
-                        <h2>@detalleSeleccionado.Propietario.NombreCompleto</h2>
-                    </div>
+            <div class="owner-detail-backdrop">
+                <div class="owner-detail-loading">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    <strong>Cargando propietario...</strong>
                 </div>
+            </div>
+        }
 
-                @if (PuedeActualizarPropietarios)
-                {
-                    <div class="access-inline-form">
-                        <select class="form-control"
-                                @bind="terrenoParaPropietarioId">
-                            <option value="0">Seleccione un terreno</option>
-                            @foreach (TerrenoAccesoCatalogo terreno in terrenos)
+        @if (detalleSeleccionado is not null && !cargandoDetalle)
+        {
+            <div class="owner-detail-backdrop"
+                 @onclick="CerrarDetalle">
+                <section class="access-card access-owner-detail owner-detail-modal"
+                         @onclick:stopPropagation="true">
+                    <div class="access-card-title owner-detail-header">
+                        <div>
+                            <span>Detalle del propietario</span>
+                            <h2>@detalleSeleccionado.Propietario.NombreCompleto</h2>
+                            <small>
+                                @detalleSeleccionado.Propietario.Identificacion ·
+                                @(detalleSeleccionado.Propietario.Correo ?? "Sin correo")
+                            </small>
+                        </div>
+
+                        <div class="access-inline-actions">
+                            @if (PuedeActualizarPropietarios)
                             {
-                                <option value="@terreno.TerrenoId">
-                                    @terreno.CodigoTerreno · @terreno.PropietarioActual
-                                </option>
+                                <button type="button"
+                                        class="btn-primary"
+                                        @onclick="EditarPropietarioDesdeDetalle">
+                                    <i class="fa-solid fa-pen"></i>
+                                    Editar
+                                </button>
                             }
-                        </select>
 
-                        <button class="btn-primary"
-                                @onclick="VincularTerrenoAsync"
-                                disabled="@(terrenoParaPropietarioId <= 0)">
-                            Vincular terreno
-                        </button>
+                            <button type="button"
+                                    class="btn-secondary"
+                                    @onclick="CerrarDetalle">
+                                <i class="fa-solid fa-xmark"></i>
+                                Cerrar
+                            </button>
+                        </div>
                     </div>
-                }
 
-                <div class="access-table-wrap">
-                    <table class="access-table">
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>Dirección</th>
-                                <th>Extensión</th>
-                                <th>Producción</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (TerrenoPropietarioItem terreno in detalleSeleccionado.Terrenos)
-                            {
-                                <tr>
-                                    <td>@terreno.CodigoTerreno</td>
-                                    <td>@terreno.DireccionTerreno</td>
-                                    <td>@terreno.ExtensionManzanas.ToString("N2") Mz</td>
-                                    <td>@terreno.QuintalesOro.ToString("N2") qq</td>
-                                    <td>
-                                        @if (PuedeEliminarPropietarios)
-                                        {
-                                            <button class="access-danger-button"
-                                                    title="Desvincular"
-                                                    @onclick="() => DesvincularTerrenoAsync(terreno)">
-                                                <i class="fa-solid fa-link-slash"></i>
-                                            </button>
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                    <div class="owner-detail-data-grid">
+                        <div>
+                            <small>Identificación</small>
+                            <strong>@detalleSeleccionado.Propietario.Identificacion</strong>
+                        </div>
+                        <div>
+                            <small>Teléfono</small>
+                            <strong>@(detalleSeleccionado.Propietario.Telefono ?? "Sin teléfono")</strong>
+                        </div>
+                        <div>
+                            <small>Correo</small>
+                            <strong>@(detalleSeleccionado.Propietario.Correo ?? "Sin correo")</strong>
+                        </div>
+                        <div>
+                            <small>Dirección</small>
+                            <strong>@(detalleSeleccionado.Propietario.Direccion ?? "Sin dirección")</strong>
+                        </div>
+                    </div>
+
+                    <div class="owner-detail-section-title">
+                        <div>
+                            <span>Terrenos vinculados</span>
+                            <strong>@detalleSeleccionado.Terrenos.Count</strong>
+                        </div>
+                    </div>
+
+                    @if (PuedeActualizarPropietarios)
+                    {
+                        <div class="access-inline-form">
+                            <select class="form-control"
+                                    @bind="terrenoParaPropietarioId">
+                                <option value="0">Seleccione un terreno</option>
+                                @foreach (TerrenoAccesoCatalogo terreno in terrenos)
+                                {
+                                    <option value="@terreno.TerrenoId">
+                                        @terreno.CodigoTerreno · @terreno.PropietarioActual
+                                    </option>
+                                }
+                            </select>
+
+                            <button type="button"
+                                    class="btn-primary"
+                                    @onclick="VincularTerrenoAsync"
+                                    disabled="@(terrenoParaPropietarioId <= 0)">
+                                Vincular terreno
+                            </button>
+                        </div>
+                    }
+
+                    @if (detalleSeleccionado.Terrenos.Count == 0)
+                    {
+                        <div class="owner-detail-empty">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            <span>Este propietario no tiene terrenos vinculados.</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="access-table-wrap owner-detail-table">
+                            <table class="access-table">
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Dirección</th>
+                                        <th>Extensión</th>
+                                        <th>Producción</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (TerrenoPropietarioItem terreno
+                                              in detalleSeleccionado.Terrenos)
+                                    {
+                                        <tr>
+                                            <td>@terreno.CodigoTerreno</td>
+                                            <td>@terreno.DireccionTerreno</td>
+                                            <td>@terreno.ExtensionManzanas.ToString("N2") Mz</td>
+                                            <td>@terreno.QuintalesOro.ToString("N2") qq</td>
+                                            <td>
+                                                @if (PuedeEliminarPropietarios)
+                                                {
+                                                    <button type="button"
+                                                            class="access-danger-button"
+                                                            title="Desvincular"
+                                                            @onclick="() => DesvincularTerrenoAsync(terreno)">
+                                                        <i class="fa-solid fa-link-slash"></i>
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+            </div>
         }
     }
 
@@ -288,7 +445,8 @@ else
                     }
                 </select>
 
-                <button class="btn-primary"
+                <button type="button"
+                        class="btn-primary"
                         disabled="@(!PuedeGuardarVinculacion || usuarioPortalId <= 0 || propietarioPortalId <= 0)"
                         @onclick="VincularUsuarioPropietarioAsync">
                     Vincular
@@ -310,7 +468,8 @@ else
 
                         @if (PuedeEliminarVinculacion)
                         {
-                            <button class="access-danger-button"
+                            <button type="button"
+                                    class="access-danger-button"
                                     @onclick="() => DesvincularUsuarioAsync(propietario)">
                                 <i class="fa-solid fa-user-xmark"></i>
                             </button>
@@ -370,7 +529,8 @@ else
                            placeholder="Observación opcional"
                            @bind="nuevaAsignacion.Observacion" />
 
-                    <button class="btn-primary"
+                    <button type="button"
+                            class="btn-primary"
                             @onclick="CrearAsignacionAsync">
                         Asignar
                     </button>
@@ -399,7 +559,8 @@ else
                                 <td>
                                     @if (PuedeEliminarAsignaciones)
                                     {
-                                        <button class="access-danger-button"
+                                        <button type="button"
+                                                class="access-danger-button"
                                                 @onclick="() => EliminarAsignacionAsync(item)">
                                             <i class="fa-solid fa-xmark"></i>
                                         </button>
@@ -476,7 +637,8 @@ else
                            placeholder="Observación opcional"
                            @bind="nuevaCobertura.Observacion" />
 
-                    <button class="btn-primary"
+                    <button type="button"
+                            class="btn-primary"
                             @onclick="CrearCoberturaAsync">
                         Agregar cobertura
                     </button>
@@ -505,7 +667,8 @@ else
                                 <td>
                                     @if (PuedeEliminarCoberturas)
                                     {
-                                        <button class="access-danger-button"
+                                        <button type="button"
+                                                class="access-danger-button"
                                                 @onclick="() => EliminarCoberturaAsync(item)">
                                             <i class="fa-solid fa-xmark"></i>
                                         </button>
@@ -520,9 +683,136 @@ else
     }
 }
 
+
+<style>
+    .owner-detail-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(2px);
+    }
+
+    .owner-detail-modal {
+        width: min(1050px, 96vw);
+        max-height: 90vh;
+        overflow: auto;
+        margin: 0;
+        background: #fff;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+    }
+
+    .owner-detail-loading {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        padding: 1.2rem 1.5rem;
+        border-radius: 14px;
+        background: #fff;
+        color: #315f55;
+        box-shadow: 0 20px 55px rgba(15, 23, 42, 0.24);
+    }
+
+    .owner-detail-loading i {
+        font-size: 1.4rem;
+    }
+
+    .owner-detail-header {
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .owner-detail-data-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.8rem;
+        margin: 1rem 0;
+    }
+
+    .owner-detail-data-grid > div {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid #dbe7e2;
+        border-radius: 12px;
+        background: #f8fbfa;
+    }
+
+    .owner-detail-data-grid small,
+    .owner-detail-section-title span {
+        color: #64748b;
+        font-size: 0.78rem;
+    }
+
+    .owner-detail-section-title {
+        margin: 1rem 0 0.7rem;
+    }
+
+    .owner-detail-section-title > div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .owner-detail-section-title strong {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: #315f55;
+        color: #fff;
+    }
+
+    .owner-detail-empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        min-height: 100px;
+        margin-top: 0.8rem;
+        border: 1px dashed #b9cec7;
+        border-radius: 12px;
+        color: #58736b;
+        background: #f8fbfa;
+    }
+
+    .owner-detail-table {
+        margin-top: 0.8rem;
+    }
+
+    @@media (max-width: 760px) {
+        .owner-detail-backdrop {
+            align-items: flex-start;
+            padding: 0.7rem;
+        }
+
+        .owner-detail-modal {
+            width: 100%;
+            max-height: 96vh;
+        }
+
+        .owner-detail-data-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .owner-detail-header {
+            flex-direction: column;
+        }
+    }
+</style>
+
 @code {
     private bool cargando;
     private bool esError;
+    private bool formularioVisible;
+    private bool cargandoDetalle;
     private string mensaje = string.Empty;
     private string buscarPropietario = string.Empty;
     private string tab = "PROPIETARIOS";
@@ -547,6 +837,9 @@ else
     private bool PuedeLeerPropietarios =>
         AuthState.TienePermisoLectura(PermisosWeb.Propietarios);
 
+    private bool PuedeAgregarPropietarios =>
+        AuthState.TienePermisoAgregar(PermisosWeb.Propietarios);
+
     private bool PuedeActualizarPropietarios =>
         AuthState.TienePermisoActualizar(PermisosWeb.Propietarios);
 
@@ -556,7 +849,7 @@ else
     private bool PuedeGuardarPropietario =>
         formulario.PropietarioId > 0
             ? PuedeActualizarPropietarios
-            : AuthState.TienePermisoAgregar(PermisosWeb.Propietarios);
+            : PuedeAgregarPropietarios;
 
     private bool PuedeLeerVinculaciones =>
         AuthState.TienePermisoLectura(PermisosWeb.UsuarioPropietario);
@@ -606,6 +899,12 @@ else
         await CargarTodoAsync();
     }
 
+    private void CambiarTab(string valor)
+    {
+        tab = valor;
+        LimpiarMensaje();
+    }
+
     private async Task CargarTodoAsync()
     {
         if (!PuedeVerModulo)
@@ -619,12 +918,15 @@ else
             Task<List<PropietarioAccesoItem>?> propietariosTask =
                 PuedeLeerPropietarios || PuedeLeerVinculaciones
                     ? Servicio.ListarPropietariosAsync(
-                        incluirInactivos: true)
+                        incluirInactivos: false)
                     : Task.FromResult<List<PropietarioAccesoItem>?>([]);
+
             Task<List<UsuarioAccesoCatalogo>?> usuariosTask =
                 Servicio.ListarUsuariosAsync();
+
             Task<List<TerrenoAccesoCatalogo>?> terrenosTask =
                 Servicio.ListarTerrenosAsync();
+
             Task<List<DepartamentoAccesoCatalogo>?> departamentosTask =
                 Servicio.ListarDepartamentosAsync();
 
@@ -662,7 +964,7 @@ else
             propietarios =
                 await Servicio.ListarPropietariosAsync(
                     buscarPropietario,
-                    incluirInactivos: true) ?? [];
+                    incluirInactivos: false) ?? [];
         }
         catch (Exception ex)
         {
@@ -670,44 +972,175 @@ else
         }
     }
 
-    private async Task GuardarPropietarioAsync()
+    private void NuevoPropietario()
     {
+        if (!PuedeAgregarPropietarios)
+            return;
+
+        formulario = new PropietarioAccesoFormulario
+        {
+            Activo = true
+        };
+
+        formularioVisible = true;
+        detalleSeleccionado = null;
+        terrenoParaPropietarioId = 0;
+        LimpiarMensaje();
+    }
+
+    private void EditarPropietario(PropietarioAccesoItem item)
+    {
+        if (!PuedeActualizarPropietarios)
+            return;
+
+        detalleSeleccionado = null;
+        terrenoParaPropietarioId = 0;
+        formulario = CrearFormulario(item);
+        formularioVisible = true;
+        LimpiarMensaje();
+    }
+
+    private void EditarPropietarioDesdeDetalle()
+    {
+        if (detalleSeleccionado is null)
+            return;
+
+        PropietarioAccesoItem propietario =
+            detalleSeleccionado.Propietario;
+
+        EditarPropietario(propietario);
+    }
+
+    private async Task VerPropietarioAsync(PropietarioAccesoItem item)
+    {
+        formularioVisible = false;
+        formulario = new();
+        detalleSeleccionado = null;
+        terrenoParaPropietarioId = 0;
+        cargandoDetalle = true;
+        LimpiarMensaje();
+
         try
         {
+            PropietarioDetalleRespuesta? detalle =
+                await Servicio.ObtenerPropietarioAsync(
+                    item.PropietarioId);
+
+            if (detalle is null)
+            {
+                MostrarError(
+                    "No fue posible cargar el detalle del propietario.");
+                return;
+            }
+
+            detalleSeleccionado = detalle;
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            cargandoDetalle = false;
+        }
+    }
+
+    private async Task GuardarPropietarioAsync()
+    {
+        if (!PuedeGuardarPropietario)
+            return;
+
+        cargando = true;
+        LimpiarMensaje();
+
+        try
+        {
+            /*
+             * Activo no es un campo administrable desde la interfaz.
+             * Crear y editar conservan el registro activo.
+             */
+            formulario.Activo = true;
+
             ApiOperacionAccesoRespuesta? respuesta =
                 formulario.PropietarioId > 0
                     ? await Servicio.ActualizarPropietarioAsync(formulario)
                     : await Servicio.CrearPropietarioAsync(formulario);
 
+            if (respuesta?.Success == false)
+            {
+                MostrarError(respuesta.Message);
+                return;
+            }
+
             MostrarExito(
                 respuesta?.Message ??
                 "Operación realizada correctamente.");
 
-            LimpiarFormulario();
+            CancelarFormulario();
             await CargarPropietariosAsync();
         }
         catch (Exception ex)
         {
             MostrarError(ex.Message);
         }
+        finally
+        {
+            cargando = false;
+        }
     }
 
-    private async Task SeleccionarPropietarioAsync(
-        PropietarioAccesoItem item)
+    private async Task EliminarPropietarioAsync(PropietarioAccesoItem item)
     {
-        formulario = new PropietarioAccesoFormulario
-        {
-            PropietarioId = item.PropietarioId,
-            Identificacion = item.Identificacion,
-            NombreCompleto = item.NombreCompleto,
-            Telefono = item.Telefono,
-            Correo = item.Correo,
-            Direccion = item.Direccion,
-            Activo = item.Activo
-        };
+        if (!PuedeEliminarPropietarios)
+            return;
 
-        detalleSeleccionado =
-            await Servicio.ObtenerPropietarioAsync(item.PropietarioId);
+        if (item.TotalTerrenos > 0)
+        {
+            await VerPropietarioAsync(item);
+
+            MostrarError(
+                "No se puede eliminar el propietario porque tiene terrenos " +
+                "vinculados. Reasigne los terrenos a otro propietario antes " +
+                "de continuar.");
+
+            return;
+        }
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea eliminar a {item.NombreCompleto}? " +
+                "El registro se desactivará y su historial se conservará.");
+
+        if (!confirmar)
+            return;
+
+        cargando = true;
+        LimpiarMensaje();
+
+        try
+        {
+            await Servicio.EliminarPropietarioAsync(item.PropietarioId);
+
+            if (detalleSeleccionado?.Propietario.PropietarioId ==
+                item.PropietarioId)
+            {
+                detalleSeleccionado = null;
+            }
+
+            propietarios.RemoveAll(x =>
+                x.PropietarioId == item.PropietarioId);
+
+            MostrarExito("Propietario eliminado correctamente.");
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
     }
 
     private async Task VincularTerrenoAsync()
@@ -898,12 +1331,31 @@ else
         }
     }
 
-    private void LimpiarFormulario()
+    private void CancelarFormulario()
     {
         formulario = new();
+        formularioVisible = false;
+    }
+
+    private void CerrarDetalle()
+    {
         detalleSeleccionado = null;
         terrenoParaPropietarioId = 0;
+        cargandoDetalle = false;
     }
+
+    private static PropietarioAccesoFormulario CrearFormulario(
+        PropietarioAccesoItem item) =>
+        new()
+        {
+            PropietarioId = item.PropietarioId,
+            Identificacion = item.Identificacion,
+            NombreCompleto = item.NombreCompleto,
+            Telefono = item.Telefono,
+            Correo = item.Correo,
+            Direccion = item.Direccion,
+            Activo = true
+        };
 
     private string ClaseTab(string valor) =>
         tab == valor ? "active" : string.Empty;

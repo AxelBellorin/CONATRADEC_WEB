@@ -55,6 +55,13 @@ public sealed class ParametrizacionAccesoService
                 formulario,
                 cancellationToken);
 
+    public Task EliminarPropietarioAsync(
+        int propietarioId,
+        CancellationToken cancellationToken = default) =>
+        api.EliminarAsync(
+            $"api/parametrizacion-acceso/propietarios/{propietarioId}",
+            cancellationToken);
+
     public Task<ApiOperacionAccesoRespuesta?> VincularTerrenoAsync(
         int propietarioId,
         int terrenoId,

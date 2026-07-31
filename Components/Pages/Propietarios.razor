@@ -1,0 +1,675 @@
+@page "/propietarios"
+@page "/parametrizacion-acceso/propietarios"
+@inject AuthStateService AuthState
+@inject ParametrizacionAccesoService Servicio
+@inject ApiClientService Api
+
+<PageTitle>Propietarios | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Administración</p>
+        <h1>Propietarios</h1>
+        <p>
+            Crea, visualiza, edita y elimina propietarios según los permisos
+            del rol. El estado activo no se modifica desde el formulario.
+        </p>
+    </div>
+
+    <div class="page-header-actions">
+        <button class="btn-secondary"
+                disabled="@procesando"
+                @onclick="CargarAsync">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+
+        @if (PuedeAgregar)
+        {
+            <button class="btn-primary"
+                    @onclick="AbrirNuevo">
+                <i class="fa-solid fa-user-plus"></i>
+                Nuevo propietario
+            </button>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert alert-success-custom">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensaje</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+@if (!PuedeLeer)
+{
+    <section class="empty-state panel compact-empty">
+        <i class="fa-solid fa-lock"></i>
+        <h2>Sin permiso de lectura</h2>
+        <p>Su rol no puede visualizar propietarios.</p>
+    </section>
+}
+else
+{
+    <section class="panel toolbar-panel">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <InputText class="form-control"
+                       @bind-Value="buscar"
+                       @bind-Value:event="oninput"
+                       placeholder="Buscar por nombre, identificación o correo" />
+        </div>
+
+        <button class="btn-secondary"
+                @onclick="CargarAsync"
+                disabled="@procesando">
+            Buscar
+        </button>
+
+        <div class="toolbar-summary">
+            <strong>@PropietariosFiltrados.Count</strong>
+            <span>propietarios activos</span>
+        </div>
+    </section>
+
+    @if (cargando)
+    {
+        <LoadingState Mensaje="Cargando propietarios..." />
+    }
+    else if (PropietariosFiltrados.Count == 0)
+    {
+        <section class="empty-state panel compact-empty">
+            <i class="fa-solid fa-people-roof"></i>
+            <h2>No se encontraron propietarios</h2>
+            <p>No hay registros activos que coincidan con la búsqueda.</p>
+        </section>
+    }
+    else
+    {
+        <section class="user-grid">
+            @foreach (PropietarioAccesoItem propietario
+                      in PropietariosFiltrados)
+            {
+                <article class="user-card panel">
+                    <div class="user-card-top">
+                        <div class="avatar">
+                            @Iniciales(propietario.NombreCompleto)
+                        </div>
+
+                        <div class="user-main-data">
+                            <h2>@propietario.NombreCompleto</h2>
+                            <span>@propietario.Identificacion</span>
+                        </div>
+
+                        <span class="status-label success">
+                            Activo
+                        </span>
+                    </div>
+
+                    <div class="user-details">
+                        <span>
+                            <i class="fa-solid fa-phone"></i>
+                            @(string.IsNullOrWhiteSpace(propietario.Telefono)
+                                ? "Sin teléfono"
+                                : propietario.Telefono)
+                        </span>
+
+                        <span>
+                            <i class="fa-regular fa-envelope"></i>
+                            @(string.IsNullOrWhiteSpace(propietario.Correo)
+                                ? "Sin correo"
+                                : propietario.Correo)
+                        </span>
+
+                        <span>
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            @propietario.TotalTerrenos terreno(s)
+                        </span>
+                    </div>
+
+                    <div class="user-card-actions">
+                        <button class="btn-icon-view"
+                                title="Visualizar"
+                                @onclick="() => AbrirVisualizarAsync(propietario)">
+                            <i class="fa-regular fa-eye"></i>
+                        </button>
+
+                        @if (PuedeActualizar)
+                        {
+                            <button class="btn-icon-edit"
+                                    title="Editar"
+                                    @onclick="() => AbrirEditar(propietario)">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        }
+
+                        @if (PuedeEliminar)
+                        {
+                            <button class="btn-icon-delete"
+                                    title="Eliminar"
+                                    @onclick="() => AbrirEliminar(propietario)">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        }
+                    </div>
+                </article>
+            }
+        </section>
+    }
+}
+
+@if (modalFormulario)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarModales">
+        <article class="modal-card user-form-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">
+                        @(formulario.PropietarioId > 0
+                            ? "Actualizar registro"
+                            : "Nuevo registro")
+                    </p>
+                    <h2>
+                        @(formulario.PropietarioId > 0
+                            ? "Editar propietario"
+                            : "Crear propietario")
+                    </h2>
+                </div>
+
+                <button class="modal-close"
+                        @onclick="CerrarModales">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <EditForm Model="formulario"
+                      OnValidSubmit="GuardarAsync"
+                      FormName="propietario-form">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="user-form-grid">
+                    <div class="form-group">
+                        <label>Identificación *</label>
+                        <InputText class="form-control"
+                                   @bind-Value="formulario.Identificacion" />
+                        <ValidationMessage For="() => formulario.Identificacion" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nombre completo *</label>
+                        <InputText class="form-control"
+                                   @bind-Value="formulario.NombreCompleto" />
+                        <ValidationMessage For="() => formulario.NombreCompleto" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <InputText class="form-control"
+                                   @bind-Value="formulario.Telefono" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Correo</label>
+                        <InputText class="form-control"
+                                   @bind-Value="formulario.Correo" />
+                        <ValidationMessage For="() => formulario.Correo" />
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Dirección</label>
+                        <InputTextArea class="form-control"
+                                       @bind-Value="formulario.Direccion" />
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    El estado activo se administra únicamente mediante la
+                    acción Eliminar y su permiso correspondiente.
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn-secondary"
+                            @onclick="CerrarModales">
+                        Cancelar
+                    </button>
+
+                    <button type="submit"
+                            class="btn-primary"
+                            disabled="@procesando">
+                        @(procesando ? "Guardando..." : "Guardar")
+                    </button>
+                </div>
+            </EditForm>
+        </article>
+    </div>
+}
+
+@if (modalVisualizar && detalle is not null)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarModales">
+        <article class="modal-card user-view-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Detalle del propietario</p>
+                    <h2>@detalle.Propietario.NombreCompleto</h2>
+                </div>
+
+                <button class="modal-close"
+                        @onclick="CerrarModales">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="detail-grid">
+                <DetailItem Etiqueta="Identificación"
+                            Valor="@detalle.Propietario.Identificacion" />
+                <DetailItem Etiqueta="Teléfono"
+                            Valor="@(detalle.Propietario.Telefono ?? "Sin teléfono")" />
+                <DetailItem Etiqueta="Correo"
+                            Valor="@(detalle.Propietario.Correo ?? "Sin correo")" />
+                <DetailItem Etiqueta="Dirección"
+                            Valor="@(detalle.Propietario.Direccion ?? "Sin dirección")" />
+                <DetailItem Etiqueta="Terrenos vinculados"
+                            Valor="@detalle.Terrenos.Count.ToString()" />
+            </div>
+
+            @if (detalle.Terrenos.Count > 0)
+            {
+                <div class="access-table-wrap">
+                    <table class="access-table">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Dirección</th>
+                                <th>Extensión</th>
+                                <th>Producción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (TerrenoPropietarioItem terreno
+                                      in detalle.Terrenos)
+                            {
+                                <tr>
+                                    <td>@terreno.CodigoTerreno</td>
+                                    <td>@terreno.DireccionTerreno</td>
+                                    <td>@terreno.ExtensionManzanas.ToString("N2") Mz</td>
+                                    <td>@terreno.QuintalesOro.ToString("N2") qq</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <div class="modal-footer">
+                <button class="btn-secondary"
+                        @onclick="CerrarModales">
+                    Cerrar
+                </button>
+
+                @if (PuedeActualizar)
+                {
+                    <button class="btn-primary"
+                            @onclick="() => AbrirEditar(detalle.Propietario)">
+                        <i class="fa-solid fa-pen"></i>
+                        Editar
+                    </button>
+                }
+            </div>
+        </article>
+    </div>
+}
+
+@if (modalEliminar && seleccionado is not null)
+{
+    <div class="modal-backdrop">
+        <article class="modal-card confirm-modal">
+            <div class="confirm-icon">
+                <i class="fa-solid fa-user-slash"></i>
+            </div>
+
+            <h2>¿Eliminar propietario?</h2>
+
+            @if (seleccionado.TotalTerrenos > 0)
+            {
+                <p>
+                    <strong>@seleccionado.NombreCompleto</strong> tiene
+                    @seleccionado.TotalTerrenos terreno(s) vinculado(s).
+                    Debe reasignarlos antes de eliminarlo.
+                </p>
+            }
+            else
+            {
+                <p>
+                    Se desactivará a
+                    <strong>@seleccionado.NombreCompleto</strong>.
+                    Su historial se conservará.
+                </p>
+            }
+
+            <div class="confirm-actions">
+                <button class="btn-secondary"
+                        @onclick="CerrarModales">
+                    Cancelar
+                </button>
+
+                <button class="btn-danger"
+                        disabled="@(procesando || seleccionado.TotalTerrenos > 0)"
+                        @onclick="ConfirmarEliminarAsync">
+                    @(procesando ? "Eliminando..." : "Sí, eliminar")
+                </button>
+            </div>
+        </article>
+    </div>
+}
+
+@code {
+    private List<PropietarioAccesoItem> propietarios = [];
+    private PropietarioAccesoFormulario formulario = new();
+    private PropietarioAccesoItem? seleccionado;
+    private PropietarioDetalleRespuesta? detalle;
+
+    private bool cargando = true;
+    private bool procesando;
+    private bool modalFormulario;
+    private bool modalVisualizar;
+    private bool modalEliminar;
+
+    private string buscar = string.Empty;
+    private string? mensaje;
+    private string? error;
+
+    private bool PuedeLeer =>
+        AuthState.TienePermisoLectura(
+            PermisosWeb.Propietarios);
+
+    private bool PuedeAgregar =>
+        AuthState.TienePermisoAgregar(
+            PermisosWeb.Propietarios);
+
+    private bool PuedeActualizar =>
+        AuthState.TienePermisoActualizar(
+            PermisosWeb.Propietarios);
+
+    private bool PuedeEliminar =>
+        AuthState.TienePermisoEliminar(
+            PermisosWeb.Propietarios);
+
+    private List<PropietarioAccesoItem> PropietariosFiltrados =>
+        propietarios
+            .Where(x =>
+                string.IsNullOrWhiteSpace(buscar) ||
+                Contiene(x.NombreCompleto, buscar) ||
+                Contiene(x.Identificacion, buscar) ||
+                Contiene(x.Correo, buscar))
+            .OrderBy(x => x.NombreCompleto)
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (PuedeLeer)
+            await CargarAsync();
+        else
+            cargando = false;
+    }
+
+    private async Task CargarAsync()
+    {
+        if (!PuedeLeer || procesando)
+            return;
+
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            propietarios =
+                await Servicio.ListarPropietariosAsync(
+                    buscar,
+                    incluirInactivos: false) ?? [];
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AbrirNuevo()
+    {
+        if (!PuedeAgregar)
+            return;
+
+        CerrarModales();
+        formulario = new PropietarioAccesoFormulario
+        {
+            Activo = true
+        };
+        modalFormulario = true;
+    }
+
+    private void AbrirEditar(
+        PropietarioAccesoItem propietario)
+    {
+        if (!PuedeActualizar)
+            return;
+
+        CerrarModales();
+        seleccionado = propietario;
+        formulario = CrearFormulario(propietario);
+        modalFormulario = true;
+    }
+
+    private async Task AbrirVisualizarAsync(
+        PropietarioAccesoItem propietario)
+    {
+        CerrarModales();
+        seleccionado = propietario;
+
+        try
+        {
+            detalle =
+                await Servicio.ObtenerPropietarioAsync(
+                    propietario.PropietarioId);
+
+            modalVisualizar = detalle is not null;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private void AbrirEliminar(
+        PropietarioAccesoItem propietario)
+    {
+        if (!PuedeEliminar)
+            return;
+
+        CerrarModales();
+        seleccionado = propietario;
+        modalEliminar = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (procesando)
+            return;
+
+        bool esEdicion =
+            formulario.PropietarioId > 0;
+
+        if (esEdicion && !PuedeActualizar)
+            return;
+
+        if (!esEdicion && !PuedeAgregar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            /*
+             * No existe control visual para Activo. Se mantiene true y la
+             * desactivación solo se realiza mediante DELETE.
+             */
+            formulario.Activo = true;
+
+            ApiOperacionAccesoRespuesta? respuesta =
+                esEdicion
+                    ? await Servicio
+                        .ActualizarPropietarioAsync(
+                            formulario)
+                    : await Servicio
+                        .CrearPropietarioAsync(
+                            formulario);
+
+            mensaje =
+                respuesta?.Message ??
+                (esEdicion
+                    ? "Propietario actualizado correctamente."
+                    : "Propietario creado correctamente.");
+
+            CerrarModales();
+            await CargarSinBorrarMensajeAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task ConfirmarEliminarAsync()
+    {
+        if (procesando ||
+            seleccionado is null ||
+            seleccionado.TotalTerrenos > 0)
+        {
+            return;
+        }
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.EliminarAsync(
+                "api/parametrizacion-acceso/" +
+                $"propietarios/{seleccionado.PropietarioId}");
+
+            mensaje =
+                "Propietario eliminado correctamente.";
+
+            CerrarModales();
+            await CargarSinBorrarMensajeAsync();
+        }
+        catch (Exception ex)
+        {
+            /*
+             * ApiClientService conserva el mensaje del backend. Cuando el
+             * propietario adquirió una relación después de abrir el modal,
+             * se mostrará aquí la validación de terrenos vinculados.
+             */
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task CargarSinBorrarMensajeAsync()
+    {
+        try
+        {
+            propietarios =
+                await Servicio.ListarPropietariosAsync(
+                    buscar,
+                    incluirInactivos: false) ?? [];
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private static PropietarioAccesoFormulario CrearFormulario(
+        PropietarioAccesoItem propietario) =>
+        new()
+        {
+            PropietarioId =
+                propietario.PropietarioId,
+            Identificacion =
+                propietario.Identificacion,
+            NombreCompleto =
+                propietario.NombreCompleto,
+            Telefono =
+                propietario.Telefono,
+            Correo =
+                propietario.Correo,
+            Direccion =
+                propietario.Direccion,
+            Activo = true
+        };
+
+    private void CerrarModales()
+    {
+        modalFormulario = false;
+        modalVisualizar = false;
+        modalEliminar = false;
+        seleccionado = null;
+        detalle = null;
+    }
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+    }
+
+    private static bool Contiene(
+        string? texto,
+        string valor) =>
+        !string.IsNullOrWhiteSpace(texto) &&
+        texto.Contains(
+            valor.Trim(),
+            StringComparison.OrdinalIgnoreCase);
+
+    private static string Iniciales(
+        string nombre)
+    {
+        string[] partes =
+            nombre.Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries);
+
+        return string.Concat(
+            partes.Take(2)
+                .Select(x =>
+                    char.ToUpperInvariant(x[0])));
+    }
+}

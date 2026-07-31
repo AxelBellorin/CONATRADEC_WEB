@@ -62,6 +62,14 @@ else
                         <span>Mi información y terrenos</span>
                     </NavLink>
 
+                    @if (PuedeMostrarClimaLabores)
+                    {
+                        <NavLink href="/mi-portal/clima-labores">
+                            <i class="fa-solid fa-cloud-sun-rain"></i>
+                            <span>Clima y labores</span>
+                        </NavLink>
+                    }
+
                     @if (PuedeMostrarMiCentroGeoespacial)
                     {
                         <NavLink href="/mi-portal/centro-geoespacial">
@@ -84,6 +92,14 @@ else
                             <i class="fa-solid fa-house-chimney-user"></i>
                             <span>Mi información y terrenos</span>
                         </NavLink>
+
+                        @if (PuedeMostrarClimaLabores)
+                        {
+                            <NavLink href="/mi-portal/clima-labores">
+                                <i class="fa-solid fa-cloud-sun-rain"></i>
+                                <span>Clima y labores</span>
+                            </NavLink>
+                        }
 
                         @if (PuedeMostrarMiCentroGeoespacial)
                         {
@@ -138,6 +154,14 @@ else
                         <NavLink href="/configuracion-alertas">
                             <i class="fa-solid fa-sliders"></i>
                             <span>Umbrales</span>
+                        </NavLink>
+                    }
+
+                    @if (PuedeAdministrarReglasClima)
+                    {
+                        <NavLink href="/configuracion/reglas-clima">
+                            <i class="fa-solid fa-cloud-sun"></i>
+                            <span>Reglas de labores</span>
                         </NavLink>
                     }
 
@@ -322,6 +346,9 @@ else
 }
 
 @code {
+    private const string PermisoReglasClima =
+        "ReglasAgricolasClimaPage";
+
     private bool menuAbierto;
     private bool monitorInactividadActivo;
     private bool cerrandoPorFaltaPermiso;
@@ -342,6 +369,15 @@ else
         TienePortalPropietario &&
         tieneTerrenosPropios == true;
 
+    private bool PuedeMostrarClimaLabores =>
+        TienePortalPropietario &&
+        tieneTerrenosPropios == true;
+
+    private bool PuedeAdministrarReglasClima =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoReglasClima);
+
     private bool EsPortalPropietarioExclusivo =>
         TienePortalPropietario &&
         !TieneFuncionesAdministrativas;
@@ -358,6 +394,8 @@ else
             PermisosWeb.ConfiguracionAlertas) ||
         AuthState.TienePermisoLectura(
             PermisosWeb.AuditoriaAnalisis) ||
+        AuthState.TienePermisoLectura(
+            PermisoReglasClima) ||
         AuthState.TienePermisoLectura(
             PermisosWeb.ParametrizacionAcceso) ||
         AuthState.TienePermisoLectura(
@@ -390,7 +428,9 @@ else
         AuthState.TienePermisoLectura(
             PermisosWeb.ConfiguracionAlertas) ||
         AuthState.TienePermisoLectura(
-            PermisosWeb.AuditoriaAnalisis);
+            PermisosWeb.AuditoriaAnalisis) ||
+        AuthState.TienePermisoLectura(
+            PermisoReglasClima);
 
     private bool PuedeVerParametrizacionAcceso =>
         AuthState.TienePermisoLectura(
@@ -415,6 +455,16 @@ else
             "mi-portal/centro-geoespacial",
             StringComparison.OrdinalIgnoreCase);
 
+    private bool EsRutaClimaLabores =>
+        ObtenerRutaActual().Equals(
+            "mi-portal/clima-labores",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool EsRutaReglasClima =>
+        ObtenerRutaActual().Equals(
+            "configuracion/reglas-clima",
+            StringComparison.OrdinalIgnoreCase);
+
     private bool PuedeMostrarContenidoActual
     {
         get
@@ -431,8 +481,15 @@ else
                 return false;
             }
 
-            if (EsRutaCentroPropietario &&
+            if ((EsRutaCentroPropietario ||
+                 EsRutaClimaLabores) &&
                 tieneTerrenosPropios == false)
+            {
+                return false;
+            }
+
+            if (EsRutaReglasClima &&
+                !PuedeAdministrarReglasClima)
             {
                 return false;
             }
@@ -538,11 +595,23 @@ else
                 return;
             }
 
-            if (EsRutaCentroPropietario &&
+            if ((EsRutaCentroPropietario ||
+                 EsRutaClimaLabores) &&
                 tieneTerrenosPropios == false)
             {
                 Navigation.NavigateTo(
                     "/mi-portal",
+                    forceLoad: false,
+                    replace: true);
+
+                return;
+            }
+
+            if (EsRutaReglasClima &&
+                !PuedeAdministrarReglasClima)
+            {
+                Navigation.NavigateTo(
+                    "/",
                     forceLoad: false,
                     replace: true);
             }
