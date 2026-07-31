@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj": {}
+    "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC_WEB\\CONATRADEC.AdminWeb.csproj": {}
   },
   "projects": {
-    "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj": {
+    "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC_WEB\\CONATRADEC.AdminWeb.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj",
+        "projectUniqueName": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC_WEB\\CONATRADEC.AdminWeb.csproj",
         "projectName": "CONATRADEC.AdminWeb",
-        "projectPath": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\CONATRADEC.AdminWeb.csproj",
+        "projectPath": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC_WEB\\CONATRADEC.AdminWeb.csproj",
         "packagesPath": "C:\\Users\\AXEL BELLORIN\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC.AdminWeb\\obj\\",
+        "outputPath": "C:\\Users\\AXEL BELLORIN\\Desktop\\CONATRADEC\\CONATRADEC_WEB\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

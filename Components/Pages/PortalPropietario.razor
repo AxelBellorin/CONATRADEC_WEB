@@ -294,6 +294,54 @@
             }
         </section>
 
+        <section class="owner-section-card owner-climate-cta">
+            <div class="owner-climate-visual">
+                <i class="fa-solid fa-cloud-sun-rain"></i>
+            </div>
+
+            <div class="owner-climate-copy">
+                <p class="owner-eyebrow">
+                    Planificación meteorológica
+                </p>
+
+                <h2>Clima y labores</h2>
+
+                <p>
+                    Consulte el pronóstico de siete días, compare cada periodo
+                    con reglas agrícolas y encuentre ventanas favorables para
+                    fertilizar, aplicar productos, podar, cosechar o secar café.
+                </p>
+
+                <div class="owner-climate-features">
+                    <span>
+                        <i class="fa-solid fa-clock"></i>
+                        Ventanas recomendadas
+                    </span>
+                    <span>
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        Alertas anticipadas
+                    </span>
+                    <span>
+                        <i class="fa-solid fa-play"></i>
+                        Mapa animado
+                    </span>
+                    <span>
+                        <i class="fa-solid fa-scale-balanced"></i>
+                        Reglas transparentes
+                    </span>
+                </div>
+            </div>
+
+            <div class="owner-climate-action">
+                <button class="owner-refresh-button"
+                        disabled="@(datos.Terrenos.Count == 0)"
+                        @onclick="AbrirClimaLabores">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    Abrir Clima y labores
+                </button>
+            </div>
+        </section>
+
         <section class="owner-section-card owner-geospatial-cta">
             <div class="owner-geospatial-visual">
                 <div class="owner-geospatial-orbit orbit-one"></div>
@@ -436,6 +484,12 @@
         {
             cargando = false;
         }
+    }
+
+    private void AbrirClimaLabores()
+    {
+        Navigation.NavigateTo(
+            "/mi-portal/clima-labores");
     }
 
     private void AbrirCentroGeoespacial()

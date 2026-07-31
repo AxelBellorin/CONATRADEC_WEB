@@ -1,0 +1,518 @@
+@page "/configuracion/reglas-clima"
+@using CONATRADEC.AdminWeb.Models
+@using CONATRADEC.AdminWeb.Services
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+
+<PageTitle>Reglas agrícolas del clima | CONATRADEC</PageTitle>
+
+<section class="cl-admin-page">
+    <header class="cl-admin-hero">
+        <div>
+            <p class="cl-eyebrow">
+                Configuración administrativa
+            </p>
+
+            <h1>Reglas agrícolas del clima</h1>
+
+            <p>
+                Defina los umbrales utilizados para clasificar cada periodo
+                como favorable, con precaución o no favorable.
+            </p>
+        </div>
+
+        <div>
+            <button class="btn-secondary"
+                    type="button"
+                    @onclick="Volver">
+                <i class="fa-solid fa-arrow-left"></i>
+                Regresar
+            </button>
+
+            <button class="btn-primary"
+                    type="button"
+                    @onclick="AgregarRegla">
+                <i class="fa-solid fa-plus"></i>
+                Nueva regla
+            </button>
+        </div>
+    </header>
+
+    <div class="cl-source-note">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>
+            Los cambios se aplican al módulo web Clima y labores sin
+            recompilar la API ni la página.
+        </span>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(mensaje))
+    {
+        <div class="alert @(
+            mensajeError
+                ? "alert-error"
+                : "alert-success") cl-alert-global">
+            <i class="fa-solid @(
+                mensajeError
+                    ? "fa-circle-exclamation"
+                    : "fa-circle-check")"></i>
+            <span>@mensaje</span>
+        </div>
+    }
+
+    @if (cargando)
+    {
+        <div class="cl-loading">
+            <i class="fa-solid fa-sliders fa-beat-fade"></i>
+            <strong>Cargando reglas</strong>
+            <span>Consultando la configuración actual.</span>
+        </div>
+    }
+    else
+    {
+        <div class="cl-admin-grid">
+            @foreach (ReglaAgricolaClima regla
+                      in reglas.OrderBy(item => item.Orden))
+            {
+                <article class="cl-rule-editor @(
+                    regla.Activo
+                        ? string.Empty
+                        : "inactive")">
+                    <header>
+                        <span class="cl-rule-editor-icon">
+                            <i class="@regla.Icono"></i>
+                        </span>
+
+                        <div>
+                            <small>
+                                @(regla.ReglaAgricolaClimaId == 0
+                                    ? "Nueva regla"
+                                    : regla.Clave)
+                            </small>
+                            <h2>@regla.Nombre</h2>
+                        </div>
+
+                        <label class="cl-active-toggle">
+                            <input type="checkbox"
+                                   @bind="regla.Activo" />
+                            <span></span>
+                            Activa
+                        </label>
+                    </header>
+
+                    <div class="cl-rule-basic-grid">
+                        <label>
+                            <span>Clave</span>
+                            <input type="text"
+                                   maxlength="60"
+                                   @bind="regla.Clave" />
+                        </label>
+
+                        <label>
+                            <span>Nombre</span>
+                            <input type="text"
+                                   maxlength="120"
+                                   @bind="regla.Nombre" />
+                        </label>
+
+                        <label>
+                            <span>Ícono Font Awesome</span>
+                            <input type="text"
+                                   maxlength="80"
+                                   @bind="regla.Icono" />
+                        </label>
+
+                        <label>
+                            <span>Orden</span>
+                            <input type="number"
+                                   min="0"
+                                   max="9999"
+                                   @bind="regla.Orden" />
+                        </label>
+
+                        <label class="cl-rule-description">
+                            <span>Descripción</span>
+                            <textarea maxlength="500"
+                                      @bind="regla.Descripcion">
+                            </textarea>
+                        </label>
+                    </div>
+
+                    <div class="cl-threshold-grid">
+                        <label>
+                            <span>Lluvia máxima</span>
+                            <div>
+                                <input type="number"
+                                       min="0"
+                                       max="100"
+                                       step="1"
+                                       @bind="regla.ProbabilidadLluviaMaxima" />
+                                <small>%</small>
+                            </div>
+                        </label>
+
+                        <label>
+                            <span>Precipitación máxima</span>
+                            <div>
+                                <input type="number"
+                                       min="0"
+                                       step="0.1"
+                                       @bind="regla.PrecipitacionMaximaMm" />
+                                <small>mm</small>
+                            </div>
+                        </label>
+
+                        <label>
+                            <span>Viento máximo</span>
+                            <div>
+                                <input type="number"
+                                       min="0"
+                                       step="0.1"
+                                       @bind="regla.VientoMaximoKmh" />
+                                <small>km/h</small>
+                            </div>
+                        </label>
+
+                        <label>
+                            <span>Ráfaga máxima</span>
+                            <div>
+                                <input type="number"
+                                       min="0"
+                                       step="0.1"
+                                       @bind="regla.RafagaMaximaKmh" />
+                                <small>km/h</small>
+                            </div>
+                        </label>
+
+                        <label>
+                            <span>Temperatura mínima</span>
+                            <div>
+                                <input type="number"
+                                       step="0.1"
+                                       @bind="regla.TemperaturaMinimaC" />
+                                <small>°C</small>
+                            </div>
+                        </label>
+
+                        <label>
+                            <span>Temperatura máxima</span>
+                            <div>
+                                <input type="number"
+                                       step="0.1"
+                                       @bind="regla.TemperaturaMaximaC" />
+                                <small>°C</small>
+                            </div>
+                        </label>
+
+                        <label>
+                            <span>Humedad mínima</span>
+                            <div>
+                                <input type="number"
+                                       min="0"
+                                       max="100"
+                                       step="0.1"
+                                       @bind="regla.HumedadMinimaPct" />
+                                <small>%</small>
+                            </div>
+                        </label>
+
+                        <label>
+                            <span>Humedad máxima</span>
+                            <div>
+                                <input type="number"
+                                       min="0"
+                                       max="100"
+                                       step="0.1"
+                                       @bind="regla.HumedadMaximaPct" />
+                                <small>%</small>
+                            </div>
+                        </label>
+
+                        <label>
+                            <span>Índice UV máximo</span>
+                            <div>
+                                <input type="number"
+                                       min="0"
+                                       max="20"
+                                       step="0.1"
+                                       @bind="regla.IndiceUvMaximo" />
+                                <small>UV</small>
+                            </div>
+                        </label>
+
+                        <label>
+                            <span>Duración mínima</span>
+                            <div>
+                                <input type="number"
+                                       min="1"
+                                       max="24"
+                                       step="1"
+                                       @bind="regla.DuracionMinimaHoras" />
+                                <small>h</small>
+                            </div>
+                        </label>
+                    </div>
+
+                    <label class="cl-storm-toggle">
+                        <input type="checkbox"
+                               @bind="regla.BloquearTormentaMedia" />
+                        <span>
+                            Bloquear periodos con riesgo de tormenta
+                            medio o alto
+                        </span>
+                    </label>
+
+                    <div class="cl-rule-message-grid">
+                        <label>
+                            <span>Mensaje favorable</span>
+                            <textarea maxlength="300"
+                                      @bind="regla.MensajeFavorable">
+                            </textarea>
+                        </label>
+
+                        <label>
+                            <span>Mensaje no favorable</span>
+                            <textarea maxlength="300"
+                                      @bind="regla.MensajeNoFavorable">
+                            </textarea>
+                        </label>
+                    </div>
+
+                    <footer>
+                        @if (regla.ReglaAgricolaClimaId > 0)
+                        {
+                            <button class="btn-secondary danger"
+                                    type="button"
+                                    disabled="@guardando"
+                                    @onclick="() => DesactivarAsync(regla)">
+                                <i class="fa-solid fa-ban"></i>
+                                Desactivar
+                            </button>
+                        }
+
+                        <button class="btn-primary"
+                                type="button"
+                                disabled="@guardando"
+                                @onclick="() => GuardarAsync(regla)">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            @(regla.ReglaAgricolaClimaId == 0
+                                ? "Crear regla"
+                                : "Guardar cambios")
+                        </button>
+                    </footer>
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private List<ReglaAgricolaClima> reglas = [];
+
+    private bool cargando;
+
+    private bool guardando;
+
+    private string mensaje = string.Empty;
+
+    private bool mensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo(
+                "/login",
+                replace: true);
+            return;
+        }
+
+        bool autorizado =
+            AuthState.EsAdministrador ||
+            AuthState.TienePermisoLectura(
+                "ReglasAgricolasClimaPage");
+
+        if (!autorizado)
+        {
+            Navigation.NavigateTo(
+                "/",
+                replace: true);
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        mensaje = string.Empty;
+
+        try
+        {
+            reglas =
+                await Api.GetAsync<List<ReglaAgricolaClima>>(
+                    "api/reglas-agricolas-clima" +
+                    "?incluirInactivas=true") ??
+                [];
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(
+                ex.Message,
+                error: true);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AgregarRegla()
+    {
+        reglas.Insert(
+            0,
+            new ReglaAgricolaClima
+            {
+                Orden =
+                    reglas.Count == 0
+                        ? 10
+                        : reglas.Max(item => item.Orden) + 10,
+                Activo = true,
+                BloquearTormentaMedia = true,
+                DuracionMinimaHoras = 3,
+                Icono = "fa-solid fa-seedling",
+                MensajeFavorable =
+                    "Condiciones adecuadas para realizar la labor.",
+                MensajeNoFavorable =
+                    "Conviene reprogramar la labor."
+            });
+    }
+
+    private async Task GuardarAsync(
+        ReglaAgricolaClima regla)
+    {
+        if (guardando)
+            return;
+
+        if (string.IsNullOrWhiteSpace(regla.Clave) ||
+            string.IsNullOrWhiteSpace(regla.Nombre) ||
+            string.IsNullOrWhiteSpace(regla.Descripcion))
+        {
+            MostrarMensaje(
+                "Complete la clave, el nombre y la descripción.",
+                error: true);
+            return;
+        }
+
+        guardando = true;
+        mensaje = string.Empty;
+
+        try
+        {
+            ReglaAgricolaClima? guardada;
+
+            if (regla.ReglaAgricolaClimaId == 0)
+            {
+                guardada =
+                    await Api.PostAsync<
+                        ReglaAgricolaClimaGuardar,
+                        ReglaAgricolaClima>(
+                        "api/reglas-agricolas-clima",
+                        regla.CrearRequest());
+            }
+            else
+            {
+                guardada =
+                    await Api.PutAsync<
+                        ReglaAgricolaClimaGuardar,
+                        ReglaAgricolaClima>(
+                        "api/reglas-agricolas-clima/" +
+                        regla.ReglaAgricolaClimaId,
+                        regla.CrearRequest());
+            }
+
+            if (guardada is null)
+            {
+                MostrarMensaje(
+                    "El servidor no devolvió la regla guardada.",
+                    error: true);
+                return;
+            }
+
+            int indice = reglas.IndexOf(regla);
+
+            if (indice >= 0)
+                reglas[indice] = guardada;
+
+            MostrarMensaje(
+                "Regla guardada correctamente.",
+                error: false);
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(
+                ex.Message,
+                error: true);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task DesactivarAsync(
+        ReglaAgricolaClima regla)
+    {
+        if (guardando ||
+            regla.ReglaAgricolaClimaId <= 0)
+        {
+            return;
+        }
+
+        guardando = true;
+        mensaje = string.Empty;
+
+        try
+        {
+            await Api.EliminarAsync(
+                "api/reglas-agricolas-clima/" +
+                regla.ReglaAgricolaClimaId);
+
+            regla.Activo = false;
+
+            MostrarMensaje(
+                "Regla desactivada correctamente.",
+                error: false);
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(
+                ex.Message,
+                error: true);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void MostrarMensaje(
+        string texto,
+        bool error)
+    {
+        mensaje =
+            string.IsNullOrWhiteSpace(texto)
+                ? "No fue posible completar la operación."
+                : texto;
+
+        mensajeError = error;
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo(
+            "/mi-portal/clima-labores");
+    }
+}

@@ -1,0 +1,951 @@
+@page "/mi-portal/clima-labores"
+@implements IAsyncDisposable
+@using CONATRADEC.AdminWeb.Models
+@using CONATRADEC.AdminWeb.Services
+@using Microsoft.JSInterop
+@inject AuthStateService AuthState
+@inject PortalPropietarioService PortalService
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Clima y labores | CONATRADEC</PageTitle>
+
+<section class="cl-page">
+    <header class="cl-hero">
+        <div>
+            <p class="cl-eyebrow">
+                Planificación meteorológica privada
+            </p>
+
+            <h1>Clima y labores</h1>
+
+            <p>
+                Compare el pronóstico de sus terrenos con reglas agrícolas
+                configurables y encuentre los periodos más convenientes para
+                realizar cada actividad.
+            </p>
+
+            <div class="cl-source-note">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>
+                    Open-Meteo aporta el pronóstico. CONATRADEC aplica reglas
+                    determinísticas; no se utiliza inteligencia artificial.
+                </span>
+            </div>
+        </div>
+
+        <div class="cl-hero-actions">
+            @if (PuedeAdministrarReglas)
+            {
+                <button class="btn-secondary"
+                        type="button"
+                        @onclick="AbrirReglas">
+                    <i class="fa-solid fa-sliders"></i>
+                    Administrar reglas
+                </button>
+            }
+
+            <button class="btn-secondary"
+                    type="button"
+                    @onclick="VolverAlPortal">
+                <i class="fa-solid fa-arrow-left"></i>
+                Mi portal
+            </button>
+
+            <button class="btn-primary"
+                    type="button"
+                    disabled="@cargando"
+                    @onclick="ForzarActualizacionAsync">
+                <i class="fa-solid fa-rotate @(cargando ? "fa-spin" : string.Empty)"></i>
+                Actualizar clima
+            </button>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-error cl-alert-global">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>@error</span>
+        </div>
+    }
+
+    @if (cargando && portal is null)
+    {
+        <div class="cl-loading">
+            <i class="fa-solid fa-cloud-sun-rain fa-beat-fade"></i>
+            <strong>Preparando el planificador</strong>
+            <span>Consultando sus terrenos, reglas y pronósticos.</span>
+        </div>
+    }
+    else if (portal is not null && !portal.Vinculado)
+    {
+        <div class="cl-loading warning">
+            <i class="fa-solid fa-link-slash"></i>
+            <strong>Cuenta sin propietario vinculado</strong>
+            <span>@portal.Mensaje</span>
+        </div>
+    }
+    else if (portal is not null)
+    {
+        <section class="cl-filters">
+            <label>
+                <span>Terreno</span>
+                <select value="@TerrenoSeleccionadoValor"
+                        @onchange="CambiarTerrenoAsync">
+                    @foreach (PortalPropietarioTerreno terreno
+                              in portal.Terrenos)
+                    {
+                        <option value="@terreno.TerrenoId">
+                            @terreno.CodigoTerreno · @terreno.Ubicacion
+                        </option>
+                    }
+                </select>
+            </label>
+
+            <label>
+                <span>Labor agrícola</span>
+                <select value="@ReglaSeleccionadaValor"
+                        @onchange="CambiarRegla">
+                    @foreach (ReglaAgricolaClima regla
+                              in reglas.Where(item => item.Activo))
+                    {
+                        <option value="@regla.ReglaAgricolaClimaId">
+                            @regla.Nombre
+                        </option>
+                    }
+                </select>
+            </label>
+
+            <div class="cl-filter-context">
+                <i class="@(ReglaSeleccionada?.Icono ?? "fa-solid fa-seedling")"></i>
+                <div>
+                    <strong>
+                        @(ReglaSeleccionada?.Nombre ?? "Seleccione una labor")
+                    </strong>
+                    <span>
+                        @(ReglaSeleccionada?.Descripcion ??
+                          "No hay una regla agrícola activa.")
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        @if (TerrenoSeleccionado is null)
+        {
+            <div class="cl-loading warning">
+                <i class="fa-solid fa-map-location-dot"></i>
+                <strong>No hay terrenos disponibles</strong>
+                <span>La cuenta no posee terrenos activos para planificar.</span>
+            </div>
+        }
+        else if (PronosticoSeleccionado is null ||
+                 !PronosticoSeleccionado.Disponible)
+        {
+            <div class="cl-loading warning">
+                <i class="fa-solid fa-cloud-circle-exclamation"></i>
+                <strong>Pronóstico no disponible</strong>
+                <span>
+                    @(PronosticoSeleccionado?.Mensaje ??
+                      "No fue posible consultar este terreno.")
+                </span>
+            </div>
+        }
+        else
+        {
+            <section class="cl-summary-grid">
+                <article>
+                    <span class="cl-summary-icon favorable">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </span>
+                    <div>
+                        <small>Ventanas favorables</small>
+                        <strong>@VentanasFavorables.Count</strong>
+                        <span>Durante los próximos 7 días</span>
+                    </div>
+                </article>
+
+                <article>
+                    <span class="cl-summary-icon rain">
+                        <i class="fa-solid fa-cloud-rain"></i>
+                    </span>
+                    <div>
+                        <small>Lluvia máxima</small>
+                        <strong>
+                            @Formato(
+                                PronosticoSeleccionado
+                                    .Resumen
+                                    .PrecipitacionTotal,
+                                " mm")
+                        </strong>
+                        <span>Acumulado del periodo</span>
+                    </div>
+                </article>
+
+                <article>
+                    <span class="cl-summary-icon wind">
+                        <i class="fa-solid fa-wind"></i>
+                    </span>
+                    <div>
+                        <small>Ráfaga máxima</small>
+                        <strong>
+                            @Formato(
+                                PronosticoSeleccionado
+                                    .Resumen
+                                    .RafagaMaxima,
+                                " km/h")
+                        </strong>
+                        <span>Mayor valor previsto</span>
+                    </div>
+                </article>
+
+                <article>
+                    <span class="cl-summary-icon temperature">
+                        <i class="fa-solid fa-temperature-half"></i>
+                    </span>
+                    <div>
+                        <small>Temperatura</small>
+                        <strong>
+                            @Formato(
+                                PronosticoSeleccionado
+                                    .Resumen
+                                    .TemperaturaMinimaPeriodo,
+                                "°") –
+                            @Formato(
+                                PronosticoSeleccionado
+                                    .Resumen
+                                    .TemperaturaMaximaPeriodo,
+                                "°")
+                        </strong>
+                        <span>Rango previsto</span>
+                    </div>
+                </article>
+
+                <article>
+                    <span class="cl-summary-icon next">
+                        <i class="fa-solid fa-clock"></i>
+                    </span>
+                    <div>
+                        <small>Próxima ventana</small>
+                        <strong>@ProximaVentanaTexto</strong>
+                        <span>@ProximaVentanaHorario</span>
+                    </div>
+                </article>
+            </section>
+
+            @if (alertas.Count > 0)
+            {
+                <section class="cl-section">
+                    <div class="cl-section-heading">
+                        <div>
+                            <p class="cl-eyebrow">Atención anticipada</p>
+                            <h2>Alertas para este terreno</h2>
+                        </div>
+
+                        <span class="cl-count-pill">
+                            @alertas.Count
+                        </span>
+                    </div>
+
+                    <div class="cl-alert-grid">
+                        @foreach (AlertaClimaLabor alerta in alertas)
+                        {
+                            <article class="@alerta.ClaseCss">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                <div>
+                                    <strong>@alerta.Titulo</strong>
+                                    <p>@alerta.Mensaje</p>
+                                    @if (alerta.Fecha.HasValue)
+                                    {
+                                        <small>
+                                            @alerta.Fecha.Value.ToString("dd/MM/yyyy")
+                                        </small>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
+                </section>
+            }
+
+            <section class="cl-section">
+                <div class="cl-section-heading">
+                    <div>
+                        <p class="cl-eyebrow">Planificación</p>
+                        <h2>Ventanas recomendadas</h2>
+                        <span>
+                            Cada periodo se evalúa contra los umbrales de
+                            “@ReglaSeleccionada?.Nombre”.
+                        </span>
+                    </div>
+
+                    <div class="cl-rule-badge">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                        Reglas CONATRADEC
+                    </div>
+                </div>
+
+                <div class="cl-window-grid">
+                    @foreach (VentanaLaborAgricola ventana
+                              in ventanas)
+                    {
+                        <article class="cl-window-card @ventana.ClaseCss">
+                            <header>
+                                <div>
+                                    <span>
+                                        @NombreDia(ventana.Fecha)
+                                        @ventana.Fecha.ToString("dd/MM")
+                                    </span>
+                                    <h3>@ventana.PeriodoNombre</h3>
+                                    <small>@ventana.RangoHorario</small>
+                                </div>
+
+                                <div class="cl-score">
+                                    <strong>@ventana.Puntuacion%</strong>
+                                    <span>@ventana.EstadoTexto</span>
+                                </div>
+                            </header>
+
+                            <p class="cl-window-condition">
+                                <i class="fa-solid fa-cloud-sun"></i>
+                                @ventana.CondicionClimatica
+                            </p>
+
+                            <div class="cl-window-values">
+                                <span>
+                                    <small>Temperatura</small>
+                                    <strong>@Formato(ventana.Temperatura, " °C")</strong>
+                                </span>
+                                <span>
+                                    <small>Lluvia</small>
+                                    <strong>
+                                        @(ventana.ProbabilidadLluvia?.ToString() ?? "—")%
+                                    </strong>
+                                </span>
+                                <span>
+                                    <small>Precipitación</small>
+                                    <strong>@Formato(ventana.Precipitacion, " mm")</strong>
+                                </span>
+                                <span>
+                                    <small>Viento</small>
+                                    <strong>@Formato(ventana.Viento, " km/h")</strong>
+                                </span>
+                            </div>
+
+                            <p class="cl-window-message">
+                                @ventana.Mensaje
+                            </p>
+
+                            <details>
+                                <summary>
+                                    Ver evidencia aplicada
+                                </summary>
+
+                                <div class="cl-evidence-list">
+                                    @foreach (
+                                        EvaluacionCondicionLabor condicion
+                                        in ventana.Condiciones)
+                                    {
+                                        <div class="@(
+                                            condicion.Cumple
+                                                ? "ok"
+                                                : "fail")">
+                                            <i class="fa-solid @(
+                                                condicion.Cumple
+                                                    ? "fa-circle-check"
+                                                    : "fa-circle-xmark")"></i>
+                                            <span>
+                                                <strong>@condicion.Indicador</strong>
+                                                <small>
+                                                    Observado: @condicion.Valor ·
+                                                    Regla: @condicion.Limite
+                                                </small>
+                                            </span>
+                                        </div>
+                                    }
+                                </div>
+                            </details>
+                        </article>
+                    }
+                </div>
+            </section>
+
+            <section class="cl-section cl-timeline-section">
+                <div class="cl-section-heading">
+                    <div>
+                        <p class="cl-eyebrow">Evolución espacial</p>
+                        <h2>Línea de tiempo animada</h2>
+                        <span>
+                            Reproduzca el pronóstico para observar cómo cambian
+                            las condiciones entre sus terrenos.
+                        </span>
+                    </div>
+
+                    <label class="cl-variable-select">
+                        <span>Variable</span>
+                        <select value="@variableTimeline"
+                                @onchange="CambiarVariableTimelineAsync">
+                            <option value="temperatura">Temperatura</option>
+                            <option value="lluvia">Probabilidad de lluvia</option>
+                            <option value="precipitacion">Precipitación</option>
+                            <option value="viento">Viento</option>
+                            <option value="humedad">Humedad</option>
+                        </select>
+                    </label>
+                </div>
+
+                @if (pasosTimeline.Count == 0)
+                {
+                    <div class="cl-loading warning compact">
+                        <i class="fa-solid fa-map"></i>
+                        <strong>Sin datos para animar</strong>
+                        <span>
+                            Los terrenos necesitan coordenadas y pronóstico.
+                        </span>
+                    </div>
+                }
+                else
+                {
+                    <div class="cl-timeline-card">
+                        <div class="cl-timeline-toolbar">
+                            <button class="cl-play-button"
+                                    type="button"
+                                    @onclick="AlternarReproduccionAsync">
+                                <i class="fa-solid @(
+                                    reproduciendo
+                                        ? "fa-pause"
+                                        : "fa-play")"></i>
+                                @(reproduciendo ? "Pausar" : "Reproducir")
+                            </button>
+
+                            <div class="cl-timeline-current">
+                                <strong>@PasoActual.Etiqueta</strong>
+                                <span>@PasoActual.RangoHorario</span>
+                            </div>
+
+                            <span class="cl-timeline-counter">
+                                @(pasoTimeline + 1) / @pasosTimeline.Count
+                            </span>
+                        </div>
+
+                        <input class="cl-timeline-range"
+                               type="range"
+                               min="0"
+                               max="@(pasosTimeline.Count - 1)"
+                               step="1"
+                               value="@pasoTimeline"
+                               @oninput="CambiarPasoTimelineAsync" />
+
+                        <div id="clima-labores-mapa"
+                             class="cl-timeline-map">
+                        </div>
+
+                        <footer>
+                            <span>
+                                <i class="fa-solid fa-database"></i>
+                                Datos meteorológicos: Open-Meteo
+                            </span>
+                            <span>
+                                <i class="fa-solid fa-shield-halved"></i>
+                                Solo terrenos del propietario autenticado
+                            </span>
+                        </footer>
+                    </div>
+                }
+            </section>
+        }
+    }
+</section>
+
+@code {
+    private PortalPropietarioResumen? portal;
+
+    private readonly Dictionary<int, PronosticoClimaTerreno>
+        pronosticos = [];
+
+    private List<ReglaAgricolaClima> reglas = [];
+
+    private List<VentanaLaborAgricola> ventanas = [];
+
+    private List<AlertaClimaLabor> alertas = [];
+
+    private List<PasoTimelineClima> pasosTimeline = [];
+
+    private int? terrenoSeleccionadoId;
+
+    private int? reglaSeleccionadaId;
+
+    private int pasoTimeline;
+
+    private string variableTimeline = "temperatura";
+
+    private bool cargando;
+
+    private bool reproduciendo;
+
+    private bool timelinePendiente;
+
+    private string error = string.Empty;
+
+    private DotNetObjectReference<ClimaLabores>? dotNetReference;
+
+    private string TerrenoSeleccionadoValor =>
+        terrenoSeleccionadoId?.ToString() ?? string.Empty;
+
+    private string ReglaSeleccionadaValor =>
+        reglaSeleccionadaId?.ToString() ?? string.Empty;
+
+    private PortalPropietarioTerreno? TerrenoSeleccionado =>
+        portal?.Terrenos.FirstOrDefault(item =>
+            item.TerrenoId == terrenoSeleccionadoId);
+
+    private ReglaAgricolaClima? ReglaSeleccionada =>
+        reglas.FirstOrDefault(item =>
+            item.ReglaAgricolaClimaId ==
+            reglaSeleccionadaId);
+
+    private PronosticoClimaTerreno? PronosticoSeleccionado =>
+        terrenoSeleccionadoId.HasValue &&
+        pronosticos.TryGetValue(
+            terrenoSeleccionadoId.Value,
+            out PronosticoClimaTerreno? pronostico)
+                ? pronostico
+                : null;
+
+    private List<VentanaLaborAgricola> VentanasFavorables =>
+        ventanas
+            .Where(item => item.Recomendada)
+            .ToList();
+
+    private VentanaLaborAgricola? ProximaVentana =>
+        VentanasFavorables
+            .OrderBy(item => item.Fecha)
+            .ThenBy(item =>
+                OrdenPeriodo(item.PeriodoClave))
+            .FirstOrDefault();
+
+    private string ProximaVentanaTexto =>
+        ProximaVentana is null
+            ? "No encontrada"
+            : $"{NombreDia(ProximaVentana.Fecha)} " +
+              $"{ProximaVentana.Fecha:dd/MM}";
+
+    private string ProximaVentanaHorario =>
+        ProximaVentana?.RangoHorario ??
+        "Revise periodos con precaución";
+
+    private PasoTimelineClima PasoActual =>
+        pasosTimeline.Count == 0
+            ? new PasoTimelineClima
+            {
+                Etiqueta = "Sin datos",
+                RangoHorario = string.Empty
+            }
+            : pasosTimeline[
+                Math.Clamp(
+                    pasoTimeline,
+                    0,
+                    pasosTimeline.Count - 1)];
+
+    private bool PuedeAdministrarReglas =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            "ReglasAgricolasClimaPage");
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo(
+                "/login",
+                replace: true);
+            return;
+        }
+
+        if (!AuthState.TienePermisoLectura(
+                PermisosWeb.Portal) ||
+            !AuthState.TienePermisoLectura(
+                PermisosWeb.PortalPropietario))
+        {
+            Navigation.NavigateTo(
+                "/",
+                replace: true);
+            return;
+        }
+
+        await CargarAsync(
+            forzarActualizacion: false);
+    }
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!timelinePendiente ||
+            pasosTimeline.Count == 0)
+        {
+            return;
+        }
+
+        timelinePendiente = false;
+
+        dotNetReference ??=
+            DotNetObjectReference.Create(this);
+
+        await JS.InvokeVoidAsync(
+            "conatradecClimaTimeline.inicializar",
+            "clima-labores-mapa",
+            pasosTimeline,
+            variableTimeline,
+            dotNetReference,
+            pasoTimeline);
+    }
+
+    private async Task CargarAsync(
+        bool forzarActualizacion)
+    {
+        if (cargando)
+            return;
+
+        cargando = true;
+        error = string.Empty;
+        reproduciendo = false;
+
+        try
+        {
+            portal =
+                await PortalService
+                    .ObtenerMiResumenAsync();
+
+            reglas =
+                await Api.GetAsync<List<ReglaAgricolaClima>>(
+                    "api/reglas-agricolas-clima") ??
+                [];
+
+            if (portal is null)
+            {
+                error =
+                    "El servidor no devolvió la información del propietario.";
+                return;
+            }
+
+            if (!portal.Vinculado)
+                return;
+
+            terrenoSeleccionadoId ??=
+                portal.Terrenos
+                    .FirstOrDefault()?
+                    .TerrenoId;
+
+            reglaSeleccionadaId ??=
+                reglas
+                    .Where(item => item.Activo)
+                    .OrderBy(item => item.Orden)
+                    .FirstOrDefault()?
+                    .ReglaAgricolaClimaId;
+
+            pronosticos.Clear();
+
+            List<PortalPropietarioTerreno> terrenosClima =
+                portal.Terrenos
+                    .Where(item =>
+                        item.Latitud != 0 &&
+                        item.Longitud != 0)
+                    .Take(20)
+                    .ToList();
+
+            Task<(int TerrenoId, PronosticoClimaTerreno? Pronostico)>[]
+                tareas =
+                terrenosClima
+                    .Select(item =>
+                        CargarPronosticoAsync(
+                            item.TerrenoId,
+                            forzarActualizacion))
+                    .ToArray();
+
+            var resultados =
+                await Task.WhenAll(tareas);
+
+            foreach (var resultado in resultados)
+            {
+                if (resultado.Pronostico is not null)
+                {
+                    pronosticos[
+                        resultado.TerrenoId] =
+                        resultado.Pronostico;
+                }
+            }
+
+            Recalcular();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await AuthState.CerrarSesionAsync();
+
+            Navigation.NavigateTo(
+                "/login",
+                replace: true);
+        }
+        catch (HttpRequestException ex)
+        {
+            error =
+                string.IsNullOrWhiteSpace(ex.Message)
+                    ? "No fue posible conectarse con el servidor."
+                    : ex.Message;
+        }
+        catch (TaskCanceledException)
+        {
+            error =
+                "La consulta meteorológica tardó demasiado.";
+        }
+        catch (Exception ex)
+        {
+            error =
+                string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Ocurrió un error inesperado."
+                    : ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task<(int, PronosticoClimaTerreno?)>
+        CargarPronosticoAsync(
+            int terrenoId,
+            bool forzarActualizacion)
+    {
+        try
+        {
+            PronosticoClimaTerreno? pronostico =
+                await Api.GetAsync<PronosticoClimaTerreno>(
+                    "api/pronostico-clima/" +
+                    $"mi-terreno/{terrenoId}" +
+                    "?dias=7" +
+                    $"&forzarActualizacion=" +
+                    forzarActualizacion
+                        .ToString()
+                        .ToLowerInvariant());
+
+            return (terrenoId, pronostico);
+        }
+        catch
+        {
+            return (terrenoId, null);
+        }
+    }
+
+    private void Recalcular()
+    {
+        ventanas =
+            ClimaLaboresCalculator.CalcularVentanas(
+                PronosticoSeleccionado,
+                ReglaSeleccionada);
+
+        alertas =
+            ClimaLaboresCalculator.ConstruirAlertas(
+                PronosticoSeleccionado,
+                ReglaSeleccionada,
+                ventanas);
+
+        pasosTimeline =
+            ClimaLaboresCalculator.ConstruirTimeline(
+                portal?.Terrenos ?? [],
+                pronosticos);
+
+        pasoTimeline = Math.Clamp(
+            pasoTimeline,
+            0,
+            Math.Max(
+                0,
+                pasosTimeline.Count - 1));
+
+        timelinePendiente =
+            pasosTimeline.Count > 0;
+    }
+
+    private async Task CambiarTerrenoAsync(
+        ChangeEventArgs args)
+    {
+        if (!int.TryParse(
+                args.Value?.ToString(),
+                out int id))
+        {
+            return;
+        }
+
+        terrenoSeleccionadoId = id;
+
+        if (!pronosticos.ContainsKey(id))
+        {
+            var resultado =
+                await CargarPronosticoAsync(
+                    id,
+                    forzarActualizacion: false);
+
+            if (resultado.Item2 is not null)
+            {
+                pronosticos[id] =
+                    resultado.Item2;
+            }
+        }
+
+        Recalcular();
+    }
+
+    private void CambiarRegla(
+        ChangeEventArgs args)
+    {
+        if (!int.TryParse(
+                args.Value?.ToString(),
+                out int id))
+        {
+            return;
+        }
+
+        reglaSeleccionadaId = id;
+        Recalcular();
+    }
+
+    private async Task ForzarActualizacionAsync()
+    {
+        await PausarTimelineAsync();
+        await CargarAsync(
+            forzarActualizacion: true);
+    }
+
+    private async Task CambiarPasoTimelineAsync(
+        ChangeEventArgs args)
+    {
+        if (!int.TryParse(
+                args.Value?.ToString(),
+                out int indice))
+        {
+            return;
+        }
+
+        pasoTimeline = Math.Clamp(
+            indice,
+            0,
+            pasosTimeline.Count - 1);
+
+        await JS.InvokeVoidAsync(
+            "conatradecClimaTimeline.mostrarPaso",
+            "clima-labores-mapa",
+            pasoTimeline);
+    }
+
+    private async Task CambiarVariableTimelineAsync(
+        ChangeEventArgs args)
+    {
+        variableTimeline =
+            args.Value?.ToString() ??
+            "temperatura";
+
+        await JS.InvokeVoidAsync(
+            "conatradecClimaTimeline.cambiarVariable",
+            "clima-labores-mapa",
+            variableTimeline);
+    }
+
+    private async Task AlternarReproduccionAsync()
+    {
+        reproduciendo = !reproduciendo;
+
+        if (reproduciendo)
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecClimaTimeline.reproducir",
+                "clima-labores-mapa");
+        }
+        else
+        {
+            await PausarTimelineAsync();
+        }
+    }
+
+    private async Task PausarTimelineAsync()
+    {
+        reproduciendo = false;
+
+        await JS.InvokeVoidAsync(
+            "conatradecClimaTimeline.pausar",
+            "clima-labores-mapa");
+    }
+
+    [JSInvokable]
+    public Task ActualizarPasoTimeline(
+        int indice)
+    {
+        pasoTimeline = Math.Clamp(
+            indice,
+            0,
+            Math.Max(
+                0,
+                pasosTimeline.Count - 1));
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void AbrirReglas()
+    {
+        Navigation.NavigateTo(
+            "/configuracion/reglas-clima");
+    }
+
+    private void VolverAlPortal()
+    {
+        Navigation.NavigateTo(
+            "/mi-portal");
+    }
+
+    private static string Formato(
+        decimal? valor,
+        string sufijo) =>
+        valor.HasValue
+            ? $"{valor.Value:0.#}{sufijo}"
+            : "—";
+
+    private static string NombreDia(
+        DateOnly fecha)
+    {
+        string nombre =
+            System.Globalization.CultureInfo
+                .GetCultureInfo("es-NI")
+                .DateTimeFormat
+                .GetAbbreviatedDayName(
+                    fecha.DayOfWeek);
+
+        return char.ToUpperInvariant(
+                   nombre[0]) +
+               nombre[1..];
+    }
+
+    private static int OrdenPeriodo(
+        string clave) =>
+        clave.Trim().ToUpperInvariant() switch
+        {
+            "MANANA" => 1,
+            "MAÑANA" => 1,
+            "TARDE" => 2,
+            "NOCHE" => 3,
+            _ => 9
+        };
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecClimaTimeline.destruir",
+                "clima-labores-mapa");
+        }
+        catch
+        {
+        }
+
+        dotNetReference?.Dispose();
+    }
+}
