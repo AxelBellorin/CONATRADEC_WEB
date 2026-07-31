@@ -1,0 +1,706 @@
+@using System.Globalization
+@inject ApiClientService Api
+
+<section class="forecast-panel @ClaseRiesgo">
+    <div class="forecast-heading">
+        <div>
+            <span>Pronóstico agrícola</span>
+            <h3>Próximos 7 días</h3>
+            @if (pronostico?.Disponible == true)
+            {
+                <small>
+                    @pronostico.CodigoTerreno · actualizado
+                    @pronostico.ActualizadoUtc
+                        .ToLocalTime()
+                        .ToString("dd/MM/yyyy HH:mm")
+                </small>
+            }
+        </div>
+
+        <button type="button"
+                title="Actualizar pronóstico"
+                disabled="@cargando"
+                @onclick="() => CargarAsync(true)">
+            <i class="fa-solid fa-rotate @(cargando ? "fa-spin" : string.Empty)"></i>
+        </button>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="forecast-state">
+            <i class="fa-solid fa-cloud-sun fa-beat-fade"></i>
+            <span>Consultando pronóstico del terreno...</span>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="forecast-state error">
+            <i class="fa-solid fa-cloud-bolt"></i>
+            <div>
+                <strong>No se pudo cargar el pronóstico</strong>
+                <span>@error</span>
+            </div>
+        </div>
+    }
+    else if (pronostico is null || !pronostico.Disponible)
+    {
+        <div class="forecast-state warning">
+            <i class="fa-solid fa-location-dot"></i>
+            <div>
+                <strong>Pronóstico no disponible</strong>
+                <span>
+                    @(pronostico?.Mensaje ??
+                      "No hay información meteorológica para este terreno.")
+                </span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="forecast-summary">
+            <article>
+                <i class="fa-solid fa-temperature-half"></i>
+                <span>
+                    <small>Temperatura</small>
+                    <strong>
+                        @Valor(pronostico.Resumen.TemperaturaMinimaPeriodo, "°")–
+                        @Valor(pronostico.Resumen.TemperaturaMaximaPeriodo, "°")
+                    </strong>
+                </span>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-cloud-rain"></i>
+                <span>
+                    <small>Lluvia acumulada</small>
+                    <strong>
+                        @Valor(pronostico.Resumen.PrecipitacionTotal, " mm")
+                    </strong>
+                </span>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-wind"></i>
+                <span>
+                    <small>Ráfaga máxima</small>
+                    <strong>
+                        @Valor(pronostico.Resumen.RafagaMaxima, " km/h")
+                    </strong>
+                </span>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-droplet"></i>
+                <span>
+                    <small>ET₀ acumulada</small>
+                    <strong>
+                        @Valor(pronostico.Resumen.EvapotranspiracionTotal, " mm")
+                    </strong>
+                </span>
+            </article>
+        </div>
+
+        <div class="forecast-days"
+             aria-label="Pronóstico diario del terreno">
+            @foreach (PronosticoClimaDia dia in pronostico.Dias)
+            {
+                <button type="button"
+                        class="forecast-day @ClaseDia(dia) @ClaseSeleccion(dia)"
+                        @onclick="() => SeleccionarDia(dia)">
+                    <header>
+                        <span>@NombreDia(dia.Fecha)</span>
+                        <small>@(dia.Fecha.ToString("dd/MM"))</small>
+                    </header>
+
+                    <div class="forecast-weather-icon"
+                         title="@dia.Condicion">
+                        <i class="@IconoClima(dia.CodigoClima)"></i>
+                    </div>
+
+                    <strong class="forecast-condition">
+                        @dia.Condicion
+                    </strong>
+
+                    <div class="forecast-temperature">
+                        <b>@Valor(dia.TemperaturaMaxima, "°")</b>
+                        <span>@Valor(dia.TemperaturaMinima, "°")</span>
+                    </div>
+
+                    <div class="forecast-rain">
+                        <span>
+                            <i class="fa-solid fa-umbrella"></i>
+                            @(dia.ProbabilidadPrecipitacion?.ToString() ?? "—")%
+                        </span>
+                        <span>
+                            <i class="fa-solid fa-cloud-showers-heavy"></i>
+                            @Valor(dia.Precipitacion, " mm")
+                        </span>
+                    </div>
+
+                    <small class="forecast-open-detail">
+                        Ver detalle del día
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </small>
+                </button>
+            }
+        </div>
+
+        @if (diaSeleccionado is not null)
+        {
+            <section class="forecast-day-detail">
+                <header class="forecast-detail-header">
+                    <div class="forecast-detail-icon">
+                        <i class="@IconoClima(diaSeleccionado.CodigoClima)"></i>
+                    </div>
+
+                    <div class="forecast-detail-title">
+                        <span>
+                            @NombreCompletoDia(diaSeleccionado.Fecha)
+                        </span>
+                        <h4>@diaSeleccionado.Condicion</h4>
+                        <p>@diaSeleccionado.ResumenNarrativo</p>
+                    </div>
+
+                    <div class="forecast-detail-temperature">
+                        <strong>
+                            @Valor(diaSeleccionado.TemperaturaMaxima, "°")
+                        </strong>
+                        <span>
+                            mín. @Valor(diaSeleccionado.TemperaturaMinima, "°")
+                        </span>
+                        <small>
+                            Sensación:
+                            @Valor(diaSeleccionado.SensacionMaxima, "°")
+                        </small>
+                    </div>
+                </header>
+
+                <div class="forecast-detail-metrics">
+                    <article>
+                        <small>Índice UV máximo</small>
+                        <strong>@Valor(diaSeleccionado.IndiceUvMaximo)</strong>
+                        <span>@DescripcionUv(diaSeleccionado.IndiceUvMaximo)</span>
+                    </article>
+
+                    <article>
+                        <small>Precipitación</small>
+                        <strong>@Valor(diaSeleccionado.Precipitacion, " mm")</strong>
+                        <span>@Valor(diaSeleccionado.HorasPrecipitacion, " h")</span>
+                    </article>
+
+                    <article>
+                        <small>Lluvia</small>
+                        <strong>@Valor(diaSeleccionado.Lluvia, " mm")</strong>
+                        <span>
+                            @(diaSeleccionado.ProbabilidadPrecipitacion?.ToString() ?? "—")%
+                            probabilidad
+                        </span>
+                    </article>
+
+                    <article>
+                        <small>Nubosidad</small>
+                        <strong>@Valor(diaSeleccionado.NubosidadPromedio, "%")</strong>
+                        <span>@DescripcionNubosidad(diaSeleccionado.NubosidadPromedio)</span>
+                    </article>
+
+                    <article>
+                        <small>Viento</small>
+                        <strong>
+                            @DireccionViento(diaSeleccionado.DireccionVientoDominante)
+                            @Valor(diaSeleccionado.VelocidadVientoMaxima, " km/h")
+                        </strong>
+                        <span>
+                            ráfagas @Valor(diaSeleccionado.RafagaMaxima, " km/h")
+                        </span>
+                    </article>
+
+                    <article class="@ClaseTormenta(diaSeleccionado.RiesgoTormenta)">
+                        <small>Riesgo de tormenta</small>
+                        <strong>@TextoRiesgoTormenta(diaSeleccionado.RiesgoTormenta)</strong>
+                        <span>Estimación CONATRADEC</span>
+                    </article>
+                </div>
+
+                @if (diaSeleccionado.Periodos.Count > 0)
+                {
+                    <div class="forecast-periods">
+                        @foreach (PronosticoClimaPeriodo periodo in diaSeleccionado.Periodos)
+                        {
+                            <article>
+                                <header>
+                                    <div>
+                                        <strong>@periodo.Nombre</strong>
+                                        <small>@periodo.RangoHorario</small>
+                                    </div>
+                                    <i class="@IconoClima(periodo.CodigoClima)"></i>
+                                </header>
+
+                                <h5>@periodo.Condicion</h5>
+
+                                <div class="forecast-period-values">
+                                    <span>
+                                        <small>Temperatura</small>
+                                        <strong>
+                                            @Valor(periodo.TemperaturaPromedio, "°")
+                                        </strong>
+                                    </span>
+                                    <span>
+                                        <small>Sensación</small>
+                                        <strong>
+                                            @Valor(periodo.SensacionPromedio, "°")
+                                        </strong>
+                                    </span>
+                                    <span>
+                                        <small>Lluvia</small>
+                                        <strong>
+                                            @(periodo.ProbabilidadPrecipitacionMaxima?.ToString() ?? "—")%
+                                        </strong>
+                                    </span>
+                                    <span>
+                                        <small>Nubosidad</small>
+                                        <strong>
+                                            @Valor(periodo.NubosidadPromedio, "%")
+                                        </strong>
+                                    </span>
+                                    <span>
+                                        <small>Viento</small>
+                                        <strong>
+                                            @DireccionViento(periodo.DireccionVientoDominante)
+                                            @Valor(periodo.VelocidadVientoMaxima, " km/h")
+                                        </strong>
+                                    </span>
+                                    <span>
+                                        <small>Ráfagas</small>
+                                        <strong>
+                                            @Valor(periodo.RafagaMaxima, " km/h")
+                                        </strong>
+                                    </span>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+
+                <div class="forecast-agriculture-detail">
+                    <div>
+                        <span>Condición agrícola</span>
+                        <h5>Indicadores para la finca</h5>
+                    </div>
+
+                    <div class="forecast-agriculture-grid">
+                        <article>
+                            <i class="fa-solid fa-droplet"></i>
+                            <small>Humedad ambiente</small>
+                            <strong>@Valor(diaSeleccionado.HumedadPromedio, "%")</strong>
+                        </article>
+                        <article>
+                            <i class="fa-solid fa-water"></i>
+                            <small>ET₀</small>
+                            <strong>@Valor(diaSeleccionado.EvapotranspiracionEt0, " mm")</strong>
+                        </article>
+                        <article>
+                            <i class="fa-solid fa-temperature-low"></i>
+                            <small>Temperatura del suelo</small>
+                            <strong>@Valor(diaSeleccionado.TemperaturaSueloPromedio, " °C")</strong>
+                        </article>
+                        <article>
+                            <i class="fa-solid fa-seedling"></i>
+                            <small>Humedad superficial</small>
+                            <strong>@PorcentajeSuelo(diaSeleccionado.HumedadSueloSuperficialPromedio)</strong>
+                        </article>
+                        <article>
+                            <i class="fa-solid fa-arrows-up-to-line"></i>
+                            <small>VPD máximo</small>
+                            <strong>@Valor(diaSeleccionado.DeficitPresionVaporMaximo, " kPa")</strong>
+                        </article>
+                        <article>
+                            <i class="fa-solid fa-sun"></i>
+                            <small>Amanecer / atardecer</small>
+                            <strong>@diaSeleccionado.Amanecer · @diaSeleccionado.Atardecer</strong>
+                        </article>
+                    </div>
+                </div>
+
+                @if (diaSeleccionado.Alertas.Count > 0)
+                {
+                    <div class="forecast-alerts forecast-day-alerts">
+                        @foreach (PronosticoClimaAlerta alerta in diaSeleccionado.Alertas)
+                        {
+                            <article class="@ClaseAlerta(alerta.Nivel)">
+                                <i class="@IconoAlerta(alerta.Nivel)"></i>
+                                <div>
+                                    <strong>@alerta.Titulo</strong>
+                                    <span>@alerta.Mensaje</span>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+
+                <div class="forecast-recommendations">
+                    <div class="forecast-recommendations-heading">
+                        <h5>
+                            <i class="fa-solid fa-list-check"></i>
+                            Recomendaciones para el día
+                        </h5>
+
+                        <span class="forecast-rule-badge">
+                            <i class="fa-solid fa-code-branch"></i>
+                            Reglas CONATRADEC
+                        </span>
+                    </div>
+
+                    <p class="forecast-recommendations-explanation">
+                        Open-Meteo aporta los datos meteorológicos.
+                        CONATRADEC compara esos valores con reglas
+                        predefinidas; no son textos generados por IA.
+                    </p>
+
+                    @if (diaSeleccionado.RecomendacionesDetalladas.Count > 0)
+                    {
+                        <div class="forecast-recommendation-list">
+                            @foreach (
+                                PronosticoClimaRecomendacion recomendacion
+                                in diaSeleccionado.RecomendacionesDetalladas)
+                            {
+                                <article class="forecast-recommendation-card">
+                                    <div class="forecast-recommendation-copy">
+                                        <i class="@IconoRecomendacion(
+                                            recomendacion.Clave)"></i>
+
+                                        <div>
+                                            <strong>
+                                                @recomendacion.Titulo
+                                            </strong>
+                                            <span>
+                                                @recomendacion.Mensaje
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="forecast-recommendation-source">
+                                        <i class="fa-solid fa-gears"></i>
+                                        @recomendacion.Fuente
+                                    </div>
+
+                                    @if (recomendacion.Evidencias.Count > 0)
+                                    {
+                                        <div class="forecast-evidence-list">
+                                            @foreach (
+                                                PronosticoClimaEvidencia evidencia
+                                                in recomendacion.Evidencias)
+                                            {
+                                                <div class="forecast-evidence"
+                                                     title="@evidencia.ReglaAplicada">
+                                                    <small>
+                                                        @evidencia.Indicador
+                                                    </small>
+
+                                                    <strong>
+                                                        @FormatoEvidencia(
+                                                            evidencia)
+                                                    </strong>
+
+                                                    <span>
+                                                        Dato:
+                                                        @evidencia.FuenteDato
+                                                    </span>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="forecast-no-threshold">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                            Ningún umbral de atención fue
+                                            alcanzado para este día.
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <ul>
+                            @foreach (
+                                string recomendacion
+                                in diaSeleccionado.Recomendaciones)
+                            {
+                                <li>@recomendacion</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </section>
+        }
+
+        <footer class="forecast-footer">
+            <span>
+                <i class="fa-solid fa-circle-info"></i>
+                El riesgo de tormenta es una estimación interna basada en
+                CAPE, precipitación y código meteorológico.
+            </span>
+            <span title="@pronostico.Licencia">
+                Datos: @pronostico.Proveedor
+            </span>
+        </footer>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public int TerrenoId { get; set; }
+
+    [Parameter]
+    public bool VistaPropietario { get; set; }
+
+    private PronosticoClimaTerreno? pronostico;
+    private PronosticoClimaDia? diaSeleccionado;
+    private int terrenoCargado;
+    private bool cargando;
+    private string? error;
+
+    private string ClaseRiesgo =>
+        pronostico?.Resumen.NivelRiesgo.ToLowerInvariant()
+        ?? "normal";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (TerrenoId <= 0 || TerrenoId == terrenoCargado)
+            return;
+
+        terrenoCargado = TerrenoId;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync(bool forzarActualizacion = false)
+    {
+        if (TerrenoId <= 0 || cargando)
+            return;
+
+        cargando = true;
+        error = null;
+
+        try
+        {
+            string segmento = VistaPropietario
+                ? "mi-terreno"
+                : "terrenos";
+
+            string ruta =
+                $"api/pronostico-clima/{segmento}/{TerrenoId}" +
+                "?dias=7" +
+                $"&forzarActualizacion=" +
+                forzarActualizacion.ToString().ToLowerInvariant();
+
+            pronostico =
+                await Api.GetAsync<PronosticoClimaTerreno>(ruta);
+
+            if (pronostico is null)
+            {
+                error = "El servidor no devolvió información de pronóstico.";
+                diaSeleccionado = null;
+            }
+            else
+            {
+                diaSeleccionado = pronostico.Dias.FirstOrDefault();
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            error = "La sesión no tiene permiso para consultar este terreno.";
+            diaSeleccionado = null;
+        }
+        catch (HttpRequestException ex)
+        {
+            error = ex.Message;
+            diaSeleccionado = null;
+        }
+        catch (TaskCanceledException)
+        {
+            error = "La consulta meteorológica agotó el tiempo de espera.";
+            diaSeleccionado = null;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void SeleccionarDia(PronosticoClimaDia dia)
+    {
+        diaSeleccionado = dia;
+    }
+
+    private string ClaseSeleccion(PronosticoClimaDia dia) =>
+        diaSeleccionado?.Fecha == dia.Fecha
+            ? "selected"
+            : string.Empty;
+
+    private static string NombreDia(DateOnly fecha)
+    {
+        DateOnly hoy = DateOnly.FromDateTime(DateTime.Today);
+
+        if (fecha == hoy)
+            return "Hoy";
+
+        if (fecha == hoy.AddDays(1))
+            return "Mañana";
+
+        string nombre = CultureInfo
+            .GetCultureInfo("es-NI")
+            .DateTimeFormat
+            .GetAbbreviatedDayName(fecha.DayOfWeek);
+
+        return CultureInfo
+            .GetCultureInfo("es-NI")
+            .TextInfo
+            .ToTitleCase(nombre.TrimEnd('.'));
+    }
+
+    private static string NombreCompletoDia(DateOnly fecha)
+    {
+        DateTime valor = fecha.ToDateTime(TimeOnly.MinValue);
+        string texto = valor.ToString(
+            "dddd d 'de' MMMM 'de' yyyy",
+            CultureInfo.GetCultureInfo("es-NI"));
+
+        return CultureInfo
+            .GetCultureInfo("es-NI")
+            .TextInfo
+            .ToTitleCase(texto);
+    }
+
+    private static string Valor(decimal? valor, string sufijo = "") =>
+        valor.HasValue ? $"{valor.Value:N1}{sufijo}" : "—";
+
+    private static string PorcentajeSuelo(decimal? valor) =>
+        valor.HasValue ? $"{valor.Value * 100:N1}%" : "—";
+
+    private static string ClaseAlerta(string nivel) =>
+        nivel.Equals("CRITICA", StringComparison.OrdinalIgnoreCase)
+            ? "critical"
+            : "attention";
+
+    private static string IconoAlerta(string nivel) =>
+        nivel.Equals("CRITICA", StringComparison.OrdinalIgnoreCase)
+            ? "fa-solid fa-circle-exclamation"
+            : "fa-solid fa-triangle-exclamation";
+
+    private static string ClaseDia(PronosticoClimaDia dia) =>
+        dia.Alertas.Any(item =>
+            item.Nivel.Equals("CRITICA", StringComparison.OrdinalIgnoreCase))
+            ? "critical"
+            : dia.Alertas.Count > 0
+                ? "attention"
+                : string.Empty;
+
+    private static string ClaseTormenta(string riesgo) =>
+        riesgo.ToUpperInvariant() switch
+        {
+            "ALTO" => "storm-high",
+            "MEDIO" => "storm-medium",
+            _ => "storm-low"
+        };
+
+    private static string TextoRiesgoTormenta(string riesgo) =>
+        riesgo.ToUpperInvariant() switch
+        {
+            "ALTO" => "Alto",
+            "MEDIO" => "Medio",
+            _ => "Bajo"
+        };
+
+    private static string DescripcionUv(decimal? uv) =>
+        uv switch
+        {
+            >= 11 => "Extremo",
+            >= 8 => "Muy alto",
+            >= 6 => "Alto",
+            >= 3 => "Moderado",
+            < 3 when uv.HasValue => "Bajo",
+            _ => "Sin dato"
+        };
+
+    private static string DescripcionNubosidad(decimal? valor) =>
+        valor switch
+        {
+            >= 80 => "Cubierto",
+            >= 50 => "Mayormente nublado",
+            >= 25 => "Parcialmente nublado",
+            < 25 when valor.HasValue => "Poco nublado",
+            _ => "Sin dato"
+        };
+
+    private static string DireccionViento(decimal? grados)
+    {
+        if (!grados.HasValue)
+            return string.Empty;
+
+        string[] puntos =
+        [
+            "N", "NNE", "NE", "ENE",
+            "E", "ESE", "SE", "SSE",
+            "S", "SSO", "SO", "OSO",
+            "O", "ONO", "NO", "NNO"
+        ];
+
+        int indice = (int)Math.Round(
+            ((double)grados.Value % 360) / 22.5,
+            MidpointRounding.AwayFromZero) % 16;
+
+        return puntos[indice];
+    }
+
+    private static string FormatoEvidencia(
+        PronosticoClimaEvidencia evidencia)
+    {
+        string formato =
+            evidencia.Unidad == "%"
+                ? "N0"
+                : "N1";
+
+        string unidad =
+            string.IsNullOrWhiteSpace(evidencia.Unidad)
+                ? string.Empty
+                : $" {evidencia.Unidad}";
+
+        return
+            $"{evidencia.ValorObservado.ToString(formato)}{unidad} " +
+            $"{evidencia.Operador} " +
+            $"{evidencia.Umbral.ToString(formato)}{unidad}";
+    }
+
+    private static string IconoRecomendacion(string clave) =>
+        clave switch
+        {
+            "EVITAR_APLICACION_ANTES_LLUVIA" =>
+                "fa-solid fa-cloud-rain",
+            "EVITAR_APLICACIONES_CON_VIENTO" =>
+                "fa-solid fa-wind",
+            "LABORES_FUERA_HORAS_UV" =>
+                "fa-solid fa-sun",
+            "MONITOREO_HONGOS" =>
+                "fa-solid fa-bacterium",
+            "REVISAR_NECESIDADES_HIDRICAS" =>
+                "fa-solid fa-droplet",
+            _ =>
+                "fa-solid fa-circle-check"
+        };
+
+    private static string IconoClima(int? codigo) =>
+        codigo switch
+        {
+            0 => "fa-solid fa-sun",
+            1 or 2 => "fa-solid fa-cloud-sun",
+            3 => "fa-solid fa-cloud",
+            45 or 48 => "fa-solid fa-smog",
+            51 or 53 or 55 => "fa-solid fa-cloud-rain",
+            61 or 63 or 65 => "fa-solid fa-cloud-showers-heavy",
+            80 or 81 or 82 => "fa-solid fa-cloud-showers-water",
+            95 or 96 or 99 => "fa-solid fa-cloud-bolt",
+            _ => "fa-solid fa-cloud-sun"
+        };
+}

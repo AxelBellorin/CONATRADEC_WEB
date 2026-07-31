@@ -143,7 +143,7 @@
                 <div>
                     <span>Extensión total</span>
                     <strong>
-                        @datos.Resumen.TotalManzanas.ToString("N2")
+                        @(datos.Resumen.TotalManzanas.ToString("N2"))
                     </strong>
                     <small>Manzanas registradas</small>
                 </div>
@@ -157,7 +157,7 @@
                 <div>
                     <span>Plantas</span>
                     <strong>
-                        @datos.Resumen.TotalPlantas.ToString("N0")
+                        @(datos.Resumen.TotalPlantas.ToString("N0"))
                     </strong>
                     <small>Plantas de café registradas</small>
                 </div>
@@ -183,9 +183,7 @@
                 <div>
                     <span>Producción estimada</span>
                     <strong>
-                        @datos.Resumen
-                            .ProduccionEstimadaQuintales
-                            .ToString("N2")
+                        @(datos.Resumen.ProduccionEstimadaQuintales.ToString("N2"))
                     </strong>
                     <small>Quintales oro registrados</small>
                 </div>
@@ -255,24 +253,21 @@
                                 <div>
                                     <span>Extensión</span>
                                     <strong>
-                                        @terreno.ExtensionManzanas
-                                            .ToString("N2") Mz
+                                        @(terreno.ExtensionManzanas.ToString("N2")) Mz
                                     </strong>
                                 </div>
 
                                 <div>
                                     <span>Plantas</span>
                                     <strong>
-                                        @terreno.CantidadPlantas
-                                            .ToString("N0")
+                                        @(terreno.CantidadPlantas.ToString("N0"))
                                     </strong>
                                 </div>
 
                                 <div>
                                     <span>Producción</span>
                                     <strong>
-                                        @terreno.CantidadQuintalesOro
-                                            .ToString("N2") qq
+                                        @(terreno.CantidadQuintalesOro.ToString("N2")) qq
                                     </strong>
                                 </div>
 
@@ -285,8 +280,7 @@
                             <footer class="owner-terrain-footer">
                                 <span>
                                     Ingreso:
-                                    @terreno.FechaIngreso
-                                        .ToString("dd/MM/yyyy")
+                                    @(terreno.FechaIngreso.ToString("dd/MM/yyyy"))
                                 </span>
 
                                 <span>

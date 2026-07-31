@@ -63,3 +63,6 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\mwgrllsg52-{0}-9cc2fhj917-9cc2fhj917.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\hqyiwcz5tc-{0}-9mv39a2p16-9mv39a2p16.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\lownfe68zm-{0}-0l4o7xbnw1-0l4o7xbnw1.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\oh2t8dvrmh-{0}-d0ef1aoxa4-d0ef1aoxa4.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\vpueibhcwb-{0}-v2b790191k-v2b790191k.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\obj\Release\net9.0\compressed\p05zjoipps-{0}-346wupkwua-346wupkwua.gz

@@ -5,6 +5,7 @@
 @inject AuthStateService AuthState
 @inject WebActivityService Actividad
 @inject ApiClientService ApiClient
+@inject PortalPropietarioService PortalPropietario
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -58,18 +59,16 @@ else
                     <NavLink href="/mi-portal"
                              Match="NavLinkMatch.All">
                         <i class="fa-solid fa-house-chimney-user"></i>
-                        <span>Mi portal</span>
+                        <span>Mi información y terrenos</span>
                     </NavLink>
 
-                    <a href="/mi-portal#mis-terrenos">
-                        <i class="fa-solid fa-mountain-sun"></i>
-                        <span>Mis terrenos</span>
-                    </a>
-
-                    <NavLink href="/mi-portal/centro-geoespacial">
-                        <i class="fa-solid fa-map-location-dot"></i>
-                        <span>Mi Centro Geoespacial</span>
-                    </NavLink>
+                    @if (PuedeMostrarMiCentroGeoespacial)
+                    {
+                        <NavLink href="/mi-portal/centro-geoespacial">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            <span>Mi Centro Geoespacial</span>
+                        </NavLink>
+                    }
                 }
                 else
                 {
@@ -83,13 +82,16 @@ else
                     {
                         <NavLink href="/mi-portal">
                             <i class="fa-solid fa-house-chimney-user"></i>
-                            <span>Mi portal</span>
+                            <span>Mi información y terrenos</span>
                         </NavLink>
 
-                        <NavLink href="/mi-portal/centro-geoespacial">
-                            <i class="fa-solid fa-map-location-dot"></i>
-                            <span>Mi Centro Geoespacial</span>
-                        </NavLink>
+                        @if (PuedeMostrarMiCentroGeoespacial)
+                        {
+                            <NavLink href="/mi-portal/centro-geoespacial">
+                                <i class="fa-solid fa-map-location-dot"></i>
+                                <span>Mi Centro Geoespacial</span>
+                            </NavLink>
+                        }
                     }
 
                     @if (AuthState.TienePermisoLectura("TerrenoPage") ||
@@ -99,7 +101,7 @@ else
                     {
                         <NavLink href="/mapa">
                             <i class="fa-solid fa-map-location-dot"></i>
-                            <span>Centro geoespacial</span>
+                            <span>Centro Geoespacial nacional</span>
                         </NavLink>
                     }
 
@@ -324,6 +326,8 @@ else
     private bool monitorInactividadActivo;
     private bool cerrandoPorFaltaPermiso;
     private bool aplicandoProteccion;
+    private bool resumenPortalConsultado;
+    private bool? tieneTerrenosPropios;
     private DotNetObjectReference<MainLayout>? referenciaDotNet;
 
     private bool TieneAccesoPortalWeb =>
@@ -333,6 +337,10 @@ else
     private bool TienePortalPropietario =>
         AuthState.TienePermisoLectura(
             PermisosWeb.PortalPropietario);
+
+    private bool PuedeMostrarMiCentroGeoespacial =>
+        TienePortalPropietario &&
+        tieneTerrenosPropios == true;
 
     private bool EsPortalPropietarioExclusivo =>
         TienePortalPropietario &&
@@ -402,6 +410,11 @@ else
                 "mi-portal",
                 StringComparison.OrdinalIgnoreCase);
 
+    private bool EsRutaCentroPropietario =>
+        ObtenerRutaActual().Equals(
+            "mi-portal/centro-geoespacial",
+            StringComparison.OrdinalIgnoreCase);
+
     private bool PuedeMostrarContenidoActual
     {
         get
@@ -414,6 +427,12 @@ else
 
             if (EsRutaPortalPropietario &&
                 !TienePortalPropietario)
+            {
+                return false;
+            }
+
+            if (EsRutaCentroPropietario &&
+                tieneTerrenosPropios == false)
             {
                 return false;
             }
@@ -431,6 +450,13 @@ else
     protected override async Task OnAfterRenderAsync(
         bool firstRender)
     {
+        if (firstRender &&
+            AuthState.IsAuthenticated &&
+            TienePortalPropietario)
+        {
+            await CargarEstadoPortalPropietarioAsync();
+        }
+
         await AplicarProteccionDeRutasAsync();
 
         if (AuthState.IsAuthenticated &&
@@ -508,11 +534,59 @@ else
                     "/",
                     forceLoad: false,
                     replace: true);
+
+                return;
+            }
+
+            if (EsRutaCentroPropietario &&
+                tieneTerrenosPropios == false)
+            {
+                Navigation.NavigateTo(
+                    "/mi-portal",
+                    forceLoad: false,
+                    replace: true);
             }
         }
         finally
         {
             aplicandoProteccion = false;
+        }
+    }
+
+    private async Task CargarEstadoPortalPropietarioAsync()
+    {
+        if (resumenPortalConsultado ||
+            !TienePortalPropietario)
+        {
+            return;
+        }
+
+        resumenPortalConsultado = true;
+
+        try
+        {
+            PortalPropietarioResumen? resumen =
+                await PortalPropietario.ObtenerMiResumenAsync();
+
+            tieneTerrenosPropios =
+                resumen?.Vinculado == true &&
+                resumen.Terrenos.Count > 0;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            tieneTerrenosPropios = null;
+        }
+        catch (HttpRequestException)
+        {
+            tieneTerrenosPropios = null;
+        }
+        catch (TaskCanceledException)
+        {
+            tieneTerrenosPropios = null;
+        }
+        finally
+        {
+            StateHasChanged();
         }
     }
 

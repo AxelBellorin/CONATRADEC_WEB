@@ -14,9 +14,12 @@ wwwroot\images\mascota-conatradec.webp
 wwwroot\js\dispositivosMapa.js
 wwwroot\js\mapa.js
 wwwroot\js\mapaInteligente.js
+wwwroot\js\mapaInteligenteMejoras.js
 wwwroot\js\portalCentroGeoespacial.js
 wwwroot\js\portalPropietarioMapa.js
 wwwroot\js\session-inactivity.js
+wwwroot\css\mapa-panel-compacto.css
+wwwroot\css\pronostico-clima.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\alertas-integracion.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\animations.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\app.css
@@ -32,5 +35,8 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\session
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\parametrizacion-acceso.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\portal-centro-geoespacial.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\portal-propietario.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\mapaInteligenteMejoras.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\portalCentroGeoespacial.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\js\portalPropietarioMapa.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\mapa-panel-compacto.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC.AdminWeb\wwwroot\css\pronostico-clima.css

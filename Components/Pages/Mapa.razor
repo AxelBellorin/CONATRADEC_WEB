@@ -153,54 +153,72 @@
             </button>
         </div>
 
-        <div class="geo-panel-scroll">
-            <section class="geo-control-section">
-                <div class="geo-section-title">
-                    <div>
-                        <h3>Modo de visualización</h3>
-                        <p>Activa un conjunto recomendado de capas.</p>
-                    </div>
-                </div>
+        <div class="geo-global-filter-tabs">
+            <button class="@ClasePanelFiltro("TERRITORIO")"
+                    type="button"
+                    @onclick='() => CambiarPanelFiltro("TERRITORIO")'>
+                <i class="fa-solid fa-map"></i>
+                <span>Territorio</span>
+            </button>
 
-                <div class="geo-mode-grid">
-                    <button class="geo-mode @ClaseModo("GENERAL")"
+            <button class="@ClasePanelFiltro("AGRICOLA")"
+                    type="button"
+                    @onclick='() => CambiarPanelFiltro("AGRICOLA")'>
+                <i class="fa-solid fa-seedling"></i>
+                <span>Agrícola</span>
+            </button>
+
+            <button class="@ClasePanelFiltro("SUELO")"
+                    type="button"
+                    @onclick='() => CambiarPanelFiltro("SUELO")'>
+                <i class="fa-solid fa-flask-vial"></i>
+                <span>Suelo</span>
+            </button>
+
+            <button class="@ClasePanelFiltro("CLIMA")"
+                    type="button"
+                    @onclick='() => CambiarPanelFiltro("CLIMA")'>
+                <i class="fa-solid fa-cloud-sun-rain"></i>
+                <span>Clima</span>
+            </button>
+        </div>
+
+        <div class="geo-panel-scroll geo-global-panel-scroll">
+            <section class="geo-control-section geo-recommended-section">
+                <div class="geo-recommended-action">
+                    <div>
+                        <strong>@TituloCapasRecomendadas</strong>
+                        <small>@DescripcionCapasRecomendadas</small>
+                    </div>
+
+                    <button class="btn-secondary"
                             type="button"
-                            @onclick='() => AplicarModoAsync("GENERAL")'>
-                        <i class="fa-solid fa-earth-americas"></i>
-                        <span>General</span>
-                    </button>
-                    <button class="geo-mode @ClaseModo("AGRICOLA")"
-                            type="button"
-                            @onclick='() => AplicarModoAsync("AGRICOLA")'>
-                        <i class="fa-solid fa-wheat-awn"></i>
-                        <span>Agrícola</span>
-                    </button>
-                    <button class="geo-mode @ClaseModo("CLIMA")"
-                            type="button"
-                            @onclick='() => AplicarModoAsync("CLIMA")'>
-                        <i class="fa-solid fa-cloud-sun-rain"></i>
-                        <span>Clima</span>
+                            @onclick="AplicarCapasRecomendadasAsync">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        Aplicar capas
                     </button>
                 </div>
             </section>
-
-            <section class="geo-control-section">
-                <div class="geo-section-title">
-                    <div>
-                        <h3>Mapa base</h3>
-                        <p>Cambia el fondo sin perder las capas activas.</p>
+            @if (panelFiltroActivo == "TERRITORIO")
+            {
+                <section class="geo-control-section">
+                    <div class="geo-section-title">
+                        <div>
+                            <h3>Mapa base</h3>
+                            <p>Cambie el fondo sin perder las capas activas.</p>
+                        </div>
                     </div>
-                </div>
 
-                <select class="form-control geo-base-select"
-                        value="@mapaBase"
-                        @onchange="CambiarMapaBaseAsync">
-                    <option value="calles">Calles y comunidades</option>
-                    <option value="satelite">Vista satelital</option>
-                </select>
-            </section>
+                    <select class="form-control geo-base-select"
+                            value="@mapaBase"
+                            @onchange="CambiarMapaBaseAsync">
+                        <option value="calles">Calles y comunidades</option>
+                        <option value="satelite">Vista satelital</option>
+                    </select>
+                </section>
+            }
 
-            @foreach (IGrouping<string, MapaCapaDisponible> grupo in CapasAgrupadas)
+            @foreach (IGrouping<string, MapaCapaDisponible> grupo in CapasDelPanel)
             {
                 <section class="geo-control-section">
                     <div class="geo-section-title compact">
@@ -232,9 +250,7 @@
                                 }
                                 else if (!capa.Disponible)
                                 {
-                                    <span class="geo-coming-soon">
-                                        Próximamente
-                                    </span>
+                                    <span class="geo-coming-soon">Próximamente</span>
                                 }
 
                                 <input type="checkbox"
@@ -248,26 +264,14 @@
                 </section>
             }
 
-            <details class="geo-filter-details" open>
-                <summary>
-                    <span>
-                        <i class="fa-solid fa-filter"></i>
-                        Filtro geográfico global
-                    </span>
-                    <i class="fa-solid fa-chevron-down"></i>
-                </summary>
-
-                <div class="geo-filter-content">
-                    <p class="geo-global-filter-hint">
-                        El departamento y el municipio seleccionados se aplican a
-                        terrenos, alertas, capas de suelo, clima y tarjetas de resumen.
-                    </p>
-
-                    <div class="form-group">
-                        <label>Buscar terreno</label>
-                        <InputText class="form-control"
-                                   @bind-Value="filtro.Texto"
-                                   placeholder="Código, productor o dirección" />
+            @if (panelFiltroActivo == "TERRITORIO")
+            {
+                <section class="geo-control-section">
+                    <div class="geo-section-title">
+                        <div>
+                            <h3>Navegación territorial</h3>
+                            <p>El filtro se aplica a todo el Centro Geoespacial.</p>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -275,7 +279,7 @@
                         <select class="form-control"
                                 value="@filtro.DepartamentoId"
                                 @onchange="DepartamentoCambiadoAsync">
-                            <option value="">Todos</option>
+                            <option value="">Todos los departamentos</option>
                             @foreach (CatalogoSimple item in departamentos)
                             {
                                 <option value="@item.Id">@item.Nombre</option>
@@ -289,12 +293,46 @@
                                 value="@filtro.MunicipioId"
                                 disabled="@(!filtro.DepartamentoId.HasValue)"
                                 @onchange="MunicipioCambiadoAsync">
-                            <option value="">Todos</option>
+                            <option value="">Todos los municipios</option>
                             @foreach (MunicipioSelectorItem item in MunicipiosDisponibles)
                             {
                                 <option value="@item.MunicipioId">@item.NombreMunicipio</option>
                             }
                         </select>
+                    </div>
+
+                    <div class="geo-filter-actions">
+                        <button class="btn-primary"
+                                type="button"
+                                @onclick="AplicarFiltrosAsync"
+                                disabled="@cargando">
+                            <i class="fa-solid fa-magnifying-glass-location"></i>
+                            Aplicar territorio
+                        </button>
+
+                        <button class="btn-link"
+                                type="button"
+                                @onclick="LimpiarSeleccionTerritorialAsync">
+                            Ver Nicaragua
+                        </button>
+                    </div>
+                </section>
+            }
+            else if (panelFiltroActivo == "AGRICOLA")
+            {
+                <section class="geo-control-section">
+                    <div class="geo-section-title">
+                        <div>
+                            <h3>Filtros agrícolas</h3>
+                            <p>Busque y reduzca los terrenos visibles.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Buscar terreno</label>
+                        <InputText class="form-control"
+                                   @bind-Value="filtro.Texto"
+                                   placeholder="Código, productor o dirección" />
                     </div>
 
                     <div class="geo-filter-columns">
@@ -328,18 +366,38 @@
                                 type="button"
                                 @onclick="AplicarFiltrosAsync"
                                 disabled="@cargando">
-                            <i class="fa-solid fa-magnifying-glass-location"></i>
-                            Aplicar a todo el mapa
+                            <i class="fa-solid fa-filter"></i>
+                            Aplicar filtros
                         </button>
 
                         <button class="btn-link"
                                 type="button"
                                 @onclick="LimpiarFiltrosAsync">
-                            Limpiar filtros
+                            Limpiar todos
                         </button>
                     </div>
-                </div>
-            </details>
+                </section>
+            }
+            else if (panelFiltroActivo == "CLIMA")
+            {
+                <section class="geo-control-section geo-climate-refresh-box">
+                    <div>
+                        <i class="fa-solid fa-cloud-arrow-down"></i>
+                        <span>
+                            El clima se ajusta al departamento o municipio
+                            seleccionado y conserva la vista nacional.
+                        </span>
+                    </div>
+
+                    <button class="btn-secondary"
+                            type="button"
+                            disabled="@cargandoClima"
+                            @onclick="() => CargarClimaAsync(true)">
+                        <i class="fa-solid fa-rotate @(cargandoClima ? "fa-spin" : string.Empty)"></i>
+                        Actualizar clima
+                    </button>
+                </section>
+            }
         </div>
     </aside>
 
@@ -500,6 +558,9 @@
                                 </span>
                             </div>
                         </section>
+
+                        <PronosticoTerrenoPanel
+                            TerrenoId="@detalleTerreno.TerrenoId" />
 
                         <section class="geo-timeline-section">
                             <div class="geo-section-title compact">
@@ -663,6 +724,7 @@
     private bool climaConsultado;
     private bool mapaInicializado;
     private bool panelControlesAbierto;
+    private string panelFiltroActivo = "TERRITORIO";
     private string modoActivo = "GENERAL";
     private string mapaBase = "calles";
     private string? error;
@@ -677,6 +739,18 @@
             .OrderBy(item => item.Orden)
             .GroupBy(item => item.Categoria)
             .OrderBy(grupo => OrdenCategoria(grupo.Key));
+
+    private IEnumerable<IGrouping<string, MapaCapaDisponible>> CapasDelPanel =>
+        CapasAgrupadas.Where(grupo =>
+            panelFiltroActivo switch
+            {
+                "TERRITORIO" => CategoriaEs(grupo.Key, "BASE"),
+                "SUELO" => CategoriaEs(grupo.Key, "SUELOS"),
+                "CLIMA" => CategoriaEs(grupo.Key, "CLIMA"),
+                _ => !CategoriaEs(grupo.Key, "BASE") &&
+                     !CategoriaEs(grupo.Key, "SUELOS") &&
+                     !CategoriaEs(grupo.Key, "CLIMA")
+            });
 
     private IReadOnlyList<MapaCapaDisponible> CapasDisponibles =>
         catalogoCapas.Capas.Count > 0
@@ -1131,16 +1205,25 @@
         switch (modo)
         {
             case "AGRICOLA":
+                panelFiltroActivo = "AGRICOLA";
                 capasActivas["terrenos"] = true;
                 capasActivas["alertas"] = true;
                 capasActivas["ph"] = true;
                 break;
 
+            case "SUELO":
+                panelFiltroActivo = "SUELO";
+                capasActivas["terrenos"] = true;
+                capasActivas["ph"] = true;
+                break;
+
             case "CLIMA":
+                panelFiltroActivo = "CLIMA";
                 capasActivas["temperatura"] = true;
                 break;
 
             default:
+                panelFiltroActivo = "TERRITORIO";
                 capasActivas["terrenos"] = true;
                 capasActivas["alertas"] = true;
                 break;
@@ -1149,7 +1232,7 @@
         if (modo == "CLIMA" && !climaConsultado)
             await CargarClimaAsync();
 
-        if (modo == "AGRICOLA")
+        if (modo is "AGRICOLA" or "SUELO")
             await CargarCapaSueloAsync("ph");
 
         await JS.InvokeVoidAsync(
@@ -1318,8 +1401,55 @@
     private bool CapaActiva(string clave) =>
         capasActivas.TryGetValue(clave, out bool activa) && activa;
 
+    private void CambiarPanelFiltro(string panel) =>
+        panelFiltroActivo = panel;
+
+    private string ClasePanelFiltro(string panel) =>
+        panelFiltroActivo == panel ? "active" : string.Empty;
+
+    private string ModoRecomendadoPanel =>
+        panelFiltroActivo switch
+        {
+            "AGRICOLA" => "AGRICOLA",
+            "SUELO" => "SUELO",
+            "CLIMA" => "CLIMA",
+            _ => "GENERAL"
+        };
+
+    private string TituloCapasRecomendadas =>
+        panelFiltroActivo switch
+        {
+            "AGRICOLA" => "Vista agrícola recomendada",
+            "SUELO" => "Vista de suelo recomendada",
+            "CLIMA" => "Vista climática recomendada",
+            _ => "Vista territorial recomendada"
+        };
+
+    private string DescripcionCapasRecomendadas =>
+        panelFiltroActivo switch
+        {
+            "AGRICOLA" =>
+                "Activa terrenos, alertas y pH sin ocultar los filtros.",
+            "SUELO" =>
+                "Activa terrenos y pH como punto de partida.",
+            "CLIMA" =>
+                "Activa temperatura sobre el límite nacional.",
+            _ =>
+                "Activa límites, terrenos y alertas principales."
+        };
+
+    private Task AplicarCapasRecomendadasAsync() =>
+        AplicarModoAsync(ModoRecomendadoPanel);
+
     private string ClaseModo(string modo) =>
         modoActivo == modo ? "active" : string.Empty;
+
+    private static bool CategoriaEs(
+        string categoria,
+        string esperada) =>
+        categoria.Equals(
+            esperada,
+            StringComparison.OrdinalIgnoreCase);
 
     private string ClaseAnalisis(AnalisisTerrenoMapa analisis) =>
         analisisSeleccionado?.AnalisisSueloCalculoId ==

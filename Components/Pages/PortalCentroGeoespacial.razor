@@ -201,40 +201,23 @@
                 </div>
 
                 <div class="geo-panel-scroll owner-panel-scroll">
+                    <section class="geo-control-section geo-recommended-section">
+                        <div class="geo-recommended-action">
+                            <div>
+                                <strong>@TituloCapasRecomendadas</strong>
+                                <small>@DescripcionCapasRecomendadas</small>
+                            </div>
+
+                            <button class="btn-secondary"
+                                    type="button"
+                                    @onclick="AplicarCapasRecomendadasAsync">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                Aplicar capas
+                            </button>
+                        </div>
+                    </section>
                     @if (panelActivo == "TERRITORIO")
                     {
-                        <section class="geo-control-section">
-                            <div class="geo-section-title">
-                                <div>
-                                    <h3>Modo de visualización</h3>
-                                    <p>Active un conjunto recomendado.</p>
-                                </div>
-                            </div>
-
-                            <div class="geo-mode-grid">
-                                <button class="geo-mode @ClaseModo("GENERAL")"
-                                        type="button"
-                                        @onclick='() => AplicarModoAsync("GENERAL")'>
-                                    <i class="fa-solid fa-earth-americas"></i>
-                                    <span>General</span>
-                                </button>
-
-                                <button class="geo-mode @ClaseModo("AGRICOLA")"
-                                        type="button"
-                                        @onclick='() => AplicarModoAsync("AGRICOLA")'>
-                                    <i class="fa-solid fa-wheat-awn"></i>
-                                    <span>Agrícola</span>
-                                </button>
-
-                                <button class="geo-mode @ClaseModo("CLIMA")"
-                                        type="button"
-                                        @onclick='() => AplicarModoAsync("CLIMA")'>
-                                    <i class="fa-solid fa-cloud-sun-rain"></i>
-                                    <span>Clima</span>
-                                </button>
-                            </div>
-                        </section>
-
                         <section class="geo-control-section">
                             <div class="geo-section-title">
                                 <div>
@@ -640,6 +623,10 @@
                                     </div>
                                 </section>
 
+                                <PronosticoTerrenoPanel
+                                    TerrenoId="@detalleTerreno.TerrenoId"
+                                    VistaPropietario="true" />
+
                                 <section class="geo-timeline-section">
                                     <div class="geo-section-title compact">
                                         <div>
@@ -822,14 +809,14 @@
             ? "Temperatura municipal"
             : DepartamentoSeleccionado is not null
                 ? "Temperatura departamental"
-                : "Temperatura nacional";
+                : "Temperatura de mis terrenos";
 
     private string EtiquetaPrecipitacion =>
         MunicipioSeleccionado is not null
             ? "Precipitación municipal"
             : DepartamentoSeleccionado is not null
                 ? "Precipitación departamental"
-                : "Precipitación máxima";
+                : "Precipitación de mis terrenos";
 
     private string RangoTemperatura =>
         climaActual.Disponible &&
@@ -929,7 +916,13 @@
                 return;
             }
 
-            climaNacional = ConvertirClima(datos.Clima);
+            ClimaMapaRespuesta climaCompleto =
+                ConvertirClima(datos.Clima);
+
+            climaNacional = LimitarClimaATerrenos(
+                climaCompleto,
+                datos.Terrenos);
+
             climaActual = climaNacional;
         }
         catch (UnauthorizedAccessException)
@@ -1109,6 +1102,12 @@
                 panelActivo = "AGRICOLA";
                 capasActivas["terrenos"] = true;
                 capasActivas["alertas"] = true;
+                await SeleccionarCapaSueloAsync("ph");
+                break;
+
+            case "SUELO":
+                panelActivo = "SUELO";
+                capasActivas["terrenos"] = true;
                 await SeleccionarCapaSueloAsync("ph");
                 break;
 
@@ -1565,6 +1564,40 @@
     private string ClasePanel(string panel) =>
         panelActivo == panel ? "active" : string.Empty;
 
+    private string ModoRecomendadoPanel =>
+        panelActivo switch
+        {
+            "AGRICOLA" => "AGRICOLA",
+            "SUELO" => "SUELO",
+            "CLIMA" => "CLIMA",
+            _ => "GENERAL"
+        };
+
+    private string TituloCapasRecomendadas =>
+        panelActivo switch
+        {
+            "AGRICOLA" => "Vista agrícola recomendada",
+            "SUELO" => "Vista de suelo recomendada",
+            "CLIMA" => "Vista climática recomendada",
+            _ => "Vista territorial recomendada"
+        };
+
+    private string DescripcionCapasRecomendadas =>
+        panelActivo switch
+        {
+            "AGRICOLA" =>
+                "Activa sus terrenos, alertas y pH.",
+            "SUELO" =>
+                "Activa sus terrenos y la capa de pH.",
+            "CLIMA" =>
+                "Activa temperatura alrededor de sus fincas.",
+            _ =>
+                "Activa límites, terrenos y alertas propias."
+        };
+
+    private Task AplicarCapasRecomendadasAsync() =>
+        AplicarModoAsync(ModoRecomendadoPanel);
+
     private string ClaseModo(string modo) =>
         modoActivo == modo ? "active" : string.Empty;
 
@@ -1658,6 +1691,114 @@
                 FechaObservacion = x.FechaObservacion
             }).ToList()
         };
+
+    private static ClimaMapaRespuesta LimitarClimaATerrenos(
+        ClimaMapaRespuesta clima,
+        IReadOnlyCollection<PortalCentroTerreno> terrenos)
+    {
+        List<PortalCentroTerreno> ubicaciones = terrenos
+            .Where(x => x.TieneCoordenadas)
+            .ToList();
+
+        if (!clima.Disponible ||
+            clima.Puntos.Count == 0 ||
+            ubicaciones.Count == 0)
+        {
+            return clima;
+        }
+
+        var seleccionados =
+            new Dictionary<(decimal Latitud, decimal Longitud), ClimaPuntoMapa>();
+
+        foreach (PortalCentroTerreno terreno in ubicaciones)
+        {
+            foreach (ClimaPuntoMapa punto in clima.Puntos
+                         .OrderBy(x => DistanciaCuadrada(
+                             terreno.Latitud,
+                             terreno.Longitud,
+                             x.Latitud,
+                             x.Longitud))
+                         .Take(12))
+            {
+                seleccionados[(punto.Latitud, punto.Longitud)] = punto;
+            }
+        }
+
+        List<ClimaPuntoMapa> puntos = seleccionados
+            .Values
+            .OrderBy(x => x.Latitud)
+            .ThenBy(x => x.Longitud)
+            .ToList();
+
+        if (puntos.Count == 0)
+            return clima;
+
+        return new ClimaMapaRespuesta
+        {
+            Disponible = true,
+            Mensaje =
+                "Condiciones meteorológicas calculadas con los puntos " +
+                "más cercanos a sus terrenos.",
+            Proveedor = clima.Proveedor,
+            Licencia = clima.Licencia,
+            ActualizadoUtc = clima.ActualizadoUtc,
+            UnidadTemperatura = clima.UnidadTemperatura,
+            UnidadPrecipitacion = clima.UnidadPrecipitacion,
+            UnidadViento = clima.UnidadViento,
+            TemperaturaMinima = MinimoClima(
+                puntos.Select(x => x.Temperatura)),
+            TemperaturaMaxima = MaximoClima(
+                puntos.Select(x => x.Temperatura)),
+            HumedadMinima = MinimoClima(
+                puntos.Select(x => x.HumedadRelativa)),
+            HumedadMaxima = MaximoClima(
+                puntos.Select(x => x.HumedadRelativa)),
+            PrecipitacionMaxima = MaximoClima(
+                puntos.Select(x => x.Precipitacion)),
+            VientoMaximo = MaximoClima(
+                puntos.Select(x => x.VelocidadViento)),
+            Puntos = puntos
+        };
+    }
+
+    private static decimal DistanciaCuadrada(
+        decimal latitudOrigen,
+        decimal longitudOrigen,
+        decimal latitudDestino,
+        decimal longitudDestino)
+    {
+        decimal diferenciaLatitud = latitudDestino - latitudOrigen;
+        decimal diferenciaLongitud = longitudDestino - longitudOrigen;
+
+        return diferenciaLatitud * diferenciaLatitud +
+               diferenciaLongitud * diferenciaLongitud;
+    }
+
+    private static decimal? MinimoClima(
+        IEnumerable<decimal?> valores)
+    {
+        List<decimal> disponibles = valores
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .ToList();
+
+        return disponibles.Count > 0
+            ? disponibles.Min()
+            : null;
+    }
+
+    private static decimal? MaximoClima(
+        IEnumerable<decimal?> valores)
+    {
+        List<decimal> disponibles = valores
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .ToList();
+
+        return disponibles.Count > 0
+            ? disponibles.Max()
+            : null;
+    }
 
     private decimal? ObtenerValorSuelo(
         PortalCentroTerreno terreno,
