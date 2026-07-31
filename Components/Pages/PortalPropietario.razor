@@ -1,0 +1,470 @@
+@page "/mi-portal"
+@using CONATRADEC.AdminWeb.Models
+@using CONATRADEC.AdminWeb.Services
+@inject AuthStateService AuthState
+@inject PortalPropietarioService Servicio
+@inject NavigationManager Navigation
+
+<PageTitle>Mi portal | CONATRADEC</PageTitle>
+
+<section class="owner-portal-page">
+    <header class="owner-hero">
+        <div>
+            <p class="owner-eyebrow">
+                Portal del propietario
+            </p>
+
+            <h1>
+                Bienvenido,
+                @NombreVisible
+            </h1>
+
+            <p>
+                Consulte sus terrenos, ubicación, producción estimada
+                y actividad de análisis desde un espacio privado.
+            </p>
+        </div>
+
+        <button class="owner-refresh-button"
+                disabled="@cargando"
+                @onclick="CargarAsync">
+            <i class="fa-solid fa-rotate @(cargando ? "fa-spin" : string.Empty)"></i>
+            Actualizar
+        </button>
+    </header>
+
+    @if (cargando && datos is null)
+    {
+        <div class="owner-loading-card">
+            <div class="owner-loading-spinner"></div>
+            <strong>Cargando su información</strong>
+            <span>Estamos consultando únicamente sus terrenos.</span>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="owner-state-card error">
+            <i class="fa-solid fa-circle-exclamation"></i>
+
+            <div>
+                <h2>No fue posible cargar el portal</h2>
+                <p>@error</p>
+            </div>
+
+            <button class="owner-secondary-button"
+                    @onclick="CargarAsync">
+                Reintentar
+            </button>
+        </div>
+    }
+    else if (datos is not null && !datos.Vinculado)
+    {
+        <div class="owner-state-card warning">
+            <i class="fa-solid fa-link-slash"></i>
+
+            <div>
+                <h2>Cuenta pendiente de vinculación</h2>
+                <p>@datos.Mensaje</p>
+                <small>
+                    Un usuario autorizado debe vincular esta cuenta
+                    desde “Propietarios y acceso a terrenos”.
+                </small>
+            </div>
+        </div>
+    }
+    else if (datos?.Propietario is not null)
+    {
+        <section class="owner-profile-card">
+            <div class="owner-profile-avatar">
+                @ObtenerIniciales(
+                    datos.Propietario.NombreCompleto)
+            </div>
+
+            <div class="owner-profile-main">
+                <span>Propietario registrado</span>
+                <h2>@datos.Propietario.NombreCompleto</h2>
+                <p>
+                    Identificación:
+                    <strong>@datos.Propietario.Identificacion</strong>
+                </p>
+            </div>
+
+            <div class="owner-profile-contact">
+                <div>
+                    <i class="fa-solid fa-phone"></i>
+                    <span>
+                        @(string.IsNullOrWhiteSpace(
+                            datos.Propietario.Telefono)
+                            ? "Sin teléfono registrado"
+                            : datos.Propietario.Telefono)
+                    </span>
+                </div>
+
+                <div>
+                    <i class="fa-solid fa-envelope"></i>
+                    <span>
+                        @(string.IsNullOrWhiteSpace(
+                            datos.Propietario.Correo)
+                            ? "Sin correo registrado"
+                            : datos.Propietario.Correo)
+                    </span>
+                </div>
+
+                <div>
+                    <i class="fa-solid fa-location-dot"></i>
+                    <span>
+                        @(string.IsNullOrWhiteSpace(
+                            datos.Propietario.Direccion)
+                            ? "Sin dirección registrada"
+                            : datos.Propietario.Direccion)
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <section class="owner-summary-grid">
+            <article class="owner-summary-card">
+                <div class="owner-summary-icon green">
+                    <i class="fa-solid fa-mountain-sun"></i>
+                </div>
+
+                <div>
+                    <span>Mis terrenos</span>
+                    <strong>@datos.Resumen.TotalTerrenos</strong>
+                    <small>Terrenos activos vinculados</small>
+                </div>
+            </article>
+
+            <article class="owner-summary-card">
+                <div class="owner-summary-icon brown">
+                    <i class="fa-solid fa-ruler-combined"></i>
+                </div>
+
+                <div>
+                    <span>Extensión total</span>
+                    <strong>
+                        @datos.Resumen.TotalManzanas.ToString("N2")
+                    </strong>
+                    <small>Manzanas registradas</small>
+                </div>
+            </article>
+
+            <article class="owner-summary-card">
+                <div class="owner-summary-icon yellow">
+                    <i class="fa-solid fa-seedling"></i>
+                </div>
+
+                <div>
+                    <span>Plantas</span>
+                    <strong>
+                        @datos.Resumen.TotalPlantas.ToString("N0")
+                    </strong>
+                    <small>Plantas de café registradas</small>
+                </div>
+            </article>
+
+            <article class="owner-summary-card">
+                <div class="owner-summary-icon blue">
+                    <i class="fa-solid fa-flask-vial"></i>
+                </div>
+
+                <div>
+                    <span>Análisis</span>
+                    <strong>@datos.Resumen.TotalAnalisis</strong>
+                    <small>Análisis activos de sus terrenos</small>
+                </div>
+            </article>
+
+            <article class="owner-summary-card">
+                <div class="owner-summary-icon orange">
+                    <i class="fa-solid fa-mug-hot"></i>
+                </div>
+
+                <div>
+                    <span>Producción estimada</span>
+                    <strong>
+                        @datos.Resumen
+                            .ProduccionEstimadaQuintales
+                            .ToString("N2")
+                    </strong>
+                    <small>Quintales oro registrados</small>
+                </div>
+            </article>
+        </section>
+
+        <section id="mis-terrenos"
+                 class="owner-section-card">
+            <div class="owner-section-title">
+                <div>
+                    <p class="owner-eyebrow">Información propia</p>
+                    <h2>Mis terrenos</h2>
+                    <span>
+                        Solo se muestran los terrenos vinculados
+                        al propietario de esta cuenta.
+                    </span>
+                </div>
+
+                <strong class="owner-count-pill">
+                    @datos.Terrenos.Count
+                </strong>
+            </div>
+
+            @if (datos.Terrenos.Count == 0)
+            {
+                <div class="owner-empty-inline">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                    <p>
+                        @datos.Mensaje
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="owner-terrain-grid">
+                    @foreach (
+                        PortalPropietarioTerreno terreno
+                        in datos.Terrenos)
+                    {
+                        <article class="owner-terrain-card">
+                            <div class="owner-terrain-header">
+                                <div>
+                                    <span>Código de terreno</span>
+                                    <h3>@terreno.CodigoTerreno</h3>
+                                </div>
+
+                                <span class="owner-status-pill">
+                                    Activo
+                                </span>
+                            </div>
+
+                            <p class="owner-terrain-address">
+                                <i class="fa-solid fa-location-dot"></i>
+                                @terreno.Direccion
+                            </p>
+
+                            <p class="owner-terrain-location">
+                                @(
+                                    string.IsNullOrWhiteSpace(
+                                        terreno.Ubicacion)
+                                        ? "Ubicación territorial no registrada"
+                                        : terreno.Ubicacion
+                                )
+                            </p>
+
+                            <div class="owner-terrain-metrics">
+                                <div>
+                                    <span>Extensión</span>
+                                    <strong>
+                                        @terreno.ExtensionManzanas
+                                            .ToString("N2") Mz
+                                    </strong>
+                                </div>
+
+                                <div>
+                                    <span>Plantas</span>
+                                    <strong>
+                                        @terreno.CantidadPlantas
+                                            .ToString("N0")
+                                    </strong>
+                                </div>
+
+                                <div>
+                                    <span>Producción</span>
+                                    <strong>
+                                        @terreno.CantidadQuintalesOro
+                                            .ToString("N2") qq
+                                    </strong>
+                                </div>
+
+                                <div>
+                                    <span>Análisis</span>
+                                    <strong>@terreno.TotalAnalisis</strong>
+                                </div>
+                            </div>
+
+                            <footer class="owner-terrain-footer">
+                                <span>
+                                    Ingreso:
+                                    @terreno.FechaIngreso
+                                        .ToString("dd/MM/yyyy")
+                                </span>
+
+                                <span>
+                                    Último análisis:
+                                    @terreno.UltimoAnalisisTexto
+                                </span>
+                            </footer>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="owner-section-card owner-geospatial-cta">
+            <div class="owner-geospatial-visual">
+                <div class="owner-geospatial-orbit orbit-one"></div>
+                <div class="owner-geospatial-orbit orbit-two"></div>
+                <i class="fa-solid fa-map-location-dot"></i>
+            </div>
+
+            <div class="owner-geospatial-copy">
+                <p class="owner-eyebrow">Análisis territorial privado</p>
+                <h2>Mi Centro Geoespacial</h2>
+                <p>
+                    Explore sus terrenos en el Centro Geoespacial con
+                    alertas, último análisis de suelo, nutrientes y capas
+                    meteorológicas. La información permanece limitada al
+                    propietario vinculado con esta cuenta.
+                </p>
+
+                <div class="owner-geospatial-features">
+                    <span><i class="fa-solid fa-seedling"></i> Mis terrenos</span>
+                    <span><i class="fa-solid fa-triangle-exclamation"></i> Mis alertas</span>
+                    <span><i class="fa-solid fa-flask"></i> Capas de suelo</span>
+                    <span><i class="fa-solid fa-cloud-sun-rain"></i> Condiciones climáticas</span>
+                </div>
+            </div>
+
+            <div class="owner-geospatial-action">
+                <strong>@datos.Terrenos.Count</strong>
+                <span>terreno(s) disponibles</span>
+
+                <button class="owner-refresh-button"
+                        disabled="@(datos.Terrenos.Count == 0)"
+                        @onclick="AbrirCentroGeoespacial">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    Abrir Centro Geoespacial
+                </button>
+            </div>
+        </section>
+    }
+</section>
+
+@code {
+    private PortalPropietarioResumen? datos;
+    private bool cargando;
+    private string error = string.Empty;
+
+    private string NombreVisible =>
+        datos?.Propietario?.NombreCompleto ??
+        AuthState.Usuario?.NombreCompletoUsuario ??
+        AuthState.Usuario?.NombreUsuario ??
+        "propietario";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo(
+                "/login",
+                replace: true);
+            return;
+        }
+
+        bool accesoWeb =
+            AuthState.TienePermisoLectura(
+                PermisosWeb.Portal);
+
+        bool accesoPropietario =
+            AuthState.TienePermisoLectura(
+                PermisosWeb.PortalPropietario);
+
+        if (!accesoWeb)
+        {
+            await AuthState.CerrarSesionAsync();
+
+            Navigation.NavigateTo(
+                "/login",
+                replace: true);
+            return;
+        }
+
+        if (!accesoPropietario)
+        {
+            Navigation.NavigateTo(
+                "/",
+                replace: true);
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        if (cargando)
+            return;
+
+        cargando = true;
+        error = string.Empty;
+
+        try
+        {
+            datos =
+                await Servicio.ObtenerMiResumenAsync();
+
+            if (datos is null)
+            {
+                error =
+                    "El servidor no devolvió información " +
+                    "del propietario.";
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await AuthState.CerrarSesionAsync();
+
+            Navigation.NavigateTo(
+                "/login",
+                replace: true);
+        }
+        catch (HttpRequestException ex)
+        {
+            error =
+                string.IsNullOrWhiteSpace(ex.Message)
+                    ? "No fue posible conectarse con el servidor."
+                    : ex.Message;
+        }
+        catch (TaskCanceledException)
+        {
+            error =
+                "La solicitud tardó demasiado. " +
+                "Intente nuevamente.";
+        }
+        catch (Exception ex)
+        {
+            error =
+                string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Ocurrió un error inesperado."
+                    : ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AbrirCentroGeoespacial()
+    {
+        Navigation.NavigateTo(
+            "/mi-portal/centro-geoespacial");
+    }
+
+    private static string ObtenerIniciales(
+        string? nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return "P";
+
+        return string.Concat(
+            nombre
+                .Split(
+                    ' ',
+                    StringSplitOptions
+                        .RemoveEmptyEntries)
+                .Take(2)
+                .Select(x =>
+                    char.ToUpperInvariant(
+                        x[0])));
+    }
+}

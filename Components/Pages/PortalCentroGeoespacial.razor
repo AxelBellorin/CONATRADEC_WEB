@@ -1,0 +1,893 @@
+@page "/mi-portal/centro-geoespacial"
+@implements IAsyncDisposable
+@using CONATRADEC.AdminWeb.Models
+@using CONATRADEC.AdminWeb.Services
+@using Microsoft.JSInterop
+@inject AuthStateService AuthState
+@inject PortalPropietarioService Servicio
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Mi Centro Geoespacial | CONATRADEC</PageTitle>
+
+<section class="owner-geo-page">
+    <header class="owner-geo-header">
+        <div>
+            <button class="owner-geo-back"
+                    @onclick="VolverAlPortal">
+                <i class="fa-solid fa-arrow-left"></i>
+                Mi portal
+            </button>
+
+            <h1>Mi Centro Geoespacial</h1>
+
+            <p>
+                Analice sus terrenos, alertas, suelo y condiciones
+                meteorológicas sin visualizar información de otros propietarios.
+            </p>
+        </div>
+
+        <div class="owner-geo-header-actions">
+            <button class="owner-geo-action secondary"
+                    disabled="@(datos is null || cargando)"
+                    @onclick="CentrarTerrenosAsync">
+                <i class="fa-solid fa-expand"></i>
+                Centrar mis terrenos
+            </button>
+
+            <button class="owner-geo-action primary"
+                    disabled="@cargando"
+                    @onclick="ActualizarTodoAsync">
+                <i class="fa-solid fa-rotate @(cargando ? "fa-spin" : string.Empty)"></i>
+                Actualizar
+            </button>
+        </div>
+    </header>
+
+    @if (cargando && datos is null)
+    {
+        <div class="owner-geo-state">
+            <i class="fa-solid fa-map-location-dot fa-beat-fade"></i>
+            <h2>Preparando su centro geoespacial</h2>
+            <p>Consultamos sus terrenos y las capas disponibles.</p>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="owner-geo-state error">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <h2>No fue posible cargar la información</h2>
+            <p>@error</p>
+
+            <button class="owner-geo-action primary"
+                    @onclick="ActualizarTodoAsync">
+                Reintentar
+            </button>
+        </div>
+    }
+    else if (datos is not null && !datos.Vinculado)
+    {
+        <div class="owner-geo-state warning">
+            <i class="fa-solid fa-link-slash"></i>
+            <h2>Cuenta sin propietario vinculado</h2>
+            <p>@datos.Mensaje</p>
+        </div>
+    }
+    else if (datos is not null)
+    {
+        <section class="owner-geo-summary">
+            <article>
+                <span class="icon green">
+                    <i class="fa-solid fa-seedling"></i>
+                </span>
+                <div>
+                    <small>Terrenos visibles</small>
+                    <strong>@datos.Resumen.TotalTerrenos</strong>
+                    <em>@datos.Resumen.ExtensionTotalManzanas.ToString("N2") Mz</em>
+                </div>
+            </article>
+
+            <article>
+                <span class="icon red">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                </span>
+                <div>
+                    <small>Estado crítico</small>
+                    <strong>@datos.Resumen.EstadoCritico</strong>
+                    <em>Atención prioritaria</em>
+                </div>
+            </article>
+
+            <article>
+                <span class="icon yellow">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </span>
+                <div>
+                    <small>Requieren atención</small>
+                    <strong>@datos.Resumen.RequierenAtencion</strong>
+                    <em>Seguimiento técnico</em>
+                </div>
+            </article>
+
+            <article>
+                <span class="icon blue">
+                    <i class="fa-solid fa-flask"></i>
+                </span>
+                <div>
+                    <small>Sin análisis</small>
+                    <strong>@datos.Resumen.SinAnalisis</strong>
+                    <em>Sin diagnóstico activo</em>
+                </div>
+            </article>
+
+            <article>
+                <span class="icon orange">
+                    <i class="fa-solid fa-temperature-half"></i>
+                </span>
+                <div>
+                    <small>Temperatura local</small>
+                    <strong>@FormatoClima(datos.Resumen.TemperaturaPromedioLocal, "°C")</strong>
+                    <em>Estimación cercana</em>
+                </div>
+            </article>
+
+            <article>
+                <span class="icon rain">
+                    <i class="fa-solid fa-cloud-rain"></i>
+                </span>
+                <div>
+                    <small>Precipitación máxima</small>
+                    <strong>@FormatoClima(datos.Resumen.PrecipitacionMaximaLocal, " mm")</strong>
+                    <em>Estimación cercana</em>
+                </div>
+            </article>
+        </section>
+
+        <section class="owner-geo-workspace">
+            <aside class="owner-geo-panel">
+                <div class="owner-geo-panel-head">
+                    <p>Panel privado</p>
+                    <h2>Capas y filtros</h2>
+                </div>
+
+                <div class="owner-geo-panel-scroll">
+                    <div class="owner-geo-control-group">
+                        <label>Modo de visualización</label>
+                        <span>Active un conjunto recomendado de capas.</span>
+
+                        <div class="owner-geo-mode-grid">
+                            <button class="@ClaseModo("GENERAL")"
+                                    @onclick='() => CambiarModo("GENERAL")'>
+                                <i class="fa-solid fa-earth-americas"></i>
+                                General
+                            </button>
+
+                            <button class="@ClaseModo("AGRICOLA")"
+                                    @onclick='() => CambiarModo("AGRICOLA")'>
+                                <i class="fa-solid fa-wheat-awn"></i>
+                                Agrícola
+                            </button>
+
+                            <button class="@ClaseModo("CLIMA")"
+                                    @onclick='() => CambiarModo("CLIMA")'>
+                                <i class="fa-solid fa-cloud-sun-rain"></i>
+                                Clima
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="owner-geo-control-group">
+                        <label>Mapa base</label>
+                        <span>Cambie el fondo sin perder las capas.</span>
+
+                        <select value="@mapaBase"
+                                @onchange="MapaBaseCambiadoAsync">
+                            <option value="CALLES">Calles y comunidades</option>
+                            <option value="TOPOGRAFICO">Relieve topográfico</option>
+                            <option value="SATELITE">Vista satelital</option>
+                        </select>
+                    </div>
+
+                    <div class="owner-geo-control-group">
+                        <div class="owner-geo-group-title">
+                            <div>
+                                <label>Capas base</label>
+                                <span>Referencias territoriales.</span>
+                            </div>
+                            <small>2 disponibles</small>
+                        </div>
+
+                        <button class="owner-geo-layer-row @(mostrarLimiteNacional ? "active" : string.Empty)"
+                                @onclick="AlternarLimiteNacionalAsync">
+                            <span class="layer-icon">
+                                <i class="fa-solid fa-border-all"></i>
+                            </span>
+                            <span class="layer-text">
+                                <strong>Límite nacional</strong>
+                                <small>Contorno de Nicaragua.</small>
+                            </span>
+                            <span class="layer-switch"></span>
+                        </button>
+
+                        <button class="owner-geo-layer-row @(mostrarMunicipios ? "active" : string.Empty)"
+                                @onclick="AlternarMunicipiosAsync">
+                            <span class="layer-icon">
+                                <i class="fa-solid fa-draw-polygon"></i>
+                            </span>
+                            <span class="layer-text">
+                                <strong>Límites municipales</strong>
+                                <small>División territorial de referencia.</small>
+                            </span>
+                            <span class="layer-switch"></span>
+                        </button>
+                    </div>
+
+                    <div class="owner-geo-control-group">
+                        <div class="owner-geo-group-title">
+                            <div>
+                                <label>Información agrícola</label>
+                                <span>Datos exclusivos de sus fincas.</span>
+                            </div>
+                            <small>2 disponibles</small>
+                        </div>
+
+                        <button class="owner-geo-layer-row @(mostrarTerrenos ? "active" : string.Empty)"
+                                @onclick="AlternarTerrenosAsync">
+                            <span class="layer-icon">
+                                <i class="fa-solid fa-seedling"></i>
+                            </span>
+                            <span class="layer-text">
+                                <strong>Mis terrenos</strong>
+                                <small>Estado del último análisis.</small>
+                            </span>
+                            <span class="layer-switch"></span>
+                        </button>
+
+                        <button class="owner-geo-layer-row @(mostrarAlertas ? "active" : string.Empty)"
+                                @onclick="AlternarAlertasAsync">
+                            <span class="layer-icon alert">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                            </span>
+                            <span class="layer-text">
+                                <strong>Mis alertas</strong>
+                                <small>@datos.Resumen.AlertasActivas alertas activas.</small>
+                            </span>
+                            <span class="layer-switch"></span>
+                        </button>
+                    </div>
+
+                    <div class="owner-geo-control-group">
+                        <label>Información de suelo</label>
+                        <span>Visualice el último análisis por terreno.</span>
+
+                        <select value="@capaSuelo"
+                                @onchange="CapaSueloCambiadaAsync">
+                            <option value="">Sin capa de suelo</option>
+                            <option value="ph">pH del suelo</option>
+                            <option value="materia-organica">Materia orgánica</option>
+                            <option value="acidez-total">Acidez total</option>
+                            <option value="cice">CICE</option>
+                            <option value="saturacion-bases">Saturación de bases</option>
+
+                            @foreach (PortalCentroNutriente nutriente
+                                      in datos.NutrientesDisponibles)
+                            {
+                                <option value="@nutriente.Clave">
+                                    @nutriente.Nombre (@nutriente.Simbolo)
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="owner-geo-control-group">
+                        <label>Condición meteorológica</label>
+                        <span>
+                            Datos de @(
+                                string.IsNullOrWhiteSpace(datos.Clima.Proveedor)
+                                    ? "la capa climática"
+                                    : datos.Clima.Proveedor).
+                        </span>
+
+                        <select value="@capaClima"
+                                disabled="@(!datos.Clima.Disponible)"
+                                @onchange="CapaClimaCambiadaAsync">
+                            <option value="">Sin capa climática</option>
+                            <option value="temperatura">Temperatura</option>
+                            <option value="humedad">Humedad relativa</option>
+                            <option value="lluvia">Precipitación</option>
+                            <option value="viento">Velocidad del viento</option>
+                        </select>
+
+                        @if (!datos.Clima.Disponible)
+                        {
+                            <p class="owner-geo-layer-warning">
+                                @datos.Clima.Mensaje
+                            </p>
+                        }
+                    </div>
+
+                    <div class="owner-geo-control-group">
+                        <label>Filtrar terrenos</label>
+
+                        <select value="@filtroEstado"
+                                @onchange="FiltroEstadoCambiadoAsync">
+                            <option value="TODOS">Todos los estados</option>
+                            <option value="CRITICO">Estado crítico</option>
+                            <option value="ATENCION">Requieren atención</option>
+                            <option value="ESTABLE">Estado estable</option>
+                            <option value="SIN_ANALISIS">Sin análisis</option>
+                        </select>
+
+                        <select value="@terrenoSeleccionadoFiltro"
+                                @onchange="TerrenoFiltroCambiadoAsync">
+                            <option value="0">Todos mis terrenos</option>
+                            @foreach (PortalCentroTerreno terreno in datos.Terrenos)
+                            {
+                                <option value="@terreno.TerrenoId">
+                                    @terreno.CodigoTerreno
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="owner-geo-map-area">
+                <div class="owner-geo-map-toolbar">
+                    <div>
+                        <strong>@TituloMapa</strong>
+                        <span>@TerrenosFiltrados.Count terreno(s) visibles</span>
+                    </div>
+
+                    <div class="owner-geo-map-toolbar-actions">
+                        <button title="Mostrar únicamente terrenos con alertas"
+                                class="@(soloConAlertas ? "active" : string.Empty)"
+                                @onclick="AlternarSoloAlertasAsync">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </button>
+
+                        <button title="Centrar terrenos"
+                                @onclick="CentrarTerrenosAsync">
+                            <i class="fa-solid fa-crosshairs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="portal-centro-geoespacial-mapa"
+                     class="owner-geo-map-canvas"
+                     aria-label="Centro geoespacial de mis terrenos">
+                </div>
+
+                @if (TerrenosFiltrados.Count == 0)
+                {
+                    <div class="owner-geo-map-empty">
+                        <i class="fa-solid fa-filter-circle-xmark"></i>
+                        <h3>No hay terrenos para los filtros seleccionados</h3>
+                        <p>Quite algún filtro para volver a mostrarlos.</p>
+                    </div>
+                }
+
+                <div class="owner-geo-map-footer">
+                    <span>
+                        <i class="fa-solid fa-shield-halved"></i>
+                        Vista privada: solo datos del propietario autenticado.
+                    </span>
+
+                    <span>
+                        Actualizado:
+                        @datos.ActualizadoUtc.ToLocalTime().ToString("dd/MM/yyyy hh:mm tt")
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        @if (terrenoDetalle is not null)
+        {
+            <div class="owner-geo-drawer-backdrop"
+                 @onclick="CerrarDetalle"></div>
+
+            <aside class="owner-geo-drawer">
+                <header>
+                    <div>
+                        <span>Detalle del terreno</span>
+                        <h2>@terrenoDetalle.CodigoTerreno</h2>
+                        <p>@terrenoDetalle.Ubicacion</p>
+                    </div>
+
+                    <button @onclick="CerrarDetalle"
+                            aria-label="Cerrar detalle">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </header>
+
+                <div class="owner-geo-drawer-scroll">
+                    <div class="owner-geo-status-banner"
+                         style="--status-color:@terrenoDetalle.ColorEstado">
+                        <span></span>
+                        <div>
+                            <strong>@terrenoDetalle.Estado</strong>
+                            <small>
+                                Último análisis:
+                                @terrenoDetalle.FechaUltimoAnalisisTexto
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="owner-geo-detail-grid">
+                        <div><span>Extensión</span><strong>@terrenoDetalle.ExtensionManzanas.ToString("N2") Mz</strong></div>
+                        <div><span>Plantas</span><strong>@terrenoDetalle.CantidadPlantas.ToString("N0")</strong></div>
+                        <div><span>Producción</span><strong>@terrenoDetalle.CantidadQuintalesOro.ToString("N2") qq</strong></div>
+                        <div><span>Análisis</span><strong>@terrenoDetalle.TotalAnalisis</strong></div>
+                    </div>
+
+                    <section class="owner-geo-detail-section">
+                        <h3>Último resultado de suelo</h3>
+
+                        <div class="owner-geo-soil-grid">
+                            <div><span>pH</span><strong>@FormatoNumero(terrenoDetalle.Ph)</strong></div>
+                            <div><span>Materia orgánica</span><strong>@FormatoNumero(terrenoDetalle.MateriaOrganica, "%")</strong></div>
+                            <div><span>Acidez total</span><strong>@FormatoNumero(terrenoDetalle.AcidezTotal)</strong></div>
+                            <div><span>CICE</span><strong>@FormatoNumero(terrenoDetalle.Cice)</strong></div>
+                            <div><span>Saturación bases</span><strong>@FormatoNumero(terrenoDetalle.SaturacionBases, "%")</strong></div>
+                        </div>
+                    </section>
+
+                    @if (terrenoDetalle.Alertas.Count > 0)
+                    {
+                        <section class="owner-geo-detail-section">
+                            <h3>Alertas del terreno</h3>
+
+                            <div class="owner-geo-alert-list">
+                                @foreach (PortalCentroAlerta alerta
+                                          in terrenoDetalle.Alertas)
+                                {
+                                    <article class="@(alerta.Nivel == "CRITICO" ? "critical" : "attention")">
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                        <div>
+                                            <strong>@alerta.Titulo</strong>
+                                            <p>@alerta.Mensaje</p>
+                                        </div>
+                                    </article>
+                                }
+                            </div>
+                        </section>
+                    }
+
+                    @if (terrenoDetalle.Elementos.Count > 0)
+                    {
+                        <section class="owner-geo-detail-section">
+                            <h3>Elementos químicos</h3>
+
+                            <div class="owner-geo-elements-table">
+                                @foreach (PortalCentroElemento elemento
+                                          in terrenoDetalle.Elementos)
+                                {
+                                    <div>
+                                        <strong>@elemento.Simbolo</strong>
+                                        <span>@elemento.Nombre</span>
+                                        <em>@elemento.Valor.ToString("N2") @elemento.Unidad</em>
+                                        <small>@elemento.Clasificacion</small>
+                                    </div>
+                                }
+                            </div>
+                        </section>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(terrenoDetalle.RecomendacionGeneral))
+                    {
+                        <section class="owner-geo-detail-section">
+                            <h3>Recomendación</h3>
+                            <p>@terrenoDetalle.RecomendacionGeneral</p>
+                        </section>
+                    }
+
+                    <button class="owner-geo-history-button"
+                            disabled="@cargandoHistorial"
+                            @onclick="CargarHistorialAsync">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        @(cargandoHistorial ? "Cargando historial..." : "Ver historial de análisis")
+                    </button>
+
+                    @if (historial is not null)
+                    {
+                        <section class="owner-geo-detail-section">
+                            <h3>Historial de análisis</h3>
+
+                            @if (historial.Analisis.Count == 0)
+                            {
+                                <p>No existen análisis activos para este terreno.</p>
+                            }
+                            else
+                            {
+                                <div class="owner-geo-history-list">
+                                    @foreach (PortalHistorialAnalisis analisis
+                                              in historial.Analisis)
+                                    {
+                                        <details>
+                                            <summary>
+                                                <span>
+                                                    <strong>@analisis.Identificador</strong>
+                                                    <small>@analisis.FechaLaboratorio.ToString("dd/MM/yyyy")</small>
+                                                </span>
+                                                <em class="@ClaseNivel(analisis.Nivel)">@analisis.Estado</em>
+                                            </summary>
+
+                                            <div class="history-content">
+                                                <p><b>pH:</b> @analisis.Ph.ToString("N2")</p>
+                                                <p><b>Materia orgánica:</b> @FormatoNumero(analisis.MateriaOrganica, "%")</p>
+                                                <p><b>Acidez total:</b> @FormatoNumero(analisis.AcidezTotal)</p>
+                                                <p><b>CICE:</b> @FormatoNumero(analisis.Cice)</p>
+                                                <p>@analisis.RecomendacionGeneral</p>
+                                            </div>
+                                        </details>
+                                    }
+                                </div>
+                            }
+                        </section>
+                    }
+                </div>
+            </aside>
+        }
+    }
+</section>
+
+@code {
+    private CONATRADEC.AdminWeb.Models.PortalCentroGeoespacialResponse? datos;
+    private PortalCentroTerreno? terrenoDetalle;
+    private PortalHistorialTerreno? historial;
+    private DotNetObjectReference<PortalCentroGeoespacial>? referenciaDotNet;
+
+    private bool cargando;
+    private bool cargandoHistorial;
+    private bool renderPendiente;
+    private bool centrarPendiente;
+    private bool mostrarLimiteNacional = true;
+    private bool mostrarMunicipios;
+    private bool mostrarTerrenos = true;
+    private bool mostrarAlertas = true;
+    private bool soloConAlertas;
+
+    private string modo = "GENERAL";
+    private string mapaBase = "CALLES";
+    private string capaSuelo = string.Empty;
+    private string capaClima = string.Empty;
+    private string filtroEstado = "TODOS";
+    private int terrenoSeleccionadoFiltro;
+    private string error = string.Empty;
+
+    private List<PortalCentroTerreno> TerrenosFiltrados
+    {
+        get
+        {
+            if (datos is null)
+                return [];
+
+            IEnumerable<PortalCentroTerreno> consulta = datos.Terrenos;
+
+            if (filtroEstado != "TODOS")
+                consulta = consulta.Where(x => x.Nivel == filtroEstado);
+
+            if (terrenoSeleccionadoFiltro > 0)
+                consulta = consulta.Where(x => x.TerrenoId == terrenoSeleccionadoFiltro);
+
+            if (soloConAlertas)
+                consulta = consulta.Where(x => x.Alertas.Count > 0);
+
+            return consulta.ToList();
+        }
+    }
+
+    private string TituloMapa =>
+        !string.IsNullOrWhiteSpace(capaSuelo)
+            ? "Capa de suelo: " + NombreCapaSuelo(capaSuelo)
+            : !string.IsNullOrWhiteSpace(capaClima)
+                ? "Condición climática: " + NombreCapaClima(capaClima)
+                : "Estado agrícola de mis terrenos";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        if (!AuthState.TienePermisoLectura(PermisosWeb.Portal) ||
+            !AuthState.TienePermisoLectura(PermisosWeb.PortalPropietario))
+        {
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        referenciaDotNet = DotNetObjectReference.Create(this);
+        await CargarAsync(false);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!renderPendiente || datos is null)
+            return;
+
+        renderPendiente = false;
+
+        await JS.InvokeVoidAsync(
+            "conatradecPortalCentroGeoespacial.render",
+            "portal-centro-geoespacial-mapa",
+            CrearPayloadMapa(),
+            referenciaDotNet);
+
+        if (centrarPendiente)
+        {
+            centrarPendiente = false;
+            await CentrarTerrenosAsync();
+        }
+    }
+
+    private async Task CargarAsync(bool forzarClima)
+    {
+        if (cargando)
+            return;
+
+        cargando = true;
+        error = string.Empty;
+
+        try
+        {
+            datos = await Servicio.ObtenerMiCentroGeoespacialAsync(forzarClima);
+
+            if (datos is null)
+            {
+                error = "El servidor no devolvió información geoespacial.";
+                return;
+            }
+
+            renderPendiente = datos.Vinculado;
+            centrarPendiente = datos.Vinculado;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await AuthState.CerrarSesionAsync();
+            Navigation.NavigateTo("/login", replace: true);
+        }
+        catch (Exception ex)
+        {
+            error = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Ocurrió un error inesperado."
+                : ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task ActualizarTodoAsync() => await CargarAsync(true);
+
+    private object CrearPayloadMapa() => new
+    {
+        terrenos = TerrenosFiltrados,
+        clima = datos?.Clima,
+        mapaBase,
+        mostrarLimiteNacional,
+        mostrarMunicipios,
+        mostrarTerrenos,
+        mostrarAlertas,
+        capaSuelo,
+        capaClima
+    };
+
+    private async Task SolicitarRenderAsync()
+    {
+        if (datos is null)
+            return;
+
+        await JS.InvokeVoidAsync(
+            "conatradecPortalCentroGeoespacial.render",
+            "portal-centro-geoespacial-mapa",
+            CrearPayloadMapa(),
+            referenciaDotNet);
+    }
+
+    private async Task CambiarModo(string nuevoModo)
+    {
+        modo = nuevoModo;
+
+        switch (modo)
+        {
+            case "AGRICOLA":
+                mostrarTerrenos = true;
+                mostrarAlertas = true;
+                capaClima = string.Empty;
+                break;
+
+            case "CLIMA":
+                mostrarTerrenos = true;
+                mostrarAlertas = false;
+                capaSuelo = string.Empty;
+                capaClima = "temperatura";
+                break;
+
+            default:
+                mostrarTerrenos = true;
+                mostrarAlertas = true;
+                capaSuelo = string.Empty;
+                capaClima = string.Empty;
+                break;
+        }
+
+        await SolicitarRenderAsync();
+    }
+
+    private string ClaseModo(string valor) =>
+        modo == valor ? "active" : string.Empty;
+
+    private async Task MapaBaseCambiadoAsync(ChangeEventArgs args)
+    {
+        mapaBase = args.Value?.ToString() ?? "CALLES";
+        await SolicitarRenderAsync();
+    }
+
+    private async Task CapaSueloCambiadaAsync(ChangeEventArgs args)
+    {
+        capaSuelo = args.Value?.ToString() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(capaSuelo))
+            capaClima = string.Empty;
+        await SolicitarRenderAsync();
+    }
+
+    private async Task CapaClimaCambiadaAsync(ChangeEventArgs args)
+    {
+        capaClima = args.Value?.ToString() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(capaClima))
+            capaSuelo = string.Empty;
+        await SolicitarRenderAsync();
+    }
+
+    private async Task FiltroEstadoCambiadoAsync(ChangeEventArgs args)
+    {
+        filtroEstado = args.Value?.ToString() ?? "TODOS";
+        await SolicitarRenderAsync();
+    }
+
+    private async Task TerrenoFiltroCambiadoAsync(ChangeEventArgs args)
+    {
+        terrenoSeleccionadoFiltro = int.TryParse(args.Value?.ToString(), out int id)
+            ? id
+            : 0;
+        await SolicitarRenderAsync();
+        await CentrarTerrenosAsync();
+    }
+
+    private async Task AlternarLimiteNacionalAsync()
+    {
+        mostrarLimiteNacional = !mostrarLimiteNacional;
+        await SolicitarRenderAsync();
+    }
+
+    private async Task AlternarMunicipiosAsync()
+    {
+        mostrarMunicipios = !mostrarMunicipios;
+        await SolicitarRenderAsync();
+    }
+
+    private async Task AlternarTerrenosAsync()
+    {
+        mostrarTerrenos = !mostrarTerrenos;
+        await SolicitarRenderAsync();
+    }
+
+    private async Task AlternarAlertasAsync()
+    {
+        mostrarAlertas = !mostrarAlertas;
+        await SolicitarRenderAsync();
+    }
+
+    private async Task AlternarSoloAlertasAsync()
+    {
+        soloConAlertas = !soloConAlertas;
+        await SolicitarRenderAsync();
+        await CentrarTerrenosAsync();
+    }
+
+    private async Task CentrarTerrenosAsync()
+    {
+        await JS.InvokeVoidAsync(
+            "conatradecPortalCentroGeoespacial.centrar",
+            "portal-centro-geoespacial-mapa");
+    }
+
+    [JSInvokable]
+    public async Task SeleccionarTerrenoDesdeMapa(int terrenoId)
+    {
+        if (datos is null)
+            return;
+
+        terrenoDetalle = datos.Terrenos.FirstOrDefault(x => x.TerrenoId == terrenoId);
+        historial = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CargarHistorialAsync()
+    {
+        if (terrenoDetalle is null || cargandoHistorial)
+            return;
+
+        cargandoHistorial = true;
+
+        try
+        {
+            historial = await Servicio.ObtenerHistorialTerrenoAsync(
+                terrenoDetalle.TerrenoId,
+                20);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargandoHistorial = false;
+        }
+    }
+
+    private void CerrarDetalle()
+    {
+        terrenoDetalle = null;
+        historial = null;
+    }
+
+    private void VolverAlPortal() => Navigation.NavigateTo("/mi-portal");
+
+    private static string FormatoNumero(decimal? valor, string sufijo = "") =>
+        valor.HasValue ? $"{valor.Value:N2}{sufijo}" : "No disponible";
+
+    private static string FormatoClima(decimal? valor, string sufijo) =>
+        valor.HasValue ? $"{valor.Value:N1}{sufijo}" : "Por consultar";
+
+    private static string NombreCapaSuelo(string clave) =>
+        clave switch
+        {
+            "ph" => "pH",
+            "materia-organica" => "Materia orgánica",
+            "acidez-total" => "Acidez total",
+            "cice" => "CICE",
+            "saturacion-bases" => "Saturación de bases",
+            _ when clave.StartsWith("nutriente-") => "Nutriente",
+            _ => "Suelo"
+        };
+
+    private static string NombreCapaClima(string clave) =>
+        clave switch
+        {
+            "temperatura" => "Temperatura",
+            "humedad" => "Humedad relativa",
+            "lluvia" => "Precipitación",
+            "viento" => "Viento",
+            _ => "Clima"
+        };
+
+    private static string ClaseNivel(string nivel) =>
+        nivel switch
+        {
+            "CRITICO" => "critical",
+            "ATENCION" => "attention",
+            "ESTABLE" => "stable",
+            _ => "neutral"
+        };
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecPortalCentroGeoespacial.dispose",
+                "portal-centro-geoespacial-mapa");
+        }
+        catch
+        {
+        }
+
+        referenciaDotNet?.Dispose();
+        referenciaDotNet = null;
+    }
+}

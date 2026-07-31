@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @implements IAsyncDisposable
+@using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.JSInterop
 @inject AuthStateService AuthState
 @inject WebActivityService Actividad
@@ -13,6 +14,19 @@
         @Body
     </main>
 }
+else if (!TieneAccesoPortalWeb)
+{
+    <main class="portal-access-pending">
+        <div>
+            <i class="fa-solid fa-lock"></i>
+            <h2>Acceso web no habilitado</h2>
+            <p>
+                Su sesión será cerrada porque el rol no tiene
+                el permiso “Acceso al portal web”.
+            </p>
+        </div>
+    </main>
+}
 else
 {
     <div class="admin-shell">
@@ -24,151 +38,206 @@ else
 
                 <div>
                     <strong>CONATRADEC</strong>
-                    <span>Portal administrativo</span>
+                    <span>
+                        @(EsPortalPropietarioExclusivo
+                            ? "Portal del propietario"
+                            : "Portal administrativo")
+                    </span>
                 </div>
             </div>
 
             <nav class="nav-menu"
                  @onclick="CerrarMenuMovil">
-                <NavLink href="/"
-                         Match="NavLinkMatch.All">
-                    <i class="fa-solid fa-chart-line"></i>
-                    <span>Dashboard</span>
-                </NavLink>
 
-                @if (AuthState.TienePermisoLectura("TerrenoPage") ||
-                     AuthState.TienePermisoLectura("terrenoPage") ||
-                     AuthState.TienePermisoLectura("MapaTerrenosWeb") ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/mapa">
-                        <i class="fa-solid fa-map-location-dot"></i>
-                        <span>Centro geoespacial</span>
-                    </NavLink>
-                }
-
-                @if (PuedeVerSupervision)
+                @if (EsPortalPropietarioExclusivo)
                 {
                     <div class="nav-section">
-                        Supervisión agrícola
+                        Mi información
                     </div>
-                }
 
-                @if (AuthState.TienePermisoLectura(PermisosWeb.Alertas) ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/alertas-agricolas">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>Centro de alertas</span>
+                    <NavLink href="/mi-portal"
+                             Match="NavLinkMatch.All">
+                        <i class="fa-solid fa-house-chimney-user"></i>
+                        <span>Mi portal</span>
+                    </NavLink>
+
+                    <a href="/mi-portal#mis-terrenos">
+                        <i class="fa-solid fa-mountain-sun"></i>
+                        <span>Mis terrenos</span>
+                    </a>
+
+                    <NavLink href="/mi-portal/centro-geoespacial">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                        <span>Mi Centro Geoespacial</span>
                     </NavLink>
                 }
-
-                @if (AuthState.TienePermisoLectura(
-                         PermisosWeb.SeguimientoAlertas) ||
-                     AuthState.EsAdministrador)
+                else
                 {
-                    <NavLink href="/seguimiento-alertas">
-                        <i class="fa-solid fa-list-check"></i>
-                        <span>Seguimiento</span>
+                    <NavLink href="/"
+                             Match="NavLinkMatch.All">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span>Dashboard</span>
+                    </NavLink>
+
+                    @if (TienePortalPropietario)
+                    {
+                        <NavLink href="/mi-portal">
+                            <i class="fa-solid fa-house-chimney-user"></i>
+                            <span>Mi portal</span>
+                        </NavLink>
+
+                        <NavLink href="/mi-portal/centro-geoespacial">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            <span>Mi Centro Geoespacial</span>
+                        </NavLink>
+                    }
+
+                    @if (AuthState.TienePermisoLectura("TerrenoPage") ||
+                         AuthState.TienePermisoLectura("terrenoPage") ||
+                         AuthState.TienePermisoLectura("MapaTerrenosWeb") ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/mapa">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            <span>Centro geoespacial</span>
+                        </NavLink>
+                    }
+
+                    @if (PuedeVerSupervision)
+                    {
+                        <div class="nav-section">
+                            Supervisión agrícola
+                        </div>
+                    }
+
+                    @if (AuthState.TienePermisoLectura(PermisosWeb.Alertas) ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/alertas-agricolas">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>Centro de alertas</span>
+                        </NavLink>
+                    }
+
+                    @if (AuthState.TienePermisoLectura(
+                             PermisosWeb.SeguimientoAlertas) ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/seguimiento-alertas">
+                            <i class="fa-solid fa-list-check"></i>
+                            <span>Seguimiento</span>
+                        </NavLink>
+                    }
+
+                    @if (AuthState.TienePermisoLectura(
+                             PermisosWeb.ConfiguracionAlertas) ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/configuracion-alertas">
+                            <i class="fa-solid fa-sliders"></i>
+                            <span>Umbrales</span>
+                        </NavLink>
+                    }
+
+                    @if (AuthState.TienePermisoLectura(
+                             PermisosWeb.AuditoriaAnalisis) ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/control-analisis">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i>
+                            <span>Control de análisis</span>
+                        </NavLink>
+                    }
+
+                    @if (PuedeVerParametrizacionAcceso)
+                    {
+                        <div class="nav-section">
+                            Propietarios y cobertura
+                        </div>
+
+                        <NavLink href="/parametrizacion-acceso">
+                            <i class="fa-solid fa-people-roof"></i>
+                            <span>Acceso a terrenos</span>
+                        </NavLink>
+                    }
+
+                    <div class="nav-section">
+                        Administración
+                    </div>
+
+                    @if (AuthState.TienePermisoLectura("UsuarioPage") ||
+                         AuthState.TienePermisoLectura("userPage") ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/usuarios">
+                            <i class="fa-solid fa-users"></i>
+                            <span>Usuarios</span>
+                        </NavLink>
+                    }
+
+                    @if (AuthState.TienePermisoLectura(PermisosWeb.Roles) ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/roles">
+                            <i class="fa-solid fa-user-shield"></i>
+                            <span>Roles</span>
+                        </NavLink>
+                    }
+
+                    @if (AuthState.TienePermisoLectura(PermisosWeb.Matriz) ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/matriz-permisos">
+                            <i class="fa-solid fa-table-cells"></i>
+                            <span>Matriz de permisos</span>
+                        </NavLink>
+                    }
+
+                    @if (AuthState.TienePermisoLectura(
+                             "dispositivosConectadosPage") ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/dispositivos-conectados">
+                            <i class="fa-solid fa-laptop"></i>
+                            <span>Dispositivos conectados</span>
+                        </NavLink>
+                    }
+
+                    @if (AuthState.TienePermisoLectura(
+                             PermisosWeb.Actualizaciones) ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/actualizaciones">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>Actualizaciones</span>
+                        </NavLink>
+                    }
+
+                    @if (AuthState.TienePermisoLectura(
+                             PermisosWeb.LlavesDescarga) ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/actualizaciones/llaves">
+                            <i class="fa-solid fa-key"></i>
+                            <span>Llaves de descarga</span>
+                        </NavLink>
+                    }
+
+                    @if (AuthState.TienePermisoLectura("BitacoraPage") ||
+                         AuthState.TienePermisoLectura("bitacoraPage") ||
+                         AuthState.EsAdministrador)
+                    {
+                        <NavLink href="/bitacora">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span>Bitácora</span>
+                        </NavLink>
+                    }
+
+                    <NavLink href="/configuracion">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>Configuración</span>
                     </NavLink>
                 }
-
-                @if (AuthState.TienePermisoLectura(
-                         PermisosWeb.ConfiguracionAlertas) ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/configuracion-alertas">
-                        <i class="fa-solid fa-sliders"></i>
-                        <span>Umbrales</span>
-                    </NavLink>
-                }
-
-                @if (AuthState.TienePermisoLectura(
-                         PermisosWeb.AuditoriaAnalisis) ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/control-analisis">
-                        <i class="fa-solid fa-magnifying-glass-chart"></i>
-                        <span>Control de análisis</span>
-                    </NavLink>
-                }
-
-                <div class="nav-section">
-                    Administración
-                </div>
-
-                @if (AuthState.TienePermisoLectura("UsuarioPage") ||
-                     AuthState.TienePermisoLectura("userPage") ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/usuarios">
-                        <i class="fa-solid fa-users"></i>
-                        <span>Usuarios</span>
-                    </NavLink>
-                }
-
-                @if (AuthState.TienePermisoLectura(PermisosWeb.Roles) ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/roles">
-                        <i class="fa-solid fa-user-shield"></i>
-                        <span>Roles</span>
-                    </NavLink>
-                }
-
-                @if (AuthState.TienePermisoLectura(PermisosWeb.Matriz) ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/matriz-permisos">
-                        <i class="fa-solid fa-table-cells"></i>
-                        <span>Matriz de permisos</span>
-                    </NavLink>
-                }
-
-                @if (AuthState.TienePermisoLectura(
-                         "dispositivosConectadosPage") ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/dispositivos-conectados">
-                        <i class="fa-solid fa-laptop"></i>
-                        <span>Dispositivos conectados</span>
-                    </NavLink>
-                }
-
-                @if (AuthState.TienePermisoLectura(
-                         PermisosWeb.Actualizaciones) ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/actualizaciones">
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                        <span>Actualizaciones</span>
-                    </NavLink>
-                }
-
-                @if (AuthState.TienePermisoLectura(
-                         PermisosWeb.LlavesDescarga) ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/actualizaciones/llaves">
-                        <i class="fa-solid fa-key"></i>
-                        <span>Llaves de descarga</span>
-                    </NavLink>
-                }
-
-                @if (AuthState.TienePermisoLectura("BitacoraPage") ||
-                     AuthState.TienePermisoLectura("bitacoraPage") ||
-                     AuthState.EsAdministrador)
-                {
-                    <NavLink href="/bitacora">
-                        <i class="fa-solid fa-clock-rotate-left"></i>
-                        <span>Bitácora</span>
-                    </NavLink>
-                }
-
-                <NavLink href="/configuracion">
-                    <i class="fa-solid fa-gear"></i>
-                    <span>Configuración</span>
-                </NavLink>
             </nav>
 
             <div class="sidebar-user">
@@ -211,7 +280,11 @@ else
                 </button>
 
                 <div class="topbar-title">
-                    <span>Administración y monitoreo</span>
+                    <span>
+                        @(EsPortalPropietarioExclusivo
+                            ? "Información de mis terrenos"
+                            : "Administración y monitoreo")
+                    </span>
                 </div>
 
                 <div class="topbar-user">
@@ -224,7 +297,23 @@ else
             </header>
 
             <main class="page-content">
-                @Body
+                @if (PuedeMostrarContenidoActual)
+                {
+                    @Body
+                }
+                else
+                {
+                    <div class="route-guard-loading">
+                        <div>
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <h2>Validando acceso</h2>
+                            <p>
+                                Estamos dirigiendo su sesión
+                                al espacio autorizado.
+                            </p>
+                        </div>
+                    </div>
+                }
             </main>
         </section>
     </div>
@@ -233,7 +322,56 @@ else
 @code {
     private bool menuAbierto;
     private bool monitorInactividadActivo;
+    private bool cerrandoPorFaltaPermiso;
+    private bool aplicandoProteccion;
     private DotNetObjectReference<MainLayout>? referenciaDotNet;
+
+    private bool TieneAccesoPortalWeb =>
+        AuthState.TienePermisoLectura(
+            PermisosWeb.Portal);
+
+    private bool TienePortalPropietario =>
+        AuthState.TienePermisoLectura(
+            PermisosWeb.PortalPropietario);
+
+    private bool EsPortalPropietarioExclusivo =>
+        TienePortalPropietario &&
+        !TieneFuncionesAdministrativas;
+
+    private bool TieneFuncionesAdministrativas =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura("TerrenoPage") ||
+        AuthState.TienePermisoLectura("terrenoPage") ||
+        AuthState.TienePermisoLectura("MapaTerrenosWeb") ||
+        AuthState.TienePermisoLectura(PermisosWeb.Alertas) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.SeguimientoAlertas) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.ConfiguracionAlertas) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.AuditoriaAnalisis) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.ParametrizacionAcceso) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.Propietarios) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.UsuarioPropietario) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.AsignacionTerreno) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.CoberturaTerritorial) ||
+        AuthState.TienePermisoLectura("UsuarioPage") ||
+        AuthState.TienePermisoLectura("userPage") ||
+        AuthState.TienePermisoLectura(PermisosWeb.Roles) ||
+        AuthState.TienePermisoLectura(PermisosWeb.Matriz) ||
+        AuthState.TienePermisoLectura(
+            "dispositivosConectadosPage") ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.Actualizaciones) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.LlavesDescarga) ||
+        AuthState.TienePermisoLectura("BitacoraPage") ||
+        AuthState.TienePermisoLectura("bitacoraPage");
 
     private bool PuedeVerSupervision =>
         AuthState.EsAdministrador ||
@@ -246,10 +384,57 @@ else
         AuthState.TienePermisoLectura(
             PermisosWeb.AuditoriaAnalisis);
 
+    private bool PuedeVerParametrizacionAcceso =>
+        AuthState.TienePermisoLectura(
+            PermisosWeb.ParametrizacionAcceso) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.Propietarios) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.UsuarioPropietario) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.AsignacionTerreno) ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.CoberturaTerritorial);
+
+    private bool EsRutaPortalPropietario =>
+        ObtenerRutaActual()
+            .StartsWith(
+                "mi-portal",
+                StringComparison.OrdinalIgnoreCase);
+
+    private bool PuedeMostrarContenidoActual
+    {
+        get
+        {
+            if (!TieneAccesoPortalWeb)
+                return false;
+
+            if (EsPortalPropietarioExclusivo)
+                return EsRutaPortalPropietario;
+
+            if (EsRutaPortalPropietario &&
+                !TienePortalPropietario)
+            {
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged +=
+            Navigation_LocationChanged;
+    }
+
     protected override async Task OnAfterRenderAsync(
         bool firstRender)
     {
+        await AplicarProteccionDeRutasAsync();
+
         if (AuthState.IsAuthenticated &&
+            TieneAccesoPortalWeb &&
             !monitorInactividadActivo)
         {
             referenciaDotNet ??=
@@ -267,42 +452,105 @@ else
 
             monitorInactividadActivo = true;
         }
-        else if (!AuthState.IsAuthenticated &&
+        else if ((!AuthState.IsAuthenticated ||
+                  !TieneAccesoPortalWeb) &&
                  monitorInactividadActivo)
         {
             await DetenerMonitorInactividadAsync();
         }
     }
 
+    private async Task AplicarProteccionDeRutasAsync()
+    {
+        if (!AuthState.IsAuthenticated ||
+            aplicandoProteccion)
+        {
+            return;
+        }
+
+        aplicandoProteccion = true;
+
+        try
+        {
+            if (!TieneAccesoPortalWeb)
+            {
+                if (cerrandoPorFaltaPermiso)
+                    return;
+
+                cerrandoPorFaltaPermiso = true;
+
+                await DetenerMonitorInactividadAsync();
+                await AuthState.CerrarSesionAsync();
+
+                Navigation.NavigateTo(
+                    "/login",
+                    forceLoad: false,
+                    replace: true);
+
+                return;
+            }
+
+            if (EsPortalPropietarioExclusivo &&
+                !EsRutaPortalPropietario)
+            {
+                Navigation.NavigateTo(
+                    "/mi-portal",
+                    forceLoad: false,
+                    replace: true);
+
+                return;
+            }
+
+            if (EsRutaPortalPropietario &&
+                !TienePortalPropietario)
+            {
+                Navigation.NavigateTo(
+                    "/",
+                    forceLoad: false,
+                    replace: true);
+            }
+        }
+        finally
+        {
+            aplicandoProteccion = false;
+        }
+    }
+
+    private async void Navigation_LocationChanged(
+        object? sender,
+        LocationChangedEventArgs e)
+    {
+        await InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await AplicarProteccionDeRutasAsync();
+        });
+    }
+
     [JSInvokable]
     public async Task RegistrarActividadNavegadorAsync()
     {
-        if (!AuthState.IsAuthenticated)
+        if (!AuthState.IsAuthenticated ||
+            !TieneAccesoPortalWeb)
+        {
             return;
+        }
 
         Actividad.RegistrarActividad();
 
         try
         {
-            /*
-             * El JavaScript limita esta llamada a una vez cada treinta
-             * segundos. De ese modo el servidor conoce la actividad real
-             * aunque el usuario esté completando un formulario sin guardar.
-             */
             await ApiClient.GetAsync<object>(
                 "api/sesion/validar");
         }
         catch (UnauthorizedAccessException)
         {
-            // ApiClientService ya inició el cierre centralizado.
         }
         catch (HttpRequestException)
         {
-            // Una pérdida temporal de red no cierra la sesión local.
         }
         catch (TaskCanceledException)
         {
-            // La siguiente interacción volverá a intentar la validación.
         }
     }
 
@@ -319,6 +567,22 @@ else
             "/login",
             forceLoad: false,
             replace: true);
+    }
+
+    private string ObtenerRutaActual()
+    {
+        string relativa =
+            Navigation.ToBaseRelativePath(
+                Navigation.Uri);
+
+        int indiceQuery =
+            relativa.IndexOfAny(
+                ['?', '#']);
+
+        if (indiceQuery >= 0)
+            relativa = relativa[..indiceQuery];
+
+        return relativa.Trim('/');
     }
 
     private void ToggleMenu()
@@ -381,6 +645,9 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        Navigation.LocationChanged -=
+            Navigation_LocationChanged;
+
         try
         {
             await DetenerMonitorInactividadAsync();

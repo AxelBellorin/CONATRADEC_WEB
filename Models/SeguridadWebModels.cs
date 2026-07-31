@@ -31,6 +31,24 @@ public static class PermisosWeb
 
     public const string AuditoriaAnalisis =
         "auditoriaAnalisisPage";
+
+    public const string ParametrizacionAcceso =
+        "ParametrizacionAccesoPage";
+
+    public const string Propietarios =
+        "PropietariosPage";
+
+    public const string UsuarioPropietario =
+        "UsuarioPropietarioPage";
+
+    public const string AsignacionTerreno =
+        "AsignacionTerrenoPage";
+
+    public const string CoberturaTerritorial =
+        "CoberturaTerritorialPage";
+
+    public const string PortalPropietario =
+        "PortalPropietarioPage";
 }
 
 public sealed class RolWebItem

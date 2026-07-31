@@ -1,0 +1,256 @@
+.access-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 20px;
+}
+
+.access-page-header h1 {
+    margin: 3px 0 8px;
+    color: #243b35;
+}
+
+.access-page-header p {
+    max-width: 780px;
+    margin: 0;
+    color: #66746f;
+}
+
+.access-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.access-tabs button {
+    border: 1px solid #d9e5e0;
+    border-radius: 999px;
+    background: #fff;
+    padding: 9px 16px;
+    color: #49615a;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.access-tabs button.active {
+    background: #3b655b;
+    border-color: #3b655b;
+    color: #fff;
+}
+
+.access-grid {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.8fr) minmax(420px, 1.2fr);
+    gap: 18px;
+}
+
+.access-card {
+    background: #fff;
+    border: 1px solid #dfe8e4;
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(43, 68, 61, 0.06);
+    margin-bottom: 18px;
+}
+
+.access-card-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.access-card-title span {
+    color: #9b552c;
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+
+.access-card-title h2 {
+    margin: 2px 0 0;
+    font-size: 20px;
+    color: #263e37;
+}
+
+.access-two-columns,
+.access-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.access-form-grid {
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.access-search,
+.access-inline-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.access-inline-form-three {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+}
+
+.access-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    margin: 8px 0 16px;
+}
+
+.access-list {
+    display: grid;
+    gap: 8px;
+    max-height: 570px;
+    overflow: auto;
+}
+
+.access-list.compact {
+    max-height: none;
+    margin-top: 18px;
+}
+
+.access-list-item {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #e4ece8;
+    border-radius: 14px;
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
+}
+
+.access-list-item:hover {
+    border-color: #9bb8ae;
+    background: #f7faf9;
+}
+
+.access-list-item.static {
+    cursor: default;
+}
+
+.access-list-item span:nth-child(2) {
+    display: grid;
+    gap: 2px;
+}
+
+.access-list-item small {
+    color: #71817c;
+}
+
+.access-avatar {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #eef5f2;
+    color: #3b655b;
+    font-weight: 800;
+}
+
+.access-owner-detail {
+    margin-top: 18px;
+}
+
+.access-table-wrap {
+    overflow-x: auto;
+}
+
+.access-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.access-table th,
+.access-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #e8eeeb;
+    text-align: left;
+}
+
+.access-table th {
+    background: #3b655b;
+    color: #fff;
+    font-size: 12px;
+}
+
+.access-danger-button {
+    border: 0;
+    border-radius: 9px;
+    background: #fff1f1;
+    color: #c23f3f;
+    width: 34px;
+    height: 34px;
+    cursor: pointer;
+}
+
+.access-message {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.access-message.success {
+    background: #eef8f3;
+    color: #276047;
+}
+
+.access-message.error {
+    background: #fff0f0;
+    color: #a93636;
+}
+
+.access-empty {
+    text-align: center;
+    padding: 48px 20px;
+    background: #fff;
+    border: 1px solid #e3ebe7;
+    border-radius: 18px;
+}
+
+@media (max-width: 960px) {
+    .access-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .access-form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .access-page-header {
+        flex-direction: column;
+    }
+
+    .access-two-columns,
+    .access-form-grid,
+    .access-inline-form-three {
+        grid-template-columns: 1fr;
+    }
+
+    .access-search,
+    .access-inline-form {
+        flex-direction: column;
+    }
+}
