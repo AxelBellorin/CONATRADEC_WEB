@@ -177,6 +177,59 @@ public sealed class ApiClientService : IDisposable
             cancellationToken);
     }
 
+    /// <summary>
+    /// Ejecuta una operación PATCH que no necesita enviar un cuerpo.
+    /// Se utiliza para cambios de estado y acciones puntuales como establecer
+    /// una fotografía de portada.
+    /// </summary>
+    public async Task PatchSinContenidoAsync(
+        string ruta,
+        CancellationToken cancellationToken = default)
+    {
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Patch,
+                ruta);
+
+        using HttpResponseMessage response =
+            await EnviarAsync(
+                request,
+                cancellationToken);
+
+        await ValidarRespuestaAsync(
+            response,
+            cancellationToken);
+    }
+
+    public async Task<TResponse?> PatchAsync<TRequest, TResponse>(
+        string ruta,
+        TRequest datos,
+        CancellationToken cancellationToken = default)
+    {
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Patch,
+                ruta)
+            {
+                Content = JsonContent.Create(
+                    datos,
+                    options: jsonOptions)
+            };
+
+        using HttpResponseMessage response =
+            await EnviarAsync(
+                request,
+                cancellationToken);
+
+        await ValidarRespuestaAsync(
+            response,
+            cancellationToken);
+
+        return await LeerJsonAsync<TResponse>(
+            response,
+            cancellationToken);
+    }
+
     public async Task EliminarAsync(
         string ruta,
         CancellationToken cancellationToken = default)
@@ -199,6 +252,27 @@ public sealed class ApiClientService : IDisposable
     public async Task SubirArchivoAsync(
         string ruta,
         IBrowserFile archivo,
+        string nombreCampo = "archivo",
+        long tamanoMaximo = 8 * 1024 * 1024,
+        CancellationToken cancellationToken = default)
+    {
+        await SubirFormularioArchivoAsync<object>(
+            ruta,
+            archivo,
+            null,
+            nombreCampo,
+            tamanoMaximo,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Envía un archivo junto con campos adicionales como formulario
+    /// multipart/form-data y devuelve la respuesta JSON del backend.
+    /// </summary>
+    public async Task<TResponse?> SubirFormularioArchivoAsync<TResponse>(
+        string ruta,
+        IBrowserFile archivo,
+        IReadOnlyDictionary<string, string>? campos = null,
         string nombreCampo = "archivo",
         long tamanoMaximo = 8 * 1024 * 1024,
         CancellationToken cancellationToken = default)
@@ -226,6 +300,17 @@ public sealed class ApiClientService : IDisposable
             nombreCampo,
             archivo.Name);
 
+        if (campos is not null)
+        {
+            foreach (KeyValuePair<string, string> campo in campos)
+            {
+                contenido.Add(
+                    new StringContent(
+                        campo.Value ?? string.Empty),
+                    campo.Key);
+            }
+        }
+
         using var request =
             new HttpRequestMessage(
                 HttpMethod.Post,
@@ -240,6 +325,10 @@ public sealed class ApiClientService : IDisposable
                 cancellationToken);
 
         await ValidarRespuestaAsync(
+            response,
+            cancellationToken);
+
+        return await LeerJsonAsync<TResponse>(
             response,
             cancellationToken);
     }
@@ -418,6 +507,8 @@ public sealed class ApiClientService : IDisposable
             JsonElement raiz =
                 documento.RootElement;
 
+            string? mensajePrincipal = null;
+
             foreach (string propiedad in new[]
                      {
                          "message",
@@ -432,9 +523,50 @@ public sealed class ApiClientService : IDisposable
                     valor.ValueKind ==
                         JsonValueKind.String)
                 {
-                    return valor.GetString() ??
-                           contenido;
+                    mensajePrincipal =
+                        valor.GetString();
+
+                    break;
                 }
+            }
+
+            if (raiz.TryGetProperty(
+                    "usadoEn",
+                    out JsonElement dependencias) &&
+                dependencias.ValueKind ==
+                    JsonValueKind.Array)
+            {
+                string[] usos =
+                    dependencias
+                        .EnumerateArray()
+                        .Where(item =>
+                            item.ValueKind ==
+                                JsonValueKind.String)
+                        .Select(item =>
+                            item.GetString())
+                        .Where(item =>
+                            !string.IsNullOrWhiteSpace(item))
+                        .Cast<string>()
+                        .ToArray();
+
+                if (usos.Length > 0)
+                {
+                    string detalle =
+                        " Utilizado en: " +
+                        string.Join(", ", usos) +
+                        ".";
+
+                    return
+                        (mensajePrincipal ??
+                         "No se puede completar la operación.") +
+                        detalle;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(
+                    mensajePrincipal))
+            {
+                return mensajePrincipal;
             }
 
             if (raiz.TryGetProperty(
@@ -488,5 +620,4 @@ public sealed class ApiClientService : IDisposable
     {
         httpClient.Dispose();
     }
-
 }

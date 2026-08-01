@@ -24,6 +24,9 @@
           href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
     <link rel="stylesheet"
+          href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+
+    <link rel="stylesheet"
           href="css/app.css" />
 
     <link rel="stylesheet"
@@ -57,7 +60,23 @@
           href="css/clima-labores.css?v=1.0.0" />
 
     <link rel="stylesheet"
+          href="css/terreno-poligonos.css?v=1.0.0" />
+
+    <link rel="stylesheet"
+          href="css/resumen-territorial-mapa.css?v=2.0.0" />
+
+    <link rel="stylesheet"
+          href="css/mapa-paneles-movibles.css?v=2.2.0" />
+
+    <link rel="stylesheet"
           href="CONATRADEC.AdminWeb.styles.css" />
+
+    <!--
+        Distribución fluida global para todas las páginas administrativas.
+        Se carga al final para reemplazar los anchos máximos anteriores.
+    -->
+    <link rel="stylesheet"
+          href="css/responsive-layout.css?v=1.0.0" />
 
     <link rel="icon"
           type="image/svg+xml"
@@ -84,10 +103,33 @@
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js">
     </script>
 
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js">
+    </script>
+
     <script src="js/mapa.js"></script>
     <script src="js/dispositivosMapa.js"></script>
     <script src="js/mapaInteligente.js?v=2.4.1"></script>
     <script src="js/mapaInteligenteMejoras.js?v=1.2.0"></script>
+
+    <!--
+        El punto continúa siendo dibujado por el mapa actual.
+        Estas capas agregan únicamente el polígono cuando existe.
+    -->
+    <script src="js/terrenoPoligonosMapa.js?v=1.0.0"></script>
+    <script src="js/terrenoPoligonoEditor.js?v=1.0.0"></script>
+
+    <!--
+        Resumen automático por departamento o municipio cuando la capa
+        de terrenos individuales está desactivada.
+    -->
+    <script src="js/resumenTerritorialMapa.js?v=2.0.0"></script>
+
+    <!--
+        Pantalla completa con filtros disponibles y paneles movibles.
+        Debe cargarse después de mapaInteligente.js.
+    -->
+    <script src="js/mapaPanelesMovibles.js?v=2.1.0"></script>
+
     <script src="js/climaLaboresTimeline.js?v=1.0.0"></script>
 </body>
 </html>

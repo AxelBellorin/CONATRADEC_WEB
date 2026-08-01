@@ -1,0 +1,1807 @@
+@page "/terrenos"
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.Components.Forms
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Terrenos | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Propietarios y cobertura</p>
+        <h1>Administración de terrenos</h1>
+        <p>
+            Administra la información, el punto principal, las fotografías
+            y una delimitación poligonal opcional.
+        </p>
+    </div>
+
+    <div class="page-header-actions">
+        @if (PuedeActualizar)
+        {
+            <button class="btn-secondary"
+                    disabled="@procesando"
+                    @onclick="AbrirEliminadosAsync">
+                <i class="fa-solid fa-trash-arrow-up"></i>
+                Eliminados
+            </button>
+        }
+
+        <button class="btn-secondary"
+                disabled="@procesando"
+                @onclick="CargarAsync">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+
+        @if (PuedeAgregar)
+        {
+            <button class="btn-primary"
+                    disabled="@procesando"
+                    @onclick="AbrirCrear">
+                <i class="fa-solid fa-plus"></i>
+                Nuevo terreno
+            </button>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert alert-success-custom">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensaje</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+@if (!PuedeLeer)
+{
+    <section class="panel empty-state compact-empty">
+        <i class="fa-solid fa-lock"></i>
+        <h2>Sin permiso de lectura</h2>
+        <p>Su rol no puede consultar los terrenos.</p>
+    </section>
+}
+else
+{
+    <section class="panel terrain-toolbar">
+        <div class="form-group terrain-search">
+            <label>Buscar</label>
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input class="form-control"
+                       placeholder="Código, propietario o dirección"
+                       @bind="buscar"
+                       @bind:event="oninput" />
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Departamento</label>
+            <select class="form-control"
+                    value="@departamentoFiltro"
+                    @onchange="DepartamentoFiltroCambiado">
+                <option value="">Todos</option>
+                @foreach (TerrenoCatalogo departamento in Departamentos)
+                {
+                    <option value="@departamento.Id">
+                        @departamento.Nombre
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Municipio</label>
+            <select class="form-control"
+                    value="@municipioFiltro"
+                    disabled="@(!departamentoFiltro.HasValue)"
+                    @onchange="MunicipioFiltroCambiado">
+                <option value="">Todos</option>
+                @foreach (MunicipioSelectorItem municipio in MunicipiosFiltro)
+                {
+                    <option value="@municipio.MunicipioId">
+                        @municipio.NombreMunicipio
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Por página</label>
+            <select class="form-control"
+                    @bind="tamanoPagina">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="40">40</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+
+        <div class="terrain-toolbar-actions">
+            <button class="btn-primary"
+                    disabled="@procesando"
+                    @onclick="BuscarAsync">
+                Buscar
+            </button>
+
+            <button class="btn-secondary"
+                    disabled="@procesando"
+                    @onclick="LimpiarFiltrosAsync">
+                Limpiar
+            </button>
+        </div>
+
+        <div class="toolbar-summary">
+            <strong>@pagina.Total</strong>
+            <span>terreno(s)</span>
+        </div>
+    </section>
+
+    @if (cargando)
+    {
+        <LoadingState Mensaje="Cargando terrenos..." />
+    }
+    else if (pagina.Data.Count == 0)
+    {
+        <section class="panel empty-state compact-empty">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <h2>No se encontraron terrenos</h2>
+            <p>No existen registros activos que coincidan con los filtros.</p>
+        </section>
+    }
+    else
+    {
+        <section class="panel terrain-table-panel">
+            <div class="terrain-table-scroll">
+                <table class="terrain-table">
+                    <thead>
+                        <tr>
+                            <th>Terreno</th>
+                            <th>Propietario</th>
+                            <th>Ubicación</th>
+                            <th>Extensión</th>
+                            <th>Punto</th>
+                            <th>Delimitación</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (TerrenoAdminItem terreno in pagina.Data)
+                        {
+                            TerrenoPoligonoWeb? poligono =
+                                PoligonoDe(terreno.TerrenoId);
+
+                            <tr>
+                                <td>
+                                    <strong>@terreno.CodigoTerreno</strong>
+                                    <small>@terreno.DireccionTerreno</small>
+                                </td>
+                                <td>
+                                    <strong>@terreno.PropietarioNombre</strong>
+                                    <small>@terreno.Propietario?.Identificacion</small>
+                                </td>
+                                <td>
+                                    <strong>@terreno.UbicacionTexto</strong>
+                                    <small>@terreno.Ubicacion.NombrePais</small>
+                                </td>
+                                <td>
+                                    <strong>
+                                        @terreno.ExtensionManzanaTerreno.ToString("N2") Mz
+                                    </strong>
+                                    <small>
+                                        @terreno.CantidadPlantasTerreno.ToString("N0") plantas
+                                    </small>
+                                </td>
+                                <td>
+                                    <span class="terrain-point">
+                                        <i class="fa-solid fa-location-dot"></i>
+                                        @terreno.Latitud.ToString("N5"),
+                                        @terreno.Longitud.ToString("N5")
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (poligono?.TienePoligono == true)
+                                    {
+                                        <span class="terrain-polygon-status active">
+                                            <i class="fa-solid fa-draw-polygon"></i>
+                                            @poligono.AreaManzanasCalculada.ToString("N2") Mz
+                                        </span>
+
+                                        @if (!poligono.PuntoDentroPoligono)
+                                        {
+                                            <small class="terrain-warning-text">
+                                                Punto fuera del polígono
+                                            </small>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="terrain-polygon-status">
+                                            <i class="fa-solid fa-location-dot"></i>
+                                            Solo punto
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="terrain-actions">
+                                        <button class="btn-icon-view"
+                                                title="Visualizar"
+                                                @onclick="() => AbrirVerAsync(terreno)">
+                                            <i class="fa-regular fa-eye"></i>
+                                        </button>
+
+                                        @if (PuedeActualizar)
+                                        {
+                                            <button class="btn-icon-edit"
+                                                    title="Editar datos, punto y polígono"
+                                                    @onclick="() => AbrirEditarAsync(terreno)">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                        }
+
+                                        <button class="btn-icon-view"
+                                                title="Fotografías"
+                                                @onclick="() => AbrirFotosAsync(terreno)">
+                                            <i class="fa-solid fa-images"></i>
+                                        </button>
+
+                                        @if (PuedeEliminar)
+                                        {
+                                            <button class="btn-icon-delete"
+                                                    title="Desactivar"
+                                                    @onclick="() => EliminarTerrenoAsync(terreno)">
+                                                <i class="fa-solid fa-ban"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="terrain-pagination">
+                <span>
+                    Página @pagina.Page de @Math.Max(1, pagina.TotalPages)
+                </span>
+
+                <div>
+                    <button class="terrain-page-button"
+                            disabled="@(pagina.Page <= 1 || procesando)"
+                            @onclick="() => IrPaginaAsync(pagina.Page - 1)">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+
+                    @foreach (int numero in PaginasVisibles)
+                    {
+                        <button class="terrain-page-button @(numero == pagina.Page ? "active" : string.Empty)"
+                                disabled="@procesando"
+                                @onclick="() => IrPaginaAsync(numero)">
+                            @numero
+                        </button>
+                    }
+
+                    <button class="terrain-page-button"
+                            disabled="@(pagina.Page >= pagina.TotalPages || procesando)"
+                            @onclick="() => IrPaginaAsync(pagina.Page + 1)">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+    }
+}
+
+@if (modalFormulario)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarFormularioAsync">
+        <article class="modal-card terrain-form-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Terreno</p>
+                    <h2>@TituloFormulario</h2>
+                    <span>
+                        El punto principal siempre se conserva.
+                        La delimitación es opcional.
+                    </span>
+                </div>
+
+                <button class="modal-close"
+                        @onclick="CerrarFormularioAsync">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            @if (modoFormulario != "VER")
+            {
+                <div class="terrain-form-tabs">
+                    <button class="@(pestanaFormulario == "DATOS" ? "active" : string.Empty)"
+                            type="button"
+                            @onclick='() => CambiarPestana("DATOS")'>
+                        <i class="fa-solid fa-file-lines"></i>
+                        Datos generales
+                    </button>
+
+                    <button class="@(pestanaFormulario == "MAPA" ? "active" : string.Empty)"
+                            type="button"
+                            @onclick='() => CambiarPestana("MAPA")'>
+                        <i class="fa-solid fa-draw-polygon"></i>
+                        Punto y polígono
+                    </button>
+                </div>
+            }
+
+            @if (modoFormulario == "VER")
+            {
+                <div class="terrain-view-grid">
+                    <div>
+                        <small>Código</small>
+                        <strong>@formulario.CodigoTerreno</strong>
+                    </div>
+                    <div>
+                        <small>Fecha de ingreso</small>
+                        <strong>@formulario.FechaIngresoTerreno?.ToString("dd/MM/yyyy")</strong>
+                    </div>
+                    <div class="full">
+                        <small>Propietario</small>
+                        <strong>@PropietarioSeleccionado?.NombreCompleto</strong>
+                    </div>
+                    <div class="full">
+                        <small>Dirección</small>
+                        <strong>@formulario.DireccionTerreno</strong>
+                    </div>
+                    <div>
+                        <small>Ubicación</small>
+                        <strong>@MunicipioSeleccionado?.NombreMunicipio</strong>
+                    </div>
+                    <div>
+                        <small>Extensión registrada</small>
+                        <strong>@formulario.ExtensionManzanaTerreno.ToString("N2") Mz</strong>
+                    </div>
+                    <div>
+                        <small>Punto principal</small>
+                        <strong>
+                            @formulario.Latitud.ToString("N6"),
+                            @formulario.Longitud.ToString("N6")
+                        </strong>
+                    </div>
+                    <div>
+                        <small>Delimitación</small>
+                        <strong>
+                            @(poligonoEdicion.Vertices.Count >= 3
+                                ? $"{poligonoEdicion.AreaManzanas:N2} Mz calculadas"
+                                : "Solo punto")
+                        </strong>
+                    </div>
+                    <div>
+                        <small>Plantas</small>
+                        <strong>@formulario.CantidadPlantasTerreno.ToString("N0")</strong>
+                    </div>
+                    <div>
+                        <small>Producción</small>
+                        <strong>@formulario.CantidadQuintalesOro.ToString("N2") QQ</strong>
+                    </div>
+                </div>
+
+                @if (poligonoEdicion.Vertices.Count >= 3 &&
+                     !poligonoEdicion.PuntoDentroPoligono)
+                {
+                    <div class="terrain-polygon-warning">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        El punto principal está fuera del polígono.
+                    </div>
+                }
+
+                <div class="modal-footer">
+                    <button class="btn-secondary"
+                            @onclick="CerrarFormularioAsync">
+                        Cerrar
+                    </button>
+
+                    @if (PuedeActualizar)
+                    {
+                        <button class="btn-primary"
+                                @onclick="ConvertirVistaAEdicion">
+                            <i class="fa-solid fa-pen"></i>
+                            Editar
+                        </button>
+                    }
+                </div>
+            }
+            else
+            {
+                <EditForm Model="formulario"
+                          OnValidSubmit="GuardarAsync"
+                          FormName="terreno-admin-form">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    @if (pestanaFormulario == "DATOS")
+                    {
+                        <div class="terrain-form-grid">
+                            @if (formulario.TerrenoId > 0)
+                            {
+                                <div class="form-group">
+                                    <label>Código</label>
+                                    <input class="form-control"
+                                           value="@formulario.CodigoTerreno"
+                                           disabled />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Fecha de ingreso</label>
+                                    <input class="form-control"
+                                           value="@formulario.FechaIngresoTerreno?.ToString("dd/MM/yyyy")"
+                                           disabled />
+                                </div>
+                            }
+
+                            <div class="form-group full">
+                                <label>Propietario *</label>
+                                <InputSelect class="form-control"
+                                             @bind-Value="formulario.PropietarioId">
+                                    <option value="0">Seleccione</option>
+                                    @foreach (PropietarioTerrenoCatalogoItem propietario in propietarios)
+                                    {
+                                        <option value="@propietario.PropietarioId">
+                                            @propietario.NombreCompleto · @propietario.Identificacion
+                                        </option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="() => formulario.PropietarioId" />
+                            </div>
+
+                            <div class="form-group full">
+                                <label>Dirección *</label>
+                                <InputTextArea class="form-control"
+                                               maxlength="300"
+                                               @bind-Value="formulario.DireccionTerreno" />
+                                <ValidationMessage For="() => formulario.DireccionTerreno" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>País *</label>
+                                <select class="form-control"
+                                        value="@formulario.PaisId"
+                                        @onchange="PaisFormularioCambiado">
+                                    <option value="">Seleccione</option>
+                                    @foreach (TerrenoCatalogo pais in Paises)
+                                    {
+                                        <option value="@pais.Id">
+                                            @pais.Nombre
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Departamento *</label>
+                                <select class="form-control"
+                                        value="@formulario.DepartamentoId"
+                                        disabled="@(!formulario.PaisId.HasValue)"
+                                        @onchange="DepartamentoFormularioCambiado">
+                                    <option value="">Seleccione</option>
+                                    @foreach (TerrenoCatalogo departamento in DepartamentosFormulario)
+                                    {
+                                        <option value="@departamento.Id">
+                                            @departamento.Nombre
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Municipio *</label>
+                                <InputSelect class="form-control"
+                                             disabled="@(!formulario.DepartamentoId.HasValue)"
+                                             @bind-Value="formulario.MunicipioId">
+                                    <option value="0">Seleccione</option>
+                                    @foreach (MunicipioSelectorItem municipio in MunicipiosFormulario)
+                                    {
+                                        <option value="@municipio.MunicipioId">
+                                            @municipio.NombreMunicipio
+                                        </option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="() => formulario.MunicipioId" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Extensión registrada (Mz) *</label>
+                                <InputNumber class="form-control"
+                                             step="0.01"
+                                             @bind-Value="formulario.ExtensionManzanaTerreno" />
+                                <ValidationMessage For="() => formulario.ExtensionManzanaTerreno" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Plantas</label>
+                                <InputNumber class="form-control"
+                                             @bind-Value="formulario.CantidadPlantasTerreno" />
+                                <ValidationMessage For="() => formulario.CantidadPlantasTerreno" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Producción estimada (QQ oro)</label>
+                                <InputNumber class="form-control"
+                                             step="0.01"
+                                             @bind-Value="formulario.CantidadQuintalesOro" />
+                                <ValidationMessage For="() => formulario.CantidadQuintalesOro" />
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <section class="terrain-map-primary-action">
+                            @if (poligonoEdicion.Vertices.Count < 3)
+                            {
+                                <button type="button"
+                                        class="btn-primary terrain-draw-button"
+                                        @onclick="DibujarPoligonoAsync">
+                                    <i class="fa-solid fa-draw-polygon"></i>
+                                    Dibujar polígono
+                                </button>
+
+                                <span>
+                                    Marque los límites del terreno y pulse
+                                    nuevamente el primer punto para finalizar.
+                                </span>
+                            }
+                            else
+                            {
+                                <button type="button"
+                                        class="btn-primary terrain-draw-button"
+                                        @onclick="EditarPoligonoAsync">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                    Editar vértices
+                                </button>
+
+                                <span>
+                                    Mueva los vértices visibles para ajustar
+                                    la delimitación.
+                                </span>
+                            }
+                        </section>
+
+                        <section class="terrain-map-toolbar">
+                            <button type="button"
+                                    class="btn-secondary"
+                                    @onclick="CentrarPuntoAsync">
+                                <i class="fa-solid fa-location-dot"></i>
+                                Centrar punto
+                            </button>
+
+                            <button type="button"
+                                    class="btn-secondary"
+                                    disabled="@(poligonoEdicion.Vertices.Count < 3)"
+                                    @onclick="CentrarPoligonoAsync">
+                                <i class="fa-solid fa-expand"></i>
+                                Centrar polígono
+                            </button>
+
+                            <button type="button"
+                                    class="terrain-delete-polygon"
+                                    disabled="@(
+                                        poligonoEdicion.Vertices.Count < 3 ||
+                                        (poligonoOriginal.TienePoligono &&
+                                         !PuedeEliminar))"
+                                    @onclick="QuitarPoligonoAsync">
+                                <i class="fa-solid fa-trash-can"></i>
+                                Eliminar polígono
+                            </button>
+                        </section>
+
+                        <div id="@EditorId"
+                             class="terrain-map-editor">
+                        </div>
+
+                        <div class="terrain-map-help">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>
+                                El marcador azul es el punto principal y nunca
+                                será sustituido por el polígono.
+                            </span>
+                        </div>
+
+                        <details class="terrain-advanced-options">
+                            <summary>
+                                <i class="fa-solid fa-sliders"></i>
+                                Coordenadas y opciones avanzadas
+                            </summary>
+
+                            <div class="terrain-coordinate-grid">
+                                <div class="form-group">
+                                    <label>Latitud del punto *</label>
+                                    <InputNumber class="form-control"
+                                                 step="0.00000001"
+                                                 @bind-Value="formulario.Latitud" />
+                                    <ValidationMessage For="() => formulario.Latitud" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Longitud del punto *</label>
+                                    <InputNumber class="form-control"
+                                                 step="0.00000001"
+                                                 @bind-Value="formulario.Longitud" />
+                                    <ValidationMessage For="() => formulario.Longitud" />
+                                </div>
+
+                                <button type="button"
+                                        class="btn-secondary"
+                                        @onclick="ActualizarPuntoMapaAsync">
+                                    Actualizar punto
+                                </button>
+                            </div>
+
+                            <button type="button"
+                                    class="btn-secondary"
+                                    @onclick="SeleccionarPuntoAsync">
+                                <i class="fa-solid fa-location-crosshairs"></i>
+                                Seleccionar otro punto en el mapa
+                            </button>
+                        </details>
+
+                        <div class="terrain-result-unit">
+                            <i class="fa-solid fa-ruler-combined"></i>
+                            Resultado final expresado en manzanas (Mz)
+                        </div>
+
+                        <section class="terrain-area-comparison">
+                            <article>
+                                <small>Extensión registrada</small>
+                                <strong>
+                                    @formulario.ExtensionManzanaTerreno.ToString("N2") Mz
+                                </strong>
+                            </article>
+
+                            <article>
+                                <small>Área calculada</small>
+                                <strong>
+                                    @poligonoEdicion.AreaManzanas.ToString("N2") Mz
+                                </strong>
+                            </article>
+
+                            <article>
+                                <small>Diferencia</small>
+                                <strong>
+                                    @DiferenciaArea.ToString("N2") Mz
+                                </strong>
+                            </article>
+
+                            @if (poligonoEdicion.Vertices.Count >= 3)
+                            {
+                                <button type="button"
+                                        class="btn-secondary"
+                                        @onclick="UsarAreaCalculada">
+                                    Usar área calculada
+                                </button>
+                            }
+                        </section>
+
+                        @if (poligonoEdicion.Vertices.Count < 3)
+                        {
+                            <div class="terrain-polygon-note">
+                                <i class="fa-solid fa-location-dot"></i>
+                                Se guardará únicamente el punto principal.
+                            </div>
+                        }
+                        else if (!poligonoEdicion.PuntoDentroPoligono)
+                        {
+                            <div class="terrain-polygon-warning">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                El punto está fuera del polígono. Puede
+                                conservarlo así o moverlo; no se cambiará solo.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="terrain-polygon-success">
+                                <i class="fa-solid fa-circle-check"></i>
+                                Polígono válido y punto dentro de la delimitación.
+                            </div>
+                        }
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(errorFormulario))
+                    {
+                        <div class="alert alert-error">
+                            @errorFormulario
+                        </div>
+                    }
+
+                    <div class="modal-footer">
+                        <button type="button"
+                                class="btn-secondary"
+                                @onclick="CerrarFormularioAsync">
+                            Cancelar
+                        </button>
+
+                        <button type="submit"
+                                class="btn-primary"
+                                disabled="@procesando">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            @(procesando ? "Guardando..." : "Guardar terreno")
+                        </button>
+                    </div>
+                </EditForm>
+            }
+        </article>
+    </div>
+}
+
+@if (modalFotos && terrenoFotos is not null)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarFotos">
+        <article class="modal-card terrain-photo-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Fotografías</p>
+                    <h2>@terrenoFotos.CodigoTerreno</h2>
+                </div>
+
+                <button class="modal-close"
+                        @onclick="CerrarFotos">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            @if (PuedeActualizar)
+            {
+                <section class="terrain-photo-upload">
+                    <InputFile multiple
+                               accept=".jpg,.jpeg,.png,.webp"
+                               OnChange="SeleccionarFotos" />
+
+                    <span>
+                        @archivosFotos.Count archivo(s) seleccionado(s)
+                    </span>
+
+                    <button class="btn-primary"
+                            disabled="@(archivosFotos.Count == 0 || procesando)"
+                            @onclick="SubirFotosAsync">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        Subir fotografías
+                    </button>
+                </section>
+            }
+
+            @if (cargandoFotos)
+            {
+                <LoadingState Mensaje="Cargando fotografías..." />
+            }
+            else if (fotos.Count == 0)
+            {
+                <div class="empty-state compact-empty">
+                    <i class="fa-regular fa-images"></i>
+                    <h3>Sin fotografías</h3>
+                </div>
+            }
+            else
+            {
+                <section class="terrain-photo-grid">
+                    @foreach (TerrenoFotoWeb foto in fotos)
+                    {
+                        <article>
+                            <img src="@foto.UrlFotoTerreno"
+                                 alt="@terrenoFotos.CodigoTerreno" />
+
+                            @if (PuedeEliminar)
+                            {
+                                <button class="terrain-photo-delete"
+                                        title="Eliminar fotografía"
+                                        @onclick="() => EliminarFotoAsync(foto)">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            }
+                        </article>
+                    }
+                </section>
+            }
+        </article>
+    </div>
+}
+
+@if (modalEliminados)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarEliminados">
+        <article class="modal-card terrain-deleted-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Papelera administrativa</p>
+                    <h2>Terrenos eliminados</h2>
+                </div>
+
+                <button class="modal-close"
+                        @onclick="CerrarEliminados">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            @if (cargandoEliminados)
+            {
+                <LoadingState Mensaje="Cargando terrenos eliminados..." />
+            }
+            else if (eliminados.Count == 0)
+            {
+                <div class="empty-state compact-empty">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <h3>No hay terrenos eliminados</h3>
+                </div>
+            }
+            else
+            {
+                <div class="terrain-deleted-list">
+                    @foreach (TerrenoEliminadoWeb item in eliminados)
+                    {
+                        <article>
+                            <div>
+                                <strong>@item.Titulo</strong>
+                                <span>@item.Codigo · @item.Subtitulo</span>
+                            </div>
+
+                            <button class="btn-primary"
+                                    disabled="@procesando"
+                                    @onclick="() => ReactivarAsync(item)">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                Reactivar
+                            </button>
+                        </article>
+                    }
+                </div>
+            }
+        </article>
+    </div>
+}
+
+@code {
+    private const string CodigoPermiso = "terrenoPage";
+    private const string EditorId = "terrenoPoligonoEditor";
+    private const long MaximoFoto = 8 * 1024 * 1024;
+
+    private TerrenoAdminPagina pagina = new();
+    private readonly List<PropietarioTerrenoCatalogoItem> propietarios = [];
+    private readonly List<MunicipioSelectorItem> municipios = [];
+    private readonly Dictionary<int, TerrenoPoligonoWeb> poligonos = [];
+    private readonly List<TerrenoFotoWeb> fotos = [];
+    private readonly List<IBrowserFile> archivosFotos = [];
+    private readonly List<TerrenoEliminadoWeb> eliminados = [];
+
+    private TerrenoFormularioWeb formulario = new();
+    private TerrenoPoligonoWeb poligonoOriginal = new();
+    private TerrenoEditorCambio poligonoEdicion = new();
+    private TerrenoAdminItem? terrenoFotos;
+    private DotNetObjectReference<Terrenos>? referenciaEditor;
+
+    private bool cargando = true;
+    private bool procesando;
+    private bool modalFormulario;
+    private bool modalFotos;
+    private bool modalEliminados;
+    private bool cargandoFotos;
+    private bool cargandoEliminados;
+    private bool inicializarMapaPendiente;
+    private bool poligonoEliminadoManualmente;
+
+    private string buscar = string.Empty;
+    private int? departamentoFiltro;
+    private int? municipioFiltro;
+    private int tamanoPagina = 20;
+    private string modoFormulario = "CREAR";
+    private string pestanaFormulario = "DATOS";
+    private string? mensaje;
+    private string? error;
+    private string? errorFormulario;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoPermiso) ||
+        AuthState.TienePermisoLectura("TerrenoPage");
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(CodigoPermiso) ||
+        AuthState.TienePermisoAgregar("TerrenoPage");
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(CodigoPermiso) ||
+        AuthState.TienePermisoActualizar("TerrenoPage");
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(CodigoPermiso) ||
+        AuthState.TienePermisoEliminar("TerrenoPage");
+
+    private string TituloFormulario =>
+        modoFormulario switch
+        {
+            "EDITAR" => "Editar terreno",
+            "VER" => "Detalle del terreno",
+            _ => "Crear terreno"
+        };
+
+    private IEnumerable<int> PaginasVisibles
+    {
+        get
+        {
+            int inicio = Math.Max(1, pagina.Page - 2);
+            int fin = Math.Min(
+                Math.Max(1, pagina.TotalPages),
+                inicio + 4);
+
+            inicio = Math.Max(1, fin - 4);
+
+            return Enumerable.Range(
+                inicio,
+                Math.Max(1, fin - inicio + 1));
+        }
+    }
+
+    private List<TerrenoCatalogo> Paises =>
+        municipios
+            .GroupBy(x => new { x.PaisId, x.NombrePais })
+            .Select(x => new TerrenoCatalogo
+            {
+                Id = x.Key.PaisId,
+                Nombre = x.Key.NombrePais
+            })
+            .OrderBy(x => x.Nombre)
+            .ToList();
+
+    private List<TerrenoCatalogo> Departamentos =>
+        municipios
+            .GroupBy(x => new
+            {
+                x.DepartamentoId,
+                x.NombreDepartamento
+            })
+            .Select(x => new TerrenoCatalogo
+            {
+                Id = x.Key.DepartamentoId,
+                Nombre = x.Key.NombreDepartamento
+            })
+            .OrderBy(x => x.Nombre)
+            .ToList();
+
+    private List<MunicipioSelectorItem> MunicipiosFiltro =>
+        municipios
+            .Where(x =>
+                !departamentoFiltro.HasValue ||
+                x.DepartamentoId == departamentoFiltro.Value)
+            .OrderBy(x => x.NombreMunicipio)
+            .ToList();
+
+    private List<TerrenoCatalogo> DepartamentosFormulario =>
+        municipios
+            .Where(x =>
+                !formulario.PaisId.HasValue ||
+                x.PaisId == formulario.PaisId.Value)
+            .GroupBy(x => new
+            {
+                x.DepartamentoId,
+                x.NombreDepartamento
+            })
+            .Select(x => new TerrenoCatalogo
+            {
+                Id = x.Key.DepartamentoId,
+                Nombre = x.Key.NombreDepartamento
+            })
+            .OrderBy(x => x.Nombre)
+            .ToList();
+
+    private List<MunicipioSelectorItem> MunicipiosFormulario =>
+        municipios
+            .Where(x =>
+                !formulario.DepartamentoId.HasValue ||
+                x.DepartamentoId == formulario.DepartamentoId.Value)
+            .OrderBy(x => x.NombreMunicipio)
+            .ToList();
+
+    private PropietarioTerrenoCatalogoItem? PropietarioSeleccionado =>
+        propietarios.FirstOrDefault(x =>
+            x.PropietarioId == formulario.PropietarioId);
+
+    private MunicipioSelectorItem? MunicipioSeleccionado =>
+        municipios.FirstOrDefault(x =>
+            x.MunicipioId == formulario.MunicipioId);
+
+    private decimal DiferenciaArea =>
+        decimal.Round(
+            Math.Abs(
+                formulario.ExtensionManzanaTerreno -
+                poligonoEdicion.AreaManzanas),
+            4);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (!AuthState.IsAuthenticated)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            referenciaEditor =
+                DotNetObjectReference.Create(this);
+
+            await Task.WhenAll(
+                CargarCatalogosAsync(),
+                CargarPoligonosAsync(),
+                CargarPaginaAsync(1));
+        }
+
+        if (inicializarMapaPendiente &&
+            modalFormulario &&
+            pestanaFormulario == "MAPA")
+        {
+            inicializarMapaPendiente = false;
+
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoEditor.inicializar",
+                EditorId,
+                referenciaEditor,
+                new
+                {
+                    latitud = formulario.Latitud,
+                    longitud = formulario.Longitud,
+                    vertices = poligonoEdicion.Vertices
+                });
+        }
+    }
+
+    private Task CargarAsync() =>
+        CargarPaginaAsync(Math.Max(1, pagina.Page));
+
+    private Task BuscarAsync() =>
+        CargarPaginaAsync(1);
+
+    private async Task LimpiarFiltrosAsync()
+    {
+        buscar = string.Empty;
+        departamentoFiltro = null;
+        municipioFiltro = null;
+        tamanoPagina = 20;
+
+        await CargarPaginaAsync(1);
+    }
+
+    private async Task CargarCatalogosAsync()
+    {
+        try
+        {
+            List<PropietarioTerrenoCatalogoItem>? propietariosApi =
+                await Api.GetAsync<List<PropietarioTerrenoCatalogoItem>>(
+                    "api/terreno/propietarios-disponibles");
+
+            List<MunicipioSelectorItem>? municipiosApi =
+                await Api.GetAsync<List<MunicipioSelectorItem>>(
+                    "api/municipio/listarTodos-por-departamento-por-pais");
+
+            propietarios.Clear();
+            municipios.Clear();
+
+            if (propietariosApi is not null)
+                propietarios.AddRange(propietariosApi);
+
+            if (municipiosApi is not null)
+                municipios.AddRange(municipiosApi);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private async Task CargarPoligonosAsync()
+    {
+        try
+        {
+            List<TerrenoPoligonoWeb>? datos =
+                await Api.GetAsync<List<TerrenoPoligonoWeb>>(
+                    "api/terreno-poligono/resumen");
+
+            poligonos.Clear();
+
+            foreach (TerrenoPoligonoWeb item in datos ?? [])
+                poligonos[item.TerrenoId] = item;
+
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoPoligonosMapa.establecerPoligonos",
+                datos ?? []);
+        }
+        catch
+        {
+            poligonos.Clear();
+        }
+    }
+
+    private async Task CargarPaginaAsync(int numero)
+    {
+        if (!PuedeLeer)
+        {
+            cargando = false;
+            return;
+        }
+
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            string ruta =
+                "api/terreno/buscar" +
+                $"?page={numero}" +
+                $"&pageSize={tamanoPagina}" +
+                "&ordenarPor=codigo" +
+                "&descendente=false";
+
+            if (!string.IsNullOrWhiteSpace(buscar))
+                ruta += $"&texto={Uri.EscapeDataString(buscar.Trim())}";
+
+            if (departamentoFiltro.HasValue)
+                ruta += $"&departamentoId={departamentoFiltro.Value}";
+
+            if (municipioFiltro.HasValue)
+                ruta += $"&municipioId={municipioFiltro.Value}";
+
+            pagina =
+                await Api.GetAsync<TerrenoAdminPagina>(ruta) ??
+                new TerrenoAdminPagina();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task IrPaginaAsync(int numero)
+    {
+        if (numero < 1 ||
+            numero > Math.Max(1, pagina.TotalPages))
+        {
+            return;
+        }
+
+        await CargarPaginaAsync(numero);
+    }
+
+    private void DepartamentoFiltroCambiado(ChangeEventArgs e)
+    {
+        departamentoFiltro = ParseNullable(e.Value);
+        municipioFiltro = null;
+    }
+
+    private void MunicipioFiltroCambiado(ChangeEventArgs e) =>
+        municipioFiltro = ParseNullable(e.Value);
+
+    private void AbrirCrear()
+    {
+        modoFormulario = "CREAR";
+        pestanaFormulario = "DATOS";
+
+        formulario = new TerrenoFormularioWeb
+        {
+            Latitud = 12.8654m,
+            Longitud = -85.2072m,
+            ExtensionManzanaTerreno = 0.01m
+        };
+
+        poligonoOriginal = new TerrenoPoligonoWeb();
+
+        poligonoEdicion = new TerrenoEditorCambio
+        {
+            Latitud = formulario.Latitud,
+            Longitud = formulario.Longitud
+        };
+
+        poligonoEliminadoManualmente = false;
+        modalFormulario = true;
+    }
+
+    private Task AbrirEditarAsync(TerrenoAdminItem item) =>
+        AbrirFormularioAsync(item, "EDITAR");
+
+    private Task AbrirVerAsync(TerrenoAdminItem item) =>
+        AbrirFormularioAsync(item, "VER");
+
+    private async Task AbrirFormularioAsync(
+        TerrenoAdminItem item,
+        string modo)
+    {
+        modoFormulario = modo;
+        pestanaFormulario = "DATOS";
+        formulario = CrearFormulario(item);
+
+        try
+        {
+            poligonoOriginal =
+                await Api.GetAsync<TerrenoPoligonoWeb>(
+                    $"api/terreno-poligono/{item.TerrenoId}") ??
+                CrearPoligonoVacio(item);
+        }
+        catch
+        {
+            poligonoOriginal = CrearPoligonoVacio(item);
+        }
+
+        poligonoEdicion = new TerrenoEditorCambio
+        {
+            Latitud = item.Latitud,
+            Longitud = item.Longitud,
+            Vertices = poligonoOriginal.Vertices
+                .Select(x => new TerrenoPoligonoVerticeWeb
+                {
+                    Latitud = x.Latitud,
+                    Longitud = x.Longitud
+                })
+                .ToList(),
+            AreaMetrosCuadrados = poligonoOriginal.AreaMetrosCuadrados,
+            AreaHectareas = poligonoOriginal.AreaHectareas,
+            AreaManzanas = poligonoOriginal.AreaManzanasCalculada,
+            PuntoDentroPoligono = poligonoOriginal.PuntoDentroPoligono
+        };
+
+        poligonoEliminadoManualmente = false;
+        modalFormulario = true;
+    }
+
+    private void ConvertirVistaAEdicion()
+    {
+        modoFormulario = "EDITAR";
+        pestanaFormulario = "DATOS";
+    }
+
+    private void CambiarPestana(string pestana)
+    {
+        pestanaFormulario = pestana;
+
+        if (pestana == "MAPA")
+            inicializarMapaPendiente = true;
+    }
+
+    private async Task CerrarFormularioAsync()
+    {
+        if (procesando)
+            return;
+
+        modalFormulario = false;
+        inicializarMapaPendiente = false;
+
+        await JS.InvokeVoidAsync(
+            "conatradecTerrenoEditor.destruir",
+            EditorId);
+    }
+
+    private void PaisFormularioCambiado(ChangeEventArgs e)
+    {
+        formulario.PaisId = ParseNullable(e.Value);
+        formulario.DepartamentoId = null;
+        formulario.MunicipioId = 0;
+    }
+
+    private void DepartamentoFormularioCambiado(ChangeEventArgs e)
+    {
+        formulario.DepartamentoId = ParseNullable(e.Value);
+        formulario.MunicipioId = 0;
+    }
+
+    [JSInvokable]
+    public Task GeometriaTerrenoActualizada(
+        TerrenoEditorCambio cambio)
+    {
+        poligonoEdicion = cambio;
+        formulario.Latitud = cambio.Latitud;
+        formulario.Longitud = cambio.Longitud;
+
+        poligonoEliminadoManualmente =
+            cambio.Vertices.Count < 3 &&
+            poligonoOriginal.TienePoligono;
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task DibujarPoligonoAsync() =>
+        JS.InvokeVoidAsync(
+            "conatradecTerrenoEditor.dibujarPoligono",
+            EditorId).AsTask();
+
+    private Task EditarPoligonoAsync() =>
+        JS.InvokeVoidAsync(
+            "conatradecTerrenoEditor.editarPoligono",
+            EditorId).AsTask();
+
+    private Task SeleccionarPuntoAsync() =>
+        JS.InvokeVoidAsync(
+            "conatradecTerrenoEditor.seleccionarPunto",
+            EditorId).AsTask();
+
+    private Task CentrarPuntoAsync() =>
+        JS.InvokeVoidAsync(
+            "conatradecTerrenoEditor.centrarPunto",
+            EditorId).AsTask();
+
+    private Task CentrarPoligonoAsync() =>
+        JS.InvokeVoidAsync(
+            "conatradecTerrenoEditor.centrarPoligono",
+            EditorId).AsTask();
+
+    private Task ActualizarPuntoMapaAsync() =>
+        JS.InvokeVoidAsync(
+            "conatradecTerrenoEditor.establecerPunto",
+            EditorId,
+            formulario.Latitud,
+            formulario.Longitud,
+            true).AsTask();
+
+    private Task QuitarPoligonoAsync()
+    {
+        poligonoEliminadoManualmente =
+            poligonoOriginal.TienePoligono;
+
+        return JS.InvokeVoidAsync(
+            "conatradecTerrenoEditor.eliminarPoligono",
+            EditorId).AsTask();
+    }
+
+    private void UsarAreaCalculada()
+    {
+        if (poligonoEdicion.AreaManzanas > 0)
+        {
+            formulario.ExtensionManzanaTerreno =
+                decimal.Round(
+                    poligonoEdicion.AreaManzanas,
+                    2);
+        }
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (procesando)
+            return;
+
+        if (formulario.Latitud == 0 &&
+            formulario.Longitud == 0)
+        {
+            errorFormulario =
+                "Seleccione el punto principal del terreno.";
+
+            pestanaFormulario = "MAPA";
+            inicializarMapaPendiente = true;
+            return;
+        }
+
+        bool eraNuevo = formulario.TerrenoId <= 0;
+
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            eraNuevo
+                ? "¿Desea crear el terreno?"
+                : "¿Desea actualizar el terreno?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        errorFormulario = null;
+        LimpiarMensajes();
+
+        try
+        {
+            TerrenoOperacionWeb<TerrenoAdminItem>? respuesta;
+
+            if (eraNuevo)
+            {
+                respuesta =
+                    await Api.PostAsync<
+                        TerrenoFormularioWeb,
+                        TerrenoOperacionWeb<TerrenoAdminItem>>(
+                        "api/terreno/crear",
+                        formulario);
+            }
+            else
+            {
+                respuesta =
+                    await Api.PutAsync<
+                        TerrenoFormularioWeb,
+                        TerrenoOperacionWeb<TerrenoAdminItem>>(
+                        $"api/terreno/editar/{formulario.TerrenoId}",
+                        formulario);
+            }
+
+            int terrenoId =
+                respuesta?.Data?.TerrenoId ??
+                formulario.TerrenoId;
+
+            if (terrenoId <= 0)
+            {
+                throw new InvalidOperationException(
+                    "El servidor no devolvió el identificador del terreno.");
+            }
+
+            /*
+             * Si el terreno se creó pero falla el polígono, el formulario
+             * pasa a edición. Así un segundo intento no duplica el terreno.
+             */
+            if (eraNuevo)
+            {
+                formulario.TerrenoId = terrenoId;
+                formulario.CodigoTerreno =
+                    respuesta?.Data?.CodigoTerreno ??
+                    formulario.CodigoTerreno;
+                formulario.FechaIngresoTerreno =
+                    respuesta?.Data?.FechaIngresoTerreno ??
+                    formulario.FechaIngresoTerreno;
+                modoFormulario = "EDITAR";
+            }
+
+            if (poligonoEdicion.Vertices.Count >= 3)
+            {
+                var solicitud = new TerrenoPoligonoGuardarWeb
+                {
+                    Vertices = poligonoEdicion.Vertices
+                };
+
+                if (eraNuevo)
+                {
+                    await Api.PostAsync<
+                        TerrenoPoligonoGuardarWeb,
+                        TerrenoOperacionWeb<TerrenoPoligonoWeb>>(
+                        $"api/terreno-poligono/{terrenoId}",
+                        solicitud);
+                }
+                else
+                {
+                    await Api.PutAsync<
+                        TerrenoPoligonoGuardarWeb,
+                        TerrenoOperacionWeb<TerrenoPoligonoWeb>>(
+                        $"api/terreno-poligono/{terrenoId}",
+                        solicitud);
+                }
+            }
+            else if (poligonoEliminadoManualmente)
+            {
+                await Api.EliminarAsync(
+                    $"api/terreno-poligono/{terrenoId}");
+            }
+
+            await CerrarFormularioAsync();
+
+            await Task.WhenAll(
+                CargarPaginaAsync(eraNuevo ? 1 : pagina.Page),
+                CargarPoligonosAsync());
+
+            mensaje =
+                !string.IsNullOrWhiteSpace(respuesta?.MensajeMostrar)
+                    ? respuesta.MensajeMostrar
+                    : "Terreno guardado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            errorFormulario = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task EliminarTerrenoAsync(
+        TerrenoAdminItem terreno)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"¿Desea desactivar el terreno \"{terreno.CodigoTerreno}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.EliminarAsync(
+                $"api/terreno/eliminar/{terreno.TerrenoId}");
+
+            await CargarPaginaAsync(pagina.Page);
+            mensaje = "Terreno desactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task AbrirFotosAsync(TerrenoAdminItem terreno)
+    {
+        terrenoFotos = terreno;
+        modalFotos = true;
+        await CargarFotosAsync();
+    }
+
+    private async Task CargarFotosAsync()
+    {
+        if (terrenoFotos is null)
+            return;
+
+        cargandoFotos = true;
+
+        try
+        {
+            fotos.Clear();
+
+            List<TerrenoFotoWeb>? data =
+                await Api.GetAsync<List<TerrenoFotoWeb>>(
+                    $"api/fotoTerreno/por-terreno/{terrenoFotos.TerrenoId}");
+
+            if (data is not null)
+                fotos.AddRange(data);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargandoFotos = false;
+        }
+    }
+
+    private void SeleccionarFotos(InputFileChangeEventArgs e)
+    {
+        archivosFotos.Clear();
+        archivosFotos.AddRange(e.GetMultipleFiles(10));
+    }
+
+    private async Task SubirFotosAsync()
+    {
+        if (terrenoFotos is null ||
+            archivosFotos.Count == 0)
+        {
+            return;
+        }
+
+        procesando = true;
+
+        try
+        {
+            foreach (IBrowserFile archivo in archivosFotos)
+            {
+                await Api.SubirFormularioArchivoAsync<object>(
+                    "api/fotoTerreno/subir",
+                    archivo,
+                    new Dictionary<string, string>
+                    {
+                        ["terrenoId"] =
+                            terrenoFotos.TerrenoId.ToString()
+                    },
+                    nombreCampo: "fotos",
+                    tamanoMaximo: MaximoFoto);
+            }
+
+            archivosFotos.Clear();
+            await CargarFotosAsync();
+
+            mensaje = "Fotografías guardadas correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task EliminarFotoAsync(TerrenoFotoWeb foto)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            "¿Desea eliminar esta fotografía?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+
+        try
+        {
+            await Api.EliminarAsync(
+                $"api/fotoTerreno/eliminar/{foto.FotoTerrenoId}");
+
+            await CargarFotosAsync();
+            mensaje = "Fotografía eliminada correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private void CerrarFotos()
+    {
+        if (procesando)
+            return;
+
+        modalFotos = false;
+        terrenoFotos = null;
+        fotos.Clear();
+        archivosFotos.Clear();
+    }
+
+    private async Task AbrirEliminadosAsync()
+    {
+        modalEliminados = true;
+        cargandoEliminados = true;
+
+        try
+        {
+            TerrenoEliminadosRespuesta? respuesta =
+                await Api.GetAsync<TerrenoEliminadosRespuesta>(
+                    "api/catalogos-eliminados/terreno",
+                    AuthState.CrearEncabezadosSesion());
+
+            eliminados.Clear();
+
+            if (respuesta?.Data is not null)
+                eliminados.AddRange(respuesta.Data);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargandoEliminados = false;
+        }
+    }
+
+    private async Task ReactivarAsync(TerrenoEliminadoWeb terreno)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"¿Desea reactivar \"{terreno.Titulo}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                $"api/catalogos-eliminados/terreno/{terreno.Id}/reactivar",
+                AuthState.CrearEncabezadosSesion());
+
+            eliminados.Remove(terreno);
+            await CargarPaginaAsync(1);
+
+            mensaje = "Terreno reactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private void CerrarEliminados()
+    {
+        if (procesando)
+            return;
+
+        modalEliminados = false;
+        eliminados.Clear();
+    }
+
+    private TerrenoPoligonoWeb? PoligonoDe(int terrenoId) =>
+        poligonos.TryGetValue(
+            terrenoId,
+            out TerrenoPoligonoWeb? valor)
+            ? valor
+            : null;
+
+    private static TerrenoFormularioWeb CrearFormulario(
+        TerrenoAdminItem item) =>
+        new()
+        {
+            TerrenoId = item.TerrenoId,
+            CodigoTerreno = item.CodigoTerreno,
+            FechaIngresoTerreno = item.FechaIngresoTerreno,
+            PropietarioId = item.PropietarioId ?? 0,
+            DireccionTerreno = item.DireccionTerreno,
+            ExtensionManzanaTerreno = item.ExtensionManzanaTerreno,
+            MunicipioId = item.MunicipioId,
+            CantidadQuintalesOro = item.CantidadQuintalesOro,
+            CantidadPlantasTerreno = item.CantidadPlantasTerreno,
+            Latitud = item.Latitud,
+            Longitud = item.Longitud,
+            PaisId = item.Ubicacion.PaisId,
+            DepartamentoId = item.Ubicacion.DepartamentoId
+        };
+
+    private static TerrenoPoligonoWeb CrearPoligonoVacio(
+        TerrenoAdminItem item) =>
+        new()
+        {
+            TerrenoId = item.TerrenoId,
+            CodigoTerreno = item.CodigoTerreno,
+            LatitudPunto = item.Latitud,
+            LongitudPunto = item.Longitud,
+            ExtensionRegistradaManzanas =
+                item.ExtensionManzanaTerreno,
+            PuntoDentroPoligono = true
+        };
+
+    private static int? ParseNullable(object? valor) =>
+        int.TryParse(
+            Convert.ToString(valor),
+            out int numero)
+            ? numero
+            : null;
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+        errorFormulario = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        referenciaEditor?.Dispose();
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoEditor.destruir",
+                EditorId);
+        }
+        catch
+        {
+        }
+    }
+
+    private sealed class TerrenoCatalogo
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+    }
+}

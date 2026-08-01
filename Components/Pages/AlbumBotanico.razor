@@ -1,0 +1,509 @@
+@page "/contenido/album-botanico"
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<PageTitle>Álbum botánico | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Contenido técnico</p>
+        <h1>Álbum botánico</h1>
+        <p>
+            Selecciona una categoría para administrar sus fichas técnicas
+            y fotografías sin sobrecargar el menú ni la pantalla principal.
+        </p>
+    </div>
+
+    <div class="page-header-actions">
+        <button class="btn-secondary"
+                disabled="@procesando"
+                @onclick="CargarAsync">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+
+        @if (PuedeAgregar)
+        {
+            <button class="btn-primary"
+                    disabled="@procesando"
+                    @onclick="AbrirNuevaCategoria">
+                <i class="fa-solid fa-folder-plus"></i>
+                Nueva categoría
+            </button>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert alert-success-custom">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensaje</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+@if (!PuedeLeer)
+{
+    <section class="empty-state panel compact-empty">
+        <i class="fa-solid fa-lock"></i>
+        <h2>Sin permiso de lectura</h2>
+        <p>Su rol no puede visualizar el álbum botánico.</p>
+    </section>
+}
+else
+{
+    <section class="panel album-toolbar">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input class="form-control"
+                   placeholder="Buscar categoría"
+                   @bind="buscar"
+                   @bind:event="oninput" />
+        </div>
+
+        <label class="album-check">
+            <InputCheckbox @bind-Value="incluirInactivas" />
+            <span>Mostrar inactivas</span>
+        </label>
+
+        <div class="toolbar-summary">
+            <strong>@CategoriasFiltradas.Count</strong>
+            <span>categorías</span>
+        </div>
+    </section>
+
+    @if (cargando)
+    {
+        <LoadingState Mensaje="Cargando categorías..." />
+    }
+    else if (CategoriasFiltradas.Count == 0)
+    {
+        <section class="empty-state panel compact-empty">
+            <i class="fa-solid fa-folder-open"></i>
+            <h2>No se encontraron categorías</h2>
+            <p>No existen categorías que coincidan con la búsqueda.</p>
+        </section>
+    }
+    else
+    {
+        <section class="album-category-grid">
+            @foreach (AlbumCategoriaItem categoria in CategoriasFiltradas)
+            {
+                <article class="panel album-category-card @(categoria.Activo ? string.Empty : "inactive")">
+                    <div class="album-category-open"
+                         role="button"
+                         tabindex="0"
+                         @onclick="() => AbrirCategoria(categoria.CategoriaAlbumBotanicoId)">
+                        <div class="album-category-cover">
+                            @if (!string.IsNullOrWhiteSpace(categoria.RutaImagenPortada))
+                            {
+                                <img src="@RutaImagen(categoria.RutaImagenPortada)"
+                                     alt="@categoria.NombreCategoria" />
+                            }
+                            else
+                            {
+                                <div class="album-image-placeholder">
+                                    <i class="fa-solid fa-leaf"></i>
+                                </div>
+                            }
+
+                            <span class="status-label @(categoria.Activo ? "success" : "danger")">
+                                @(categoria.Activo ? "Activa" : "Inactiva")
+                            </span>
+                        </div>
+
+                        <div class="album-category-body">
+                            <div class="album-category-title">
+                                <h2>@categoria.NombreCategoria</h2>
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </div>
+
+                            <p>
+                                @(string.IsNullOrWhiteSpace(categoria.Descripcion)
+                                    ? "Sin descripción."
+                                    : categoria.Descripcion)
+                            </p>
+
+                            <div class="album-category-stats">
+                                <span>
+                                    <strong>@categoria.TotalRegistrosActivos</strong>
+                                    fichas activas
+                                </span>
+                                <span>
+                                    <strong>@categoria.TotalRegistros</strong>
+                                    fichas totales
+                                </span>
+                            </div>
+
+                            <span class="album-open-label">
+                                Abrir categoría
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="album-category-actions">
+                        @if (PuedeActualizar)
+                        {
+                            <button class="btn-secondary"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => AbrirEditarCategoria(categoria)">
+                                <i class="fa-solid fa-pen"></i>
+                                Editar
+                            </button>
+                        }
+
+                        @if (categoria.Activo && PuedeEliminar)
+                        {
+                            <button class="btn-danger-outline"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => CambiarEstadoAsync(categoria, false)">
+                                <i class="fa-solid fa-ban"></i>
+                                Desactivar
+                            </button>
+                        }
+                        else if (!categoria.Activo && PuedeActualizar)
+                        {
+                            <button class="btn-secondary"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => CambiarEstadoAsync(categoria, true)">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                Reactivar
+                            </button>
+                        }
+                    </div>
+                </article>
+            }
+        </section>
+    }
+}
+
+@if (modalCategoria)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarCategoria">
+        <article class="modal-card album-form-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">
+                        @(formularioCategoria.CategoriaAlbumBotanicoId > 0
+                            ? "Actualizar categoría"
+                            : "Nueva categoría")
+                    </p>
+                    <h2>
+                        @(formularioCategoria.CategoriaAlbumBotanicoId > 0
+                            ? "Editar categoría"
+                            : "Crear categoría")
+                    </h2>
+                </div>
+
+                <button class="modal-close"
+                        @onclick="CerrarCategoria">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <EditForm Model="formularioCategoria"
+                      OnValidSubmit="GuardarCategoriaAsync"
+                      FormName="categoria-album-form">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-group">
+                    <label>Nombre *</label>
+                    <InputText class="form-control"
+                               @bind-Value="formularioCategoria.NombreCategoria" />
+                    <ValidationMessage For="() => formularioCategoria.NombreCategoria" />
+                </div>
+
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <InputTextArea class="form-control album-textarea"
+                                   @bind-Value="formularioCategoria.Descripcion" />
+                    <ValidationMessage For="() => formularioCategoria.Descripcion" />
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn-secondary"
+                            @onclick="CerrarCategoria">
+                        Cancelar
+                    </button>
+
+                    <button type="submit"
+                            class="btn-primary"
+                            disabled="@procesando">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        @(procesando ? "Guardando..." : "Guardar")
+                    </button>
+                </div>
+            </EditForm>
+        </article>
+    </div>
+}
+
+@code {
+    private const string CodigoPermiso = "albumFotosPage";
+
+    private readonly List<AlbumCategoriaItem> categorias = [];
+    private AlbumCategoriaFormulario formularioCategoria = new();
+
+    private bool cargando = true;
+    private bool procesando;
+    private bool incluirInactivas = true;
+    private bool modalCategoria;
+    private string buscar = string.Empty;
+    private string? mensaje;
+    private string? error;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoPermiso);
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(CodigoPermiso);
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(CodigoPermiso);
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(CodigoPermiso);
+
+    private List<AlbumCategoriaItem> CategoriasFiltradas =>
+        categorias
+            .Where(x => incluirInactivas || x.Activo)
+            .Where(x =>
+                string.IsNullOrWhiteSpace(buscar) ||
+                x.NombreCategoria.Contains(
+                    buscar,
+                    StringComparison.OrdinalIgnoreCase) ||
+                (x.Descripcion?.Contains(
+                    buscar,
+                    StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderByDescending(x => x.Activo)
+            .ThenBy(x => x.NombreCategoria)
+            .ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        if (!PuedeLeer)
+        {
+            cargando = false;
+            return;
+        }
+
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            AlbumApiRespuesta<List<AlbumCategoriaItem>>? respuesta =
+                await Api.GetAsync<
+                    AlbumApiRespuesta<List<AlbumCategoriaItem>>>(
+                    "api/categoria-album-botanico/listar?incluirInactivos=true");
+
+            categorias.Clear();
+
+            if (respuesta?.Data is not null)
+                categorias.AddRange(respuesta.Data);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AbrirCategoria(int categoriaId)
+    {
+        Navigation.NavigateTo(
+            $"/contenido/album-botanico/categoria/{categoriaId}");
+    }
+
+    private void AbrirNuevaCategoria()
+    {
+        LimpiarMensajes();
+        formularioCategoria = new AlbumCategoriaFormulario();
+        modalCategoria = true;
+    }
+
+    private void AbrirEditarCategoria(AlbumCategoriaItem categoria)
+    {
+        LimpiarMensajes();
+
+        formularioCategoria = new AlbumCategoriaFormulario
+        {
+            CategoriaAlbumBotanicoId =
+                categoria.CategoriaAlbumBotanicoId,
+            NombreCategoria =
+                categoria.NombreCategoria,
+            Descripcion =
+                categoria.Descripcion
+        };
+
+        modalCategoria = true;
+    }
+
+    private void CerrarCategoria()
+    {
+        if (procesando)
+            return;
+
+        modalCategoria = false;
+        formularioCategoria = new AlbumCategoriaFormulario();
+    }
+
+    private async Task GuardarCategoriaAsync()
+    {
+        if (procesando)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            string? texto;
+
+            if (formularioCategoria.CategoriaAlbumBotanicoId <= 0)
+            {
+                AlbumApiRespuesta<object>? respuesta =
+                    await Api.PostAsync<
+                        AlbumCategoriaFormulario,
+                        AlbumApiRespuesta<object>>(
+                        "api/categoria-album-botanico/crear",
+                        formularioCategoria);
+
+                texto =
+                    respuesta?.Message ??
+                    "Categoría creada correctamente.";
+            }
+            else
+            {
+                AlbumApiRespuesta<object>? respuesta =
+                    await Api.PutAsync<
+                        AlbumCategoriaFormulario,
+                        AlbumApiRespuesta<object>>(
+                        "api/categoria-album-botanico/actualizar/" +
+                        formularioCategoria.CategoriaAlbumBotanicoId,
+                        formularioCategoria);
+
+                texto =
+                    respuesta?.Message ??
+                    "Categoría actualizada correctamente.";
+            }
+
+            modalCategoria = false;
+            await CargarAsync();
+            mensaje = texto;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task CambiarEstadoAsync(
+        AlbumCategoriaItem categoria,
+        bool activo)
+    {
+        string accion = activo ? "reactivar" : "desactivar";
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea {accion} la categoría \"{categoria.NombreCategoria}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PatchSinContenidoAsync(
+                "api/categoria-album-botanico/cambiar-estado/" +
+                categoria.CategoriaAlbumBotanicoId +
+                $"?activo={activo.ToString().ToLowerInvariant()}");
+
+            await CargarAsync();
+
+            mensaje =
+                activo
+                    ? "Categoría reactivada correctamente."
+                    : "Categoría desactivada correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private string RutaImagen(string? ruta)
+    {
+        if (string.IsNullOrWhiteSpace(ruta))
+            return string.Empty;
+
+        if (Uri.TryCreate(
+                ruta,
+                UriKind.Absolute,
+                out Uri? absoluta))
+        {
+            return absoluta.ToString();
+        }
+
+        if (Api.BaseAddress is null)
+            return ruta;
+
+        return new Uri(
+                Api.BaseAddress,
+                ruta.TrimStart('/'))
+            .ToString();
+    }
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+    }
+}

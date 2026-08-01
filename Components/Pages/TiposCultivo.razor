@@ -1,0 +1,881 @@
+@page "/parametros-agronomicos/tipos-cultivo"
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Tipos de cultivo | CONATRADEC</PageTitle>
+
+<div class="catalog-page-header">
+    <div>
+        <p class="eyebrow">Parámetros agronómicos</p>
+        <h1>Tipos de cultivo</h1>
+        <p>
+            Administra los cultivos disponibles para análisis y consulta
+            cuántos rangos nutricionales y análisis están relacionados.
+        </p>
+    </div>
+
+    <div class="catalog-header-actions">
+        @if (PuedeActualizar)
+        {
+            <button class="btn-secondary"
+                    disabled="@procesando"
+                    @onclick="AbrirEliminadosAsync">
+                <i class="fa-solid fa-trash-arrow-up"></i>
+                Eliminados
+            </button>
+        }
+
+        <button class="btn-secondary"
+                disabled="@procesando"
+                @onclick="CargarAsync">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+
+        @if (PuedeAgregar)
+        {
+            <button class="btn-primary"
+                    disabled="@procesando"
+                    @onclick="AbrirCrear">
+                <i class="fa-solid fa-plus"></i>
+                Nuevo cultivo
+            </button>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert alert-success-custom">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensaje</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+@if (!PuedeLeer)
+{
+    <section class="empty-state panel compact-empty">
+        <i class="fa-solid fa-lock"></i>
+        <h2>Sin permiso de lectura</h2>
+        <p>Su rol no puede consultar los tipos de cultivo.</p>
+    </section>
+}
+else
+{
+    <section class="panel catalog-toolbar">
+        <div class="form-group">
+            <label>Buscar</label>
+            <div class="catalog-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input class="form-control"
+                       placeholder="Nombre o descripción"
+                       @bind="buscar"
+                       @bind:event="oninput" />
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Ordenar por</label>
+            <select class="form-control"
+                    @bind="orden">
+                <option value="nombre">Nombre</option>
+                <option value="rangos">Rangos nutricionales</option>
+                <option value="analisis">Análisis asociados</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Dirección</label>
+            <select class="form-control"
+                    @bind="direccion">
+                <option value="asc">Ascendente</option>
+                <option value="desc">Descendente</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Por página</label>
+            <select class="form-control"
+                    @bind="tamanoPagina">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="40">40</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+
+        <div class="catalog-header-actions">
+            <button class="btn-primary"
+                    disabled="@procesando"
+                    @onclick="BuscarAsync">
+                Buscar
+            </button>
+            <button class="btn-secondary"
+                    disabled="@procesando"
+                    @onclick="LimpiarAsync">
+                Limpiar
+            </button>
+        </div>
+
+        <div class="catalog-summary">
+            <strong>@pagina.TotalRegistros</strong>
+            <span>cultivo(s)</span>
+        </div>
+    </section>
+
+    @if (cargando)
+    {
+        <LoadingState Mensaje="Cargando tipos de cultivo..." />
+    }
+    else if (pagina.Items.Count == 0)
+    {
+        <section class="empty-state panel compact-empty">
+            <i class="fa-solid fa-wheat-awn"></i>
+            <h2>No se encontraron cultivos</h2>
+            <p>No existen registros activos que coincidan con la búsqueda.</p>
+        </section>
+    }
+    else
+    {
+        <section class="panel catalog-table-panel">
+            <div class="catalog-table-scroll">
+                <table class="catalog-table">
+                    <thead>
+                        <tr>
+                            <th>Cultivo</th>
+                            <th>Descripción</th>
+                            <th>Rangos</th>
+                            <th>Análisis</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (TipoCultivoWebItem item in pagina.Items)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="catalog-primary">
+                                        @item.NombreMostrar
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="catalog-secondary">
+                                        @item.DescripcionMostrar
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="catalog-count">
+                                        <i class="fa-solid fa-chart-simple"></i>
+                                        @item.CantidadRangosActivos
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="catalog-count">
+                                        <i class="fa-solid fa-flask-vial"></i>
+                                        @item.CantidadAnalisis
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="catalog-row-actions">
+                                        <button class="btn-icon-view"
+                                                title="Ver detalle"
+                                                @onclick="() => AbrirVer(item)">
+                                            <i class="fa-regular fa-eye"></i>
+                                        </button>
+
+                                        @if (PuedeActualizar)
+                                        {
+                                            <button class="btn-icon-edit"
+                                                    title="Editar"
+                                                    @onclick="() => AbrirEditar(item)">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                        }
+
+                                        @if (PuedeEliminar)
+                                        {
+                                            <button class="btn-icon-delete"
+                                                    title="Desactivar"
+                                                    @onclick="() => EliminarAsync(item)">
+                                                <i class="fa-solid fa-ban"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="catalog-pagination">
+                <span>
+                    Página @pagina.PaginaActual de @Math.Max(1, pagina.TotalPaginas)
+                </span>
+
+                <div class="catalog-pagination-buttons">
+                    <button class="catalog-page-button"
+                            disabled="@(pagina.PaginaActual <= 1 || procesando)"
+                            @onclick="() => IrPaginaAsync(pagina.PaginaActual - 1)">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+
+                    @foreach (int numero in PaginasVisibles)
+                    {
+                        <button class="catalog-page-button @(numero == pagina.PaginaActual ? "active" : string.Empty)"
+                                disabled="@procesando"
+                                @onclick="() => IrPaginaAsync(numero)">
+                            @numero
+                        </button>
+                    }
+
+                    <button class="catalog-page-button"
+                            disabled="@(pagina.PaginaActual >= pagina.TotalPaginas || procesando)"
+                            @onclick="() => IrPaginaAsync(pagina.PaginaActual + 1)">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+    }
+}
+
+@if (modalFormulario)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarFormularioAsync">
+        <article class="modal-card catalog-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Tipo de cultivo</p>
+                    <h2>@TituloFormulario</h2>
+                </div>
+                <button class="modal-close"
+                        @onclick="CerrarFormularioAsync">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            @if (modoFormulario == "ver")
+            {
+                <div class="catalog-view-grid">
+                    <div class="catalog-view-item full">
+                        <small>Nombre</small>
+                        <strong>@formulario.NombreTipoCultivo</strong>
+                    </div>
+                    <div class="catalog-view-item full">
+                        <small>Descripción</small>
+                        <span>
+                            @(string.IsNullOrWhiteSpace(formulario.DescripcionTipoCultivo)
+                                ? "Sin descripción registrada."
+                                : formulario.DescripcionTipoCultivo)
+                        </span>
+                    </div>
+                    <div class="catalog-view-item">
+                        <small>Rangos nutricionales activos</small>
+                        <strong>@itemVista?.CantidadRangosActivos</strong>
+                    </div>
+                    <div class="catalog-view-item">
+                        <small>Análisis asociados</small>
+                        <strong>@itemVista?.CantidadAnalisis</strong>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn-secondary"
+                            @onclick="CerrarFormularioAsync">
+                        Regresar
+                    </button>
+                </div>
+            }
+            else
+            {
+                <EditForm Model="formulario"
+                          OnValidSubmit="GuardarAsync"
+                          FormName="tipo-cultivo-web-form">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="catalog-form-note">
+                        El nombre se guardará en mayúsculas. La descripción
+                        es opcional y admite hasta 150 caracteres.
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nombre del cultivo *</label>
+                        <InputText class="form-control"
+                                   maxlength="80"
+                                   @bind-Value="formulario.NombreTipoCultivo" />
+                        <ValidationMessage For="() => formulario.NombreTipoCultivo" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <InputTextArea class="form-control"
+                                       maxlength="150"
+                                       @bind-Value="formulario.DescripcionTipoCultivo" />
+                        <ValidationMessage For="() => formulario.DescripcionTipoCultivo" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(errorFormulario))
+                    {
+                        <div class="catalog-error-text">
+                            @errorFormulario
+                        </div>
+                    }
+
+                    <div class="modal-footer">
+                        <button type="button"
+                                class="btn-secondary"
+                                @onclick="CerrarFormularioAsync">
+                            Cancelar
+                        </button>
+                        <button type="submit"
+                                class="btn-primary"
+                                disabled="@procesando">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            @(procesando ? "Guardando..." : "Guardar")
+                        </button>
+                    </div>
+                </EditForm>
+            }
+        </article>
+    </div>
+}
+
+@if (modalEliminados)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarEliminados">
+        <article class="modal-card catalog-inactive-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Papelera administrativa</p>
+                    <h2>Tipos de cultivo eliminados</h2>
+                </div>
+                <button class="modal-close"
+                        @onclick="CerrarEliminados">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="catalog-form-note">
+                La reactivación conserva rangos nutricionales y análisis
+                históricos asociados al mismo identificador.
+            </div>
+
+            <div class="catalog-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input class="form-control"
+                       placeholder="Buscar eliminado"
+                       @bind="buscarEliminado"
+                       @bind:event="oninput" />
+            </div>
+
+            @if (cargandoEliminados)
+            {
+                <LoadingState Mensaje="Cargando eliminados..." />
+            }
+            else if (EliminadosFiltrados.Count == 0)
+            {
+                <div class="empty-state compact-empty">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <h3>No hay cultivos eliminados</h3>
+                </div>
+            }
+            else
+            {
+                <div class="catalog-inactive-list">
+                    @foreach (CatalogoEliminadoItemWeb item in EliminadosFiltrados)
+                    {
+                        <article class="catalog-inactive-item">
+                            <div>
+                                <h3>@item.Titulo</h3>
+                                <p>@item.Subtitulo</p>
+                            </div>
+                            <button class="btn-primary"
+                                    disabled="@procesando"
+                                    @onclick="() => ReactivarAsync(item)">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                Reactivar
+                            </button>
+                        </article>
+                    }
+                </div>
+            }
+        </article>
+    </div>
+}
+
+@code {
+    private const string CodigoPermiso = "tipoCultivoPage";
+    private const string CodigoEliminados = "tipo-cultivo";
+
+    private CatalogoPaginaRespuesta<TipoCultivoWebItem> pagina = new();
+    private readonly List<CatalogoEliminadoItemWeb> eliminados = [];
+    private TipoCultivoWebFormulario formulario = new();
+    private TipoCultivoWebFormulario original = new();
+    private TipoCultivoWebItem? itemVista;
+
+    private bool cargando = true;
+    private bool procesando;
+    private bool modalFormulario;
+    private bool modalEliminados;
+    private bool cargandoEliminados;
+    private string modoFormulario = "crear";
+    private string buscar = string.Empty;
+    private string orden = "nombre";
+    private string direccion = "asc";
+    private int tamanoPagina = 20;
+    private string buscarEliminado = string.Empty;
+    private string? mensaje;
+    private string? error;
+    private string? errorFormulario;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoPermiso);
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(CodigoPermiso);
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(CodigoPermiso);
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(CodigoPermiso);
+
+    private string TituloFormulario =>
+        modoFormulario switch
+        {
+            "editar" => "Editar tipo de cultivo",
+            "ver" => "Detalle del tipo de cultivo",
+            _ => "Crear tipo de cultivo"
+        };
+
+    private IEnumerable<int> PaginasVisibles
+    {
+        get
+        {
+            int inicio = Math.Max(1, pagina.PaginaActual - 2);
+            int fin = Math.Min(Math.Max(1, pagina.TotalPaginas), inicio + 4);
+            inicio = Math.Max(1, fin - 4);
+
+            return Enumerable.Range(
+                inicio,
+                Math.Max(1, fin - inicio + 1));
+        }
+    }
+
+    private List<CatalogoEliminadoItemWeb> EliminadosFiltrados =>
+        eliminados
+            .Where(x =>
+                string.IsNullOrWhiteSpace(buscarEliminado) ||
+                x.Titulo.Contains(
+                    buscarEliminado,
+                    StringComparison.OrdinalIgnoreCase) ||
+                (x.Subtitulo?.Contains(
+                    buscarEliminado,
+                    StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderBy(x => x.Titulo)
+            .ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private Task BuscarAsync() =>
+        CargarPaginaAsync(1);
+
+    private async Task LimpiarAsync()
+    {
+        buscar = string.Empty;
+        orden = "nombre";
+        direccion = "asc";
+        tamanoPagina = 20;
+        await CargarPaginaAsync(1);
+    }
+
+    private Task CargarAsync() =>
+        CargarPaginaAsync(
+            Math.Max(1, pagina.PaginaActual));
+
+    private async Task IrPaginaAsync(int numero)
+    {
+        if (numero < 1 ||
+            numero > Math.Max(1, pagina.TotalPaginas))
+        {
+            return;
+        }
+
+        await CargarPaginaAsync(numero);
+    }
+
+    private async Task CargarPaginaAsync(int numero)
+    {
+        if (!PuedeLeer)
+        {
+            cargando = false;
+            return;
+        }
+
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            string ruta =
+                "api/configuracion/tipos-cultivo/buscar" +
+                $"?pagina={numero}" +
+                $"&tamanoPagina={tamanoPagina}" +
+                $"&orden={Uri.EscapeDataString(orden)}" +
+                $"&direccion={Uri.EscapeDataString(direccion)}";
+
+            if (!string.IsNullOrWhiteSpace(buscar))
+            {
+                ruta +=
+                    $"&buscar={Uri.EscapeDataString(buscar.Trim())}";
+            }
+
+            CatalogoPaginaRespuesta<TipoCultivoWebItem>? respuesta =
+                await Api.GetAsync<
+                    CatalogoPaginaRespuesta<TipoCultivoWebItem>>(
+                    ruta);
+
+            pagina =
+                respuesta ??
+                new CatalogoPaginaRespuesta<TipoCultivoWebItem>();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AbrirCrear()
+    {
+        LimpiarMensajes();
+        modoFormulario = "crear";
+        itemVista = null;
+        formulario = new TipoCultivoWebFormulario();
+        original = Copiar(formulario);
+        modalFormulario = true;
+    }
+
+    private void AbrirEditar(TipoCultivoWebItem item)
+    {
+        LimpiarMensajes();
+        modoFormulario = "editar";
+        itemVista = item;
+        formulario = CrearFormulario(item);
+        original = Copiar(formulario);
+        modalFormulario = true;
+    }
+
+    private void AbrirVer(TipoCultivoWebItem item)
+    {
+        LimpiarMensajes();
+        modoFormulario = "ver";
+        itemVista = item;
+        formulario = CrearFormulario(item);
+        original = Copiar(formulario);
+        modalFormulario = true;
+    }
+
+    private async Task CerrarFormularioAsync()
+    {
+        if (procesando)
+            return;
+
+        if (modoFormulario != "ver" &&
+            HayCambios())
+        {
+            bool salir =
+                await JS.InvokeAsync<bool>(
+                    "confirm",
+                    "Hay cambios sin guardar. ¿Desea cerrar el formulario?");
+
+            if (!salir)
+                return;
+        }
+
+        modalFormulario = false;
+        itemVista = null;
+        formulario = new TipoCultivoWebFormulario();
+        errorFormulario = null;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (procesando)
+            return;
+
+        errorFormulario = null;
+
+        formulario.NombreTipoCultivo =
+            formulario.NombreTipoCultivo
+                .ReplaceLineEndings(" ")
+                .Trim()
+                .ToUpperInvariant();
+
+        formulario.DescripcionTipoCultivo =
+            (formulario.DescripcionTipoCultivo ?? string.Empty)
+                .ReplaceLineEndings(" ")
+                .Trim();
+
+        if (string.IsNullOrWhiteSpace(
+                formulario.NombreTipoCultivo))
+        {
+            errorFormulario =
+                "Ingrese el nombre del tipo de cultivo.";
+            return;
+        }
+
+        if (modoFormulario == "editar" &&
+            !HayCambios())
+        {
+            errorFormulario =
+                "No hay cambios para guardar.";
+            return;
+        }
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                modoFormulario == "editar"
+                    ? "¿Desea actualizar el tipo de cultivo?"
+                    : "¿Desea guardar el tipo de cultivo?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            CatalogoOperacionRespuesta<object>? respuesta;
+
+            if (modoFormulario == "editar")
+            {
+                respuesta =
+                    await Api.PutAsync<
+                        TipoCultivoWebFormulario,
+                        CatalogoOperacionRespuesta<object>>(
+                        $"api/configuracion/tipos-cultivo/{formulario.TipoCultivoId}",
+                        formulario);
+            }
+            else
+            {
+                respuesta =
+                    await Api.PostAsync<
+                        TipoCultivoWebFormulario,
+                        CatalogoOperacionRespuesta<object>>(
+                        "api/configuracion/tipos-cultivo",
+                        formulario);
+            }
+
+            modalFormulario = false;
+            await CargarPaginaAsync(
+                modoFormulario == "crear"
+                    ? 1
+                    : pagina.PaginaActual);
+
+            mensaje =
+                respuesta?.Message ??
+                "Tipo de cultivo guardado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            errorFormulario = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task EliminarAsync(
+        TipoCultivoWebItem item)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea desactivar el tipo de cultivo " +
+                $"\"{item.NombreMostrar}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                $"api/configuracion/tipos-cultivo/{item.TipoCultivoId}/eliminar");
+
+            await CargarPaginaAsync(
+                pagina.PaginaActual);
+
+            mensaje =
+                "Tipo de cultivo desactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task AbrirEliminadosAsync()
+    {
+        modalEliminados = true;
+        buscarEliminado = string.Empty;
+        cargandoEliminados = true;
+        LimpiarMensajes();
+
+        try
+        {
+            CatalogoOperacionRespuesta<List<CatalogoEliminadoItemWeb>>?
+                respuesta =
+                    await Api.GetAsync<
+                        CatalogoOperacionRespuesta<
+                            List<CatalogoEliminadoItemWeb>>>(
+                        $"api/catalogos-eliminados/{CodigoEliminados}",
+                        AuthState.CrearEncabezadosSesion());
+
+            eliminados.Clear();
+
+            if (respuesta?.Data is not null)
+                eliminados.AddRange(respuesta.Data);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargandoEliminados = false;
+        }
+    }
+
+    private void CerrarEliminados()
+    {
+        if (procesando)
+            return;
+
+        modalEliminados = false;
+        eliminados.Clear();
+    }
+
+    private async Task ReactivarAsync(
+        CatalogoEliminadoItemWeb item)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea reactivar \"{item.Titulo}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                $"api/catalogos-eliminados/{CodigoEliminados}/{item.Id}/reactivar",
+                AuthState.CrearEncabezadosSesion());
+
+            eliminados.Remove(item);
+            await CargarPaginaAsync(1);
+
+            mensaje =
+                "Tipo de cultivo reactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private bool HayCambios() =>
+        !string.Equals(
+            formulario.NombreTipoCultivo.Trim(),
+            original.NombreTipoCultivo.Trim(),
+            StringComparison.OrdinalIgnoreCase) ||
+        !string.Equals(
+            formulario.DescripcionTipoCultivo.Trim(),
+            original.DescripcionTipoCultivo.Trim(),
+            StringComparison.Ordinal);
+
+    private static TipoCultivoWebFormulario CrearFormulario(
+        TipoCultivoWebItem item) =>
+        new()
+        {
+            TipoCultivoId =
+                item.TipoCultivoId,
+            NombreTipoCultivo =
+                item.NombreMostrar,
+            DescripcionTipoCultivo =
+                item.DescripcionTipoCultivo ?? string.Empty
+        };
+
+    private static TipoCultivoWebFormulario Copiar(
+        TipoCultivoWebFormulario valor) =>
+        new()
+        {
+            TipoCultivoId =
+                valor.TipoCultivoId,
+            NombreTipoCultivo =
+                valor.NombreTipoCultivo,
+            DescripcionTipoCultivo =
+                valor.DescripcionTipoCultivo
+        };
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+        errorFormulario = null;
+    }
+}

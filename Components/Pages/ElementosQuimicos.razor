@@ -1,0 +1,916 @@
+@page "/parametros-agronomicos/elementos-quimicos"
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Elementos químicos | CONATRADEC</PageTitle>
+
+<div class="catalog-page-header">
+    <div>
+        <p class="eyebrow">Parámetros agronómicos</p>
+        <h1>Elementos químicos</h1>
+        <p>
+            Administra el símbolo, nombre y peso equivalente utilizado por
+            los análisis, rangos nutricionales y fuentes de nutrientes.
+        </p>
+    </div>
+
+    <div class="catalog-header-actions">
+        @if (PuedeActualizar)
+        {
+            <button class="btn-secondary"
+                    disabled="@procesando"
+                    @onclick="AbrirEliminadosAsync">
+                <i class="fa-solid fa-trash-arrow-up"></i>
+                Eliminados
+            </button>
+        }
+
+        <button class="btn-secondary"
+                disabled="@procesando"
+                @onclick="CargarAsync">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+
+        @if (PuedeAgregar)
+        {
+            <button class="btn-primary"
+                    disabled="@procesando"
+                    @onclick="AbrirCrear">
+                <i class="fa-solid fa-plus"></i>
+                Nuevo elemento
+            </button>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert alert-success-custom">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensaje</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+@if (!PuedeLeer)
+{
+    <section class="empty-state panel compact-empty">
+        <i class="fa-solid fa-lock"></i>
+        <h2>Sin permiso de lectura</h2>
+        <p>Su rol no puede consultar los elementos químicos.</p>
+    </section>
+}
+else
+{
+    <section class="panel catalog-toolbar">
+        <div class="form-group">
+            <label>Buscar</label>
+            <div class="catalog-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input class="form-control"
+                       placeholder="Nombre o símbolo"
+                       @bind="buscar"
+                       @bind:event="oninput" />
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Ordenar por</label>
+            <select class="form-control"
+                    @bind="orden">
+                <option value="nombre">Nombre</option>
+                <option value="simbolo">Símbolo</option>
+                <option value="peso">Peso equivalente</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Dirección</label>
+            <select class="form-control"
+                    @bind="direccion">
+                <option value="asc">Ascendente</option>
+                <option value="desc">Descendente</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Por página</label>
+            <select class="form-control"
+                    @bind="tamanoPagina">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="40">40</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+
+        <div class="catalog-header-actions">
+            <button class="btn-primary"
+                    disabled="@procesando"
+                    @onclick="BuscarAsync">
+                Buscar
+            </button>
+            <button class="btn-secondary"
+                    disabled="@procesando"
+                    @onclick="LimpiarAsync">
+                Limpiar
+            </button>
+        </div>
+
+        <div class="catalog-summary">
+            <strong>@pagina.TotalRegistros</strong>
+            <span>elemento(s)</span>
+        </div>
+    </section>
+
+    @if (cargando)
+    {
+        <LoadingState Mensaje="Cargando elementos químicos..." />
+    }
+    else if (pagina.Items.Count == 0)
+    {
+        <section class="empty-state panel compact-empty">
+            <i class="fa-solid fa-flask"></i>
+            <h2>No se encontraron elementos</h2>
+            <p>No existen registros activos que coincidan con la búsqueda.</p>
+        </section>
+    }
+    else
+    {
+        <section class="panel catalog-table-panel">
+            <div class="catalog-table-scroll">
+                <table class="catalog-table">
+                    <thead>
+                        <tr>
+                            <th>Símbolo</th>
+                            <th>Elemento químico</th>
+                            <th>Peso equivalente</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (ElementoQuimicoWebItem item in pagina.Items)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="catalog-symbol">
+                                        @item.SimboloElementoQuimico
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="catalog-primary">
+                                        @item.NombreElementoQuimico
+                                    </span>
+                                </td>
+                                <td>
+                                    @(item.PesoEquivalenteElementoQuimico?.ToString("N2") ?? "0.00")
+                                </td>
+                                <td>
+                                    <span class="status-label success">
+                                        Activo
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="catalog-row-actions">
+                                        <button class="btn-icon-view"
+                                                title="Ver detalle"
+                                                @onclick="() => AbrirVer(item)">
+                                            <i class="fa-regular fa-eye"></i>
+                                        </button>
+
+                                        @if (PuedeActualizar)
+                                        {
+                                            <button class="btn-icon-edit"
+                                                    title="Editar"
+                                                    @onclick="() => AbrirEditar(item)">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                        }
+
+                                        @if (PuedeEliminar)
+                                        {
+                                            <button class="btn-icon-delete"
+                                                    title="Desactivar"
+                                                    @onclick="() => EliminarAsync(item)">
+                                                <i class="fa-solid fa-ban"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="catalog-pagination">
+                <span>
+                    Página @pagina.PaginaActual de @Math.Max(1, pagina.TotalPaginas)
+                </span>
+
+                <div class="catalog-pagination-buttons">
+                    <button class="catalog-page-button"
+                            disabled="@(pagina.PaginaActual <= 1 || procesando)"
+                            @onclick="() => IrPaginaAsync(pagina.PaginaActual - 1)">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+
+                    @foreach (int numero in PaginasVisibles)
+                    {
+                        <button class="catalog-page-button @(numero == pagina.PaginaActual ? "active" : string.Empty)"
+                                disabled="@procesando"
+                                @onclick="() => IrPaginaAsync(numero)">
+                            @numero
+                        </button>
+                    }
+
+                    <button class="catalog-page-button"
+                            disabled="@(pagina.PaginaActual >= pagina.TotalPaginas || procesando)"
+                            @onclick="() => IrPaginaAsync(pagina.PaginaActual + 1)">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+    }
+}
+
+@if (modalFormulario)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarFormularioAsync">
+        <article class="modal-card catalog-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Elemento químico</p>
+                    <h2>@TituloFormulario</h2>
+                </div>
+                <button class="modal-close"
+                        @onclick="CerrarFormularioAsync">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            @if (modoFormulario == "ver")
+            {
+                <div class="catalog-view-grid">
+                    <div class="catalog-view-item">
+                        <small>Símbolo</small>
+                        <strong>@formulario.SimboloElementoQuimico</strong>
+                    </div>
+                    <div class="catalog-view-item">
+                        <small>Peso equivalente</small>
+                        <strong>@formulario.PesoEquivalenteElementoQuimico?.ToString("N2")</strong>
+                    </div>
+                    <div class="catalog-view-item full">
+                        <small>Nombre</small>
+                        <strong>@formulario.NombreElementoQuimico</strong>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn-secondary"
+                            @onclick="CerrarFormularioAsync">
+                        Regresar
+                    </button>
+                </div>
+            }
+            else
+            {
+                <EditForm Model="formulario"
+                          OnValidSubmit="GuardarAsync"
+                          FormName="elemento-quimico-web-form">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="catalog-form-note">
+                        El símbolo y el nombre se guardarán en mayúsculas.
+                        El peso equivalente admite un máximo de dos decimales.
+                    </div>
+
+                    <div class="form-group">
+                        <label>Símbolo *</label>
+                        <InputText class="form-control"
+                                   maxlength="10"
+                                   @bind-Value="formulario.SimboloElementoQuimico" />
+                        <ValidationMessage For="() => formulario.SimboloElementoQuimico" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        <InputText class="form-control"
+                                   maxlength="100"
+                                   @bind-Value="formulario.NombreElementoQuimico" />
+                        <ValidationMessage For="() => formulario.NombreElementoQuimico" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Peso equivalente *</label>
+                        <InputNumber class="form-control"
+                                     step="0.01"
+                                     min="0.01"
+                                     max="99999999.99"
+                                     @bind-Value="formulario.PesoEquivalenteElementoQuimico" />
+                        <ValidationMessage For="() => formulario.PesoEquivalenteElementoQuimico" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(errorFormulario))
+                    {
+                        <div class="catalog-error-text">
+                            @errorFormulario
+                        </div>
+                    }
+
+                    <div class="modal-footer">
+                        <button type="button"
+                                class="btn-secondary"
+                                @onclick="CerrarFormularioAsync">
+                            Cancelar
+                        </button>
+                        <button type="submit"
+                                class="btn-primary"
+                                disabled="@procesando">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            @(procesando ? "Guardando..." : "Guardar")
+                        </button>
+                    </div>
+                </EditForm>
+            }
+        </article>
+    </div>
+}
+
+@if (modalEliminados)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarEliminados">
+        <article class="modal-card catalog-inactive-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Papelera administrativa</p>
+                    <h2>Elementos químicos eliminados</h2>
+                </div>
+                <button class="modal-close"
+                        @onclick="CerrarEliminados">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="catalog-form-note">
+                La reactivación conserva relaciones con fuentes, rangos y
+                análisis históricos.
+            </div>
+
+            <div class="catalog-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input class="form-control"
+                       placeholder="Buscar eliminado"
+                       @bind="buscarEliminado"
+                       @bind:event="oninput" />
+            </div>
+
+            @if (cargandoEliminados)
+            {
+                <LoadingState Mensaje="Cargando eliminados..." />
+            }
+            else if (EliminadosFiltrados.Count == 0)
+            {
+                <div class="empty-state compact-empty">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <h3>No hay elementos eliminados</h3>
+                </div>
+            }
+            else
+            {
+                <div class="catalog-inactive-list">
+                    @foreach (CatalogoEliminadoItemWeb item in EliminadosFiltrados)
+                    {
+                        <article class="catalog-inactive-item">
+                            <div>
+                                <h3>@item.Titulo</h3>
+                                <p>
+                                    @item.Codigo
+                                    @if (!string.IsNullOrWhiteSpace(item.Subtitulo))
+                                    {
+                                        <span> · @item.Subtitulo</span>
+                                    }
+                                </p>
+                            </div>
+                            <button class="btn-primary"
+                                    disabled="@procesando"
+                                    @onclick="() => ReactivarAsync(item)">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                Reactivar
+                            </button>
+                        </article>
+                    }
+                </div>
+            }
+        </article>
+    </div>
+}
+
+@code {
+    private const string CodigoPermiso = "elementoQuimicoPage";
+    private const string CodigoEliminados = "elemento-quimico";
+
+    private CatalogoPaginaRespuesta<ElementoQuimicoWebItem> pagina = new();
+    private readonly List<CatalogoEliminadoItemWeb> eliminados = [];
+    private ElementoQuimicoWebFormulario formulario = new();
+    private ElementoQuimicoWebFormulario original = new();
+
+    private bool cargando = true;
+    private bool procesando;
+    private bool modalFormulario;
+    private bool modalEliminados;
+    private bool cargandoEliminados;
+    private string modoFormulario = "crear";
+    private string buscar = string.Empty;
+    private string orden = "nombre";
+    private string direccion = "asc";
+    private int tamanoPagina = 20;
+    private string buscarEliminado = string.Empty;
+    private string? mensaje;
+    private string? error;
+    private string? errorFormulario;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoPermiso);
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(CodigoPermiso);
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(CodigoPermiso);
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(CodigoPermiso);
+
+    private string TituloFormulario =>
+        modoFormulario switch
+        {
+            "editar" => "Editar elemento químico",
+            "ver" => "Detalle del elemento químico",
+            _ => "Crear elemento químico"
+        };
+
+    private IEnumerable<int> PaginasVisibles
+    {
+        get
+        {
+            int inicio = Math.Max(1, pagina.PaginaActual - 2);
+            int fin = Math.Min(Math.Max(1, pagina.TotalPaginas), inicio + 4);
+            inicio = Math.Max(1, fin - 4);
+
+            return Enumerable.Range(
+                inicio,
+                Math.Max(1, fin - inicio + 1));
+        }
+    }
+
+    private List<CatalogoEliminadoItemWeb> EliminadosFiltrados =>
+        eliminados
+            .Where(x =>
+                string.IsNullOrWhiteSpace(buscarEliminado) ||
+                x.Titulo.Contains(
+                    buscarEliminado,
+                    StringComparison.OrdinalIgnoreCase) ||
+                (x.Subtitulo?.Contains(
+                    buscarEliminado,
+                    StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (x.Codigo?.Contains(
+                    buscarEliminado,
+                    StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderBy(x => x.Titulo)
+            .ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private Task BuscarAsync() =>
+        CargarPaginaAsync(1);
+
+    private async Task LimpiarAsync()
+    {
+        buscar = string.Empty;
+        orden = "nombre";
+        direccion = "asc";
+        tamanoPagina = 20;
+        await CargarPaginaAsync(1);
+    }
+
+    private Task CargarAsync() =>
+        CargarPaginaAsync(
+            Math.Max(1, pagina.PaginaActual));
+
+    private async Task IrPaginaAsync(int numero)
+    {
+        if (numero < 1 ||
+            numero > Math.Max(1, pagina.TotalPaginas))
+        {
+            return;
+        }
+
+        await CargarPaginaAsync(numero);
+    }
+
+    private async Task CargarPaginaAsync(int numero)
+    {
+        if (!PuedeLeer)
+        {
+            cargando = false;
+            return;
+        }
+
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            string ruta =
+                "api/elemento-quimico/buscar" +
+                $"?pagina={numero}" +
+                $"&tamanoPagina={tamanoPagina}" +
+                $"&orden={Uri.EscapeDataString(orden)}" +
+                $"&direccion={Uri.EscapeDataString(direccion)}";
+
+            if (!string.IsNullOrWhiteSpace(buscar))
+            {
+                ruta +=
+                    $"&buscar={Uri.EscapeDataString(buscar.Trim())}";
+            }
+
+            CatalogoPaginaRespuesta<ElementoQuimicoWebItem>? respuesta =
+                await Api.GetAsync<
+                    CatalogoPaginaRespuesta<ElementoQuimicoWebItem>>(
+                    ruta);
+
+            pagina =
+                respuesta ??
+                new CatalogoPaginaRespuesta<ElementoQuimicoWebItem>();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AbrirCrear()
+    {
+        LimpiarMensajes();
+        modoFormulario = "crear";
+        formulario = new ElementoQuimicoWebFormulario();
+        original = Copiar(formulario);
+        modalFormulario = true;
+    }
+
+    private void AbrirEditar(ElementoQuimicoWebItem item)
+    {
+        LimpiarMensajes();
+        modoFormulario = "editar";
+        formulario = CrearFormulario(item);
+        original = Copiar(formulario);
+        modalFormulario = true;
+    }
+
+    private void AbrirVer(ElementoQuimicoWebItem item)
+    {
+        LimpiarMensajes();
+        modoFormulario = "ver";
+        formulario = CrearFormulario(item);
+        original = Copiar(formulario);
+        modalFormulario = true;
+    }
+
+    private async Task CerrarFormularioAsync()
+    {
+        if (procesando)
+            return;
+
+        if (modoFormulario != "ver" &&
+            HayCambios())
+        {
+            bool salir =
+                await JS.InvokeAsync<bool>(
+                    "confirm",
+                    "Hay cambios sin guardar. ¿Desea cerrar el formulario?");
+
+            if (!salir)
+                return;
+        }
+
+        modalFormulario = false;
+        formulario = new ElementoQuimicoWebFormulario();
+        errorFormulario = null;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (procesando)
+            return;
+
+        errorFormulario = null;
+
+        if (!formulario.PesoEquivalenteElementoQuimico.HasValue)
+        {
+            errorFormulario =
+                "Ingrese un peso equivalente válido.";
+            return;
+        }
+
+        decimal peso =
+            formulario.PesoEquivalenteElementoQuimico.Value;
+
+        if (decimal.Round(peso, 2) != peso)
+        {
+            errorFormulario =
+                "El peso equivalente admite como máximo dos decimales.";
+            return;
+        }
+
+        formulario.SimboloElementoQuimico =
+            formulario.SimboloElementoQuimico
+                .ReplaceLineEndings(" ")
+                .Trim()
+                .ToUpperInvariant();
+
+        formulario.NombreElementoQuimico =
+            formulario.NombreElementoQuimico
+                .ReplaceLineEndings(" ")
+                .Trim()
+                .ToUpperInvariant();
+
+        if (string.IsNullOrWhiteSpace(
+                formulario.SimboloElementoQuimico))
+        {
+            errorFormulario =
+                "Ingrese el símbolo del elemento químico.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                formulario.NombreElementoQuimico))
+        {
+            errorFormulario =
+                "Ingrese el nombre del elemento químico.";
+            return;
+        }
+
+        if (modoFormulario == "editar" &&
+            !HayCambios())
+        {
+            errorFormulario =
+                "No hay cambios para guardar.";
+            return;
+        }
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                modoFormulario == "editar"
+                    ? "¿Desea actualizar el elemento químico?"
+                    : "¿Desea guardar el elemento químico?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            CatalogoOperacionRespuesta<object>? respuesta;
+
+            if (modoFormulario == "editar")
+            {
+                respuesta =
+                    await Api.PutAsync<
+                        ElementoQuimicoWebFormulario,
+                        CatalogoOperacionRespuesta<object>>(
+                        $"api/elemento-quimico/editar/{formulario.ElementoQuimicosId}",
+                        formulario);
+            }
+            else
+            {
+                respuesta =
+                    await Api.PostAsync<
+                        ElementoQuimicoWebFormulario,
+                        CatalogoOperacionRespuesta<object>>(
+                        "api/elemento-quimico/crear",
+                        formulario);
+            }
+
+            modalFormulario = false;
+            await CargarPaginaAsync(
+                modoFormulario == "crear"
+                    ? 1
+                    : pagina.PaginaActual);
+
+            mensaje =
+                respuesta?.Message ??
+                "Elemento químico guardado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            errorFormulario = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task EliminarAsync(
+        ElementoQuimicoWebItem item)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea desactivar el elemento " +
+                $"\"{item.NombreElementoQuimico}\" " +
+                $"({item.SimboloElementoQuimico})?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.EliminarAsync(
+                $"api/elemento-quimico/eliminar/{item.ElementoQuimicosId}");
+
+            await CargarPaginaAsync(
+                pagina.PaginaActual);
+
+            mensaje =
+                "Elemento químico desactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task AbrirEliminadosAsync()
+    {
+        modalEliminados = true;
+        buscarEliminado = string.Empty;
+        cargandoEliminados = true;
+        LimpiarMensajes();
+
+        try
+        {
+            CatalogoOperacionRespuesta<List<CatalogoEliminadoItemWeb>>?
+                respuesta =
+                    await Api.GetAsync<
+                        CatalogoOperacionRespuesta<
+                            List<CatalogoEliminadoItemWeb>>>(
+                        $"api/catalogos-eliminados/{CodigoEliminados}",
+                        AuthState.CrearEncabezadosSesion());
+
+            eliminados.Clear();
+
+            if (respuesta?.Data is not null)
+                eliminados.AddRange(respuesta.Data);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargandoEliminados = false;
+        }
+    }
+
+    private void CerrarEliminados()
+    {
+        if (procesando)
+            return;
+
+        modalEliminados = false;
+        eliminados.Clear();
+    }
+
+    private async Task ReactivarAsync(
+        CatalogoEliminadoItemWeb item)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea reactivar \"{item.Titulo}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                $"api/catalogos-eliminados/{CodigoEliminados}/{item.Id}/reactivar",
+                AuthState.CrearEncabezadosSesion());
+
+            eliminados.Remove(item);
+            await CargarPaginaAsync(1);
+
+            mensaje =
+                "Elemento químico reactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private bool HayCambios() =>
+        !string.Equals(
+            formulario.SimboloElementoQuimico.Trim(),
+            original.SimboloElementoQuimico.Trim(),
+            StringComparison.OrdinalIgnoreCase) ||
+        !string.Equals(
+            formulario.NombreElementoQuimico.Trim(),
+            original.NombreElementoQuimico.Trim(),
+            StringComparison.OrdinalIgnoreCase) ||
+        formulario.PesoEquivalenteElementoQuimico !=
+            original.PesoEquivalenteElementoQuimico;
+
+    private static ElementoQuimicoWebFormulario CrearFormulario(
+        ElementoQuimicoWebItem item) =>
+        new()
+        {
+            ElementoQuimicosId =
+                item.ElementoQuimicosId,
+            SimboloElementoQuimico =
+                item.SimboloElementoQuimico,
+            NombreElementoQuimico =
+                item.NombreElementoQuimico,
+            PesoEquivalenteElementoQuimico =
+                item.PesoEquivalenteElementoQuimico
+        };
+
+    private static ElementoQuimicoWebFormulario Copiar(
+        ElementoQuimicoWebFormulario valor) =>
+        new()
+        {
+            ElementoQuimicosId =
+                valor.ElementoQuimicosId,
+            SimboloElementoQuimico =
+                valor.SimboloElementoQuimico,
+            NombreElementoQuimico =
+                valor.NombreElementoQuimico,
+            PesoEquivalenteElementoQuimico =
+                valor.PesoEquivalenteElementoQuimico
+        };
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+        errorFormulario = null;
+    }
+}

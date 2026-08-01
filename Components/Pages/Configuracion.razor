@@ -1,44 +1,189 @@
 @page "/configuracion"
 @inject IConfiguration Configuration
+@inject AuthStateService AuthState
 
 <PageTitle>Configuración | CONATRADEC</PageTitle>
 
 <div class="page-header">
     <div>
-        <p class="eyebrow">Sistema</p>
-        <h1>Configuración</h1>
-        <p>Información de conexión del portal administrativo.</p>
+        <p class="eyebrow">Administración</p>
+        <h1>Configuración y contenido</h1>
+        <p>
+            Accede a la administración de contenidos y consulta la
+            configuración técnica del portal.
+        </p>
     </div>
 </div>
 
-<section class="panel settings-panel">
-    <div class="setting-row">
-        <div class="setting-icon">
-            <i class="fa-solid fa-server"></i>
+@if (PuedeVerParametrosAgronomicos)
+{
+    <section class="config-section">
+        <div class="config-section-title">
+            <div>
+                <p class="eyebrow">Cálculos y catálogos</p>
+                <h2>Parámetros agronómicos</h2>
+            </div>
+            <span>
+                Estos registros alimentan los análisis realizados desde
+                móvil, Windows y el backend.
+            </span>
         </div>
+
+        <div class="config-card-grid">
+            @if (PuedeVerElementos)
+            {
+                <a class="panel config-action-card"
+                   href="/parametros-agronomicos/elementos-quimicos">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-flask"></i>
+                    </span>
+                    <span>
+                        <strong>Elementos químicos</strong>
+                        <small>
+                            Símbolo, nombre, peso equivalente, eliminados y
+                            reactivación.
+                        </small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            }
+
+            @if (PuedeVerCultivos)
+            {
+                <a class="panel config-action-card"
+                   href="/parametros-agronomicos/tipos-cultivo">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-wheat-awn"></i>
+                    </span>
+                    <span>
+                        <strong>Tipos de cultivo</strong>
+                        <small>
+                            Cultivos, rangos relacionados y análisis
+                            históricos.
+                        </small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            }
+
+            @if (PuedeVerAnalisis)
+            {
+                <a class="panel config-action-card"
+                   href="/parametros-agronomicos/tipos-analisis-suelo">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-vials"></i>
+                    </span>
+                    <span>
+                        <strong>Tipos de análisis</strong>
+                        <small>
+                            Tipos internos protegidos y modalidades
+                            personalizadas.
+                        </small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            }
+        </div>
+    </section>
+}
+
+@if (PuedeVerAlbum)
+{
+    <section class="config-section">
+        <div class="config-section-title">
+            <div>
+                <p class="eyebrow">Contenido técnico</p>
+                <h2>Álbum botánico</h2>
+            </div>
+            <span>
+                La información administrada aquí se consume desde móvil y Windows.
+            </span>
+        </div>
+
+        <div class="config-card-grid">
+            <a class="panel config-action-card"
+               href="/contenido/album-botanico">
+                <span class="config-action-icon">
+                    <i class="fa-solid fa-seedling"></i>
+                </span>
+                <span>
+                    <strong>Administrar álbum botánico</strong>
+                    <small>
+                        Entra por categoría y administra sus fichas,
+                        portadas y galerías de fotografías.
+                    </small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+        </div>
+    </section>
+}
+
+<section class="config-section">
+    <div class="config-section-title">
         <div>
-            <strong>Dirección de la API</strong>
-            <span>@Configuration["ApiSettings:BaseUrl"]</span>
+            <p class="eyebrow">Sistema</p>
+            <h2>Información técnica</h2>
         </div>
     </div>
 
-    <div class="setting-row">
-        <div class="setting-icon">
-            <i class="fa-solid fa-code"></i>
+    <section class="panel settings-panel">
+        <div class="setting-row">
+            <div class="setting-icon">
+                <i class="fa-solid fa-server"></i>
+            </div>
+            <div>
+                <strong>Dirección de la API</strong>
+                <span>@Configuration["ApiSettings:BaseUrl"]</span>
+            </div>
         </div>
-        <div>
-            <strong>Plataforma</strong>
-            <span>ASP.NET Core 9 · Blazor Web App</span>
-        </div>
-    </div>
 
-    <div class="setting-row">
-        <div class="setting-icon">
-            <i class="fa-solid fa-map"></i>
+        <div class="setting-row">
+            <div class="setting-icon">
+                <i class="fa-solid fa-code"></i>
+            </div>
+            <div>
+                <strong>Plataforma</strong>
+                <span>ASP.NET Core 9 · Blazor Web App</span>
+            </div>
         </div>
-        <div>
-            <strong>Motor de mapas</strong>
-            <span>Leaflet + OpenStreetMap</span>
+
+        <div class="setting-row">
+            <div class="setting-icon">
+                <i class="fa-solid fa-map"></i>
+            </div>
+            <div>
+                <strong>Motor de mapas</strong>
+                <span>Leaflet + OpenStreetMap</span>
+            </div>
         </div>
-    </div>
+    </section>
 </section>
+
+@code {
+    private const string CodigoAlbum = "albumFotosPage";
+    private const string CodigoElementos = "elementoQuimicoPage";
+    private const string CodigoCultivos = "tipoCultivoPage";
+    private const string CodigoAnalisis = "tipoAnalisisSueloPage";
+
+    private bool PuedeVerAlbum =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoAlbum);
+
+    private bool PuedeVerElementos =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoElementos);
+
+    private bool PuedeVerCultivos =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoCultivos);
+
+    private bool PuedeVerAnalisis =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoAnalisis);
+
+    private bool PuedeVerParametrosAgronomicos =>
+        PuedeVerElementos ||
+        PuedeVerCultivos ||
+        PuedeVerAnalisis;
+}

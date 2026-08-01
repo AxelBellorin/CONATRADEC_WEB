@@ -1,0 +1,306 @@
+/*
+ * CONATRADEC
+ * Diseño responsivo y fluido para todo el portal administrativo.
+ *
+ * El objetivo es utilizar todo el ancho disponible después del menú lateral,
+ * manteniendo separación, legibilidad y adaptación móvil.
+ */
+
+/* ================================================================
+   CONTENEDOR GLOBAL
+   ================================================================ */
+
+.content-shell {
+    min-width: 0;
+    width: 100%;
+}
+
+.page-content {
+    margin: 0 !important;
+    max-width: none !important;
+    min-width: 0;
+    padding:
+        clamp(18px, 1.7vw, 34px)
+        clamp(18px, 2vw, 40px) !important;
+    width: 100% !important;
+}
+
+.page-content > * {
+    max-width: none;
+    min-width: 0;
+}
+
+.page-content img,
+.page-content video,
+.page-content canvas,
+.page-content svg {
+    max-width: 100%;
+}
+
+/* ================================================================
+   ENCABEZADOS Y ACCIONES
+   ================================================================ */
+
+.page-header,
+.geo-page-header {
+    align-items: flex-end;
+    flex-wrap: wrap;
+    min-width: 0;
+    width: 100%;
+}
+
+.page-header > div:first-child,
+.geo-page-header > div:first-child {
+    flex: 1 1 420px;
+    min-width: 0;
+}
+
+.page-header-actions,
+.geo-header-actions {
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+.page-header h1,
+.geo-page-header h1 {
+    overflow-wrap: anywhere;
+}
+
+/* ================================================================
+   TARJETAS, PANELES Y CUADRÍCULAS
+   ================================================================ */
+
+.page-content :is(
+    .card,
+    .panel,
+    .content-card,
+    .form-card,
+    .table-card,
+    .summary-card,
+    .dashboard-card,
+    .settings-card,
+    .geo-workspace,
+    .terrain-admin-shell
+) {
+    max-width: none;
+    min-width: 0;
+}
+
+.page-content :is(
+    .summary-grid,
+    .stats-grid,
+    .dashboard-grid,
+    .cards-grid,
+    .card-grid,
+    .form-grid,
+    .filter-grid,
+    .alerts-summary-grid,
+    .geo-summary-grid
+) {
+    min-width: 0;
+    width: 100%;
+}
+
+/*
+ * Evita columnas rígidas que desborden cuando una página contiene textos,
+ * botones o campos más largos de lo esperado.
+ */
+.page-content :is(
+    .summary-grid,
+    .stats-grid,
+    .dashboard-grid,
+    .cards-grid,
+    .card-grid
+) > * {
+    min-width: 0;
+}
+
+/* ================================================================
+   TABLAS Y LISTADOS
+   ================================================================ */
+
+.page-content :is(
+    .table-container,
+    .table-responsive,
+    .table-wrapper,
+    .admin-table-wrapper,
+    .data-table-container,
+    .list-table-container
+) {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    width: 100%;
+}
+
+.page-content table {
+    max-width: 100%;
+}
+
+.page-content :is(
+    .table-container,
+    .table-responsive,
+    .table-wrapper,
+    .admin-table-wrapper,
+    .data-table-container,
+    .list-table-container
+) table {
+    min-width: max-content;
+    width: 100%;
+}
+
+/* ================================================================
+   FORMULARIOS
+   ================================================================ */
+
+.page-content :is(
+    input,
+    select,
+    textarea,
+    .form-control
+) {
+    max-width: 100%;
+    min-width: 0;
+}
+
+.page-content textarea {
+    resize: vertical;
+}
+
+.page-content :is(
+    .form-actions,
+    .filter-actions,
+    .toolbar,
+    .action-bar,
+    .page-actions
+) {
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+/* ================================================================
+   MODALES Y VENTANAS
+   ================================================================ */
+
+.page-content :is(
+    .modal,
+    .modal-dialog,
+    .dialog,
+    .dialog-panel,
+    .modal-content
+) {
+    max-width: calc(100vw - 32px);
+}
+
+/* ================================================================
+   MONITORES GRANDES
+   ================================================================ */
+
+@media (min-width: 1600px) {
+    .page-content {
+        padding-left: clamp(28px, 2vw, 48px) !important;
+        padding-right: clamp(28px, 2vw, 48px) !important;
+    }
+
+    /*
+     * Las cuadrículas conocidas aprovechan columnas adicionales cuando
+     * disponen de espacio, sin alterar páginas que ya definen su propio grid.
+     */
+    .page-content :is(
+        .cards-grid,
+        .card-grid,
+        .stats-grid
+    ) {
+        grid-template-columns:
+            repeat(
+                auto-fit,
+                minmax(min(260px, 100%), 1fr)
+            );
+    }
+}
+
+/* ================================================================
+   TABLET
+   ================================================================ */
+
+@media (max-width: 1100px) {
+    .page-content {
+        padding:
+            22px
+            20px !important;
+    }
+
+    .page-header,
+    .geo-page-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .page-header-actions,
+    .geo-header-actions {
+        justify-content: flex-start;
+        width: 100%;
+    }
+}
+
+/* ================================================================
+   MÓVIL
+   ================================================================ */
+
+@media (max-width: 680px) {
+    .page-content {
+        padding:
+            16px
+            12px !important;
+    }
+
+    .page-header,
+    .geo-page-header {
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .page-header-actions,
+    .geo-header-actions {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .page-header-actions > *,
+    .geo-header-actions > * {
+        min-width: 0 !important;
+        width: 100%;
+    }
+
+    .page-content :is(
+        .form-actions,
+        .filter-actions,
+        .action-bar,
+        .page-actions
+    ) {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .page-content :is(
+        .form-actions,
+        .filter-actions,
+        .action-bar,
+        .page-actions
+    ) > button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 420px) {
+    .page-header-actions,
+    .geo-header-actions {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,82 @@
+@implements IDisposable
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@code {
+    private bool cargando;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += UbicacionCambiada;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await CargarAsync();
+    }
+
+    private async void UbicacionCambiada(
+        object? sender,
+        Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args)
+    {
+        await InvokeAsync(CargarAsync);
+    }
+
+    private async Task CargarAsync()
+    {
+        if (!AuthState.IsAuthenticated || cargando)
+            return;
+
+        cargando = true;
+
+        try
+        {
+            string ruta = EsRutaPropietario
+                ? "api/terreno-poligono/mis-terrenos"
+                : PuedeConsultarAdministracion
+                    ? "api/terreno-poligono/mapa"
+                    : string.Empty;
+
+            List<TerrenoPoligonoWeb> poligonos =
+                string.IsNullOrWhiteSpace(ruta)
+                    ? []
+                    : await Api.GetAsync<List<TerrenoPoligonoWeb>>(ruta) ?? [];
+
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoPoligonosMapa.establecerPoligonos",
+                poligonos);
+        }
+        catch
+        {
+            // Si el módulo no está instalado, los mapas siguen usando puntos.
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoPoligonosMapa.establecerPoligonos",
+                Array.Empty<TerrenoPoligonoWeb>());
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private bool EsRutaPropietario =>
+        Navigation
+            .ToBaseRelativePath(Navigation.Uri)
+            .StartsWith(
+                "mi-portal",
+                StringComparison.OrdinalIgnoreCase);
+
+    private bool PuedeConsultarAdministracion =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura("terrenoPage") ||
+        AuthState.TienePermisoLectura("TerrenoPage") ||
+        AuthState.TienePermisoLectura("MapaTerrenosWeb");
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= UbicacionCambiada;
+    }
+}

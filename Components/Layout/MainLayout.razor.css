@@ -1,1 +1,1214 @@
-/* Los estilos principales del layout están centralizados en wwwroot/css/app.css. */
+/*
+ * CONATRADEC
+ * Layout responsivo global aplicado desde MainLayout.
+ *
+ * Este archivo usa CSS Isolation de Blazor. Al cargarse dentro de
+ * CONATRADEC.AdminWeb.styles.css tiene mayor prioridad que la regla global
+ * de app.css que limita .page-content a 1500px.
+ */
+
+/* ================================================================
+   CONTENEDOR PRINCIPAL DE TODAS LAS PÁGINAS
+   ================================================================ */
+
+.page-content {
+    box-sizing: border-box;
+    margin: 0 !important;
+    max-width: none !important;
+    min-width: 0;
+    padding:
+        clamp(18px, 1.6vw, 34px)
+        clamp(18px, 2vw, 42px) !important;
+    width: 100% !important;
+}
+
+/*
+ * ::deep permite que el layout controle los componentes renderizados
+ * dentro de @Body, aunque cada página tenga su propio CSS aislado.
+ */
+.page-content ::deep > * {
+    box-sizing: border-box;
+    max-width: none;
+    min-width: 0;
+}
+
+.page-content ::deep > section,
+.page-content ::deep > div,
+.page-content ::deep > article {
+    width: 100%;
+}
+
+/* ================================================================
+   ENCABEZADOS
+   ================================================================ */
+
+.page-content ::deep .page-header,
+.page-content ::deep .geo-page-header,
+.page-content ::deep .cl-admin-hero,
+.page-content ::deep .cl-hero {
+    box-sizing: border-box;
+    flex-wrap: wrap;
+    max-width: none !important;
+    min-width: 0;
+    width: 100%;
+}
+
+.page-content ::deep .page-header > div:first-child,
+.page-content ::deep .geo-page-header > div:first-child,
+.page-content ::deep .cl-admin-hero > div:first-child,
+.page-content ::deep .cl-hero > div:first-child {
+    flex: 1 1 440px;
+    max-width: none;
+    min-width: 0;
+}
+
+.page-content ::deep .page-header-actions,
+.page-content ::deep .geo-header-actions,
+.page-content ::deep .cl-admin-hero > div:last-child,
+.page-content ::deep .cl-hero-actions {
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+/* ================================================================
+   PANELES, TARJETAS Y MÓDULOS
+   ================================================================ */
+
+.page-content ::deep :is(
+    .panel,
+    .card,
+    .content-card,
+    .form-card,
+    .table-card,
+    .settings-card,
+    .dashboard-card,
+    .cl-admin-page,
+    .cl-admin-grid,
+    .cl-rule-editor,
+    .followup-summary-grid,
+    .followup-filters,
+    .followup-grid,
+    .geo-summary-grid,
+    .geo-workspace,
+    .terrain-admin-shell
+) {
+    box-sizing: border-box;
+    max-width: none !important;
+    min-width: 0;
+    width: 100%;
+}
+
+/*
+ * Las cuadrículas conservan sus columnas propias, pero pueden ocupar
+ * todo el ancho disponible sin desbordar.
+ */
+.page-content ::deep :is(
+    .stats-grid,
+    .summary-grid,
+    .dashboard-grid,
+    .cards-grid,
+    .card-grid,
+    .form-grid,
+    .filter-grid,
+    .followup-summary-grid,
+    .followup-filters,
+    .followup-grid,
+    .cl-rule-basic-grid,
+    .cl-threshold-grid,
+    .cl-rule-message-grid
+) {
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+}
+
+.page-content ::deep :is(
+    .stats-grid,
+    .summary-grid,
+    .dashboard-grid,
+    .cards-grid,
+    .card-grid,
+    .followup-summary-grid,
+    .followup-grid,
+    .cl-admin-grid
+) > * {
+    min-width: 0;
+}
+
+/* ================================================================
+   TABLAS Y LISTADOS
+   ================================================================ */
+
+.page-content ::deep :is(
+    .table-container,
+    .table-responsive,
+    .table-wrapper,
+    .admin-table-wrapper,
+    .data-table-container,
+    .list-table-container,
+    .table-scroll
+) {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    width: 100%;
+}
+
+.page-content ::deep table {
+    max-width: 100%;
+}
+
+.page-content ::deep :is(
+    .table-container,
+    .table-responsive,
+    .table-wrapper,
+    .admin-table-wrapper,
+    .data-table-container,
+    .list-table-container,
+    .table-scroll
+) table {
+    min-width: max-content;
+    width: 100%;
+}
+
+/* ================================================================
+   FORMULARIOS Y ACCIONES
+   ================================================================ */
+
+.page-content ::deep :is(
+    input,
+    select,
+    textarea,
+    .form-control
+) {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.page-content ::deep :is(
+    .form-actions,
+    .filter-actions,
+    .followup-filter-actions,
+    .toolbar,
+    .action-bar,
+    .page-actions,
+    .modal-actions
+) {
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+/* ================================================================
+   PANTALLAS GRANDES
+   ================================================================ */
+
+@media (min-width: 1600px) {
+    .page-content {
+        padding-left:
+            clamp(28px, 2vw, 50px) !important;
+        padding-right:
+            clamp(28px, 2vw, 50px) !important;
+    }
+
+    /*
+     * En seguimiento, las tarjetas mantienen un ancho cómodo y agregan
+     * columnas automáticamente cuando realmente hay espacio.
+     */
+    .page-content ::deep .followup-grid {
+        grid-template-columns:
+            repeat(
+                auto-fit,
+                minmax(360px, 1fr)
+            );
+    }
+
+    .page-content ::deep .followup-summary-grid {
+        grid-template-columns:
+            repeat(
+                auto-fit,
+                minmax(210px, 1fr)
+            );
+    }
+}
+
+/* ================================================================
+   TABLET
+   ================================================================ */
+
+@media (max-width: 1100px) {
+    .page-content {
+        padding:
+            22px
+            20px !important;
+    }
+
+    .page-content ::deep .page-header,
+    .page-content ::deep .geo-page-header,
+    .page-content ::deep .cl-admin-hero,
+    .page-content ::deep .cl-hero {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .page-content ::deep .page-header-actions,
+    .page-content ::deep .geo-header-actions,
+    .page-content ::deep .cl-admin-hero > div:last-child,
+    .page-content ::deep .cl-hero-actions {
+        justify-content: flex-start;
+        width: 100%;
+    }
+}
+
+/* ================================================================
+   MÓVIL
+   ================================================================ */
+
+@media (max-width: 680px) {
+    .page-content {
+        padding:
+            16px
+            12px !important;
+    }
+
+    .page-content ::deep .page-header,
+    .page-content ::deep .geo-page-header {
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .page-content ::deep .page-header-actions,
+    .page-content ::deep .geo-header-actions,
+    .page-content ::deep .cl-admin-hero > div:last-child {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .page-content ::deep .page-header-actions > *,
+    .page-content ::deep .geo-header-actions > *,
+    .page-content ::deep .cl-admin-hero > div:last-child > * {
+        min-width: 0 !important;
+        width: 100%;
+    }
+
+    .page-content ::deep :is(
+        .form-actions,
+        .filter-actions,
+        .followup-filter-actions,
+        .action-bar,
+        .page-actions,
+        .modal-actions
+    ) {
+        align-items: stretch;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .page-content ::deep :is(
+        .form-actions,
+        .filter-actions,
+        .followup-filter-actions,
+        .action-bar,
+        .page-actions,
+        .modal-actions
+    ) > button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 420px) {
+    .page-content ::deep .page-header-actions,
+    .page-content ::deep .geo-header-actions,
+    .page-content ::deep .cl-admin-hero > div:last-child {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ================================================================
+   MENÚ LATERAL RESPONSIVO
+   ================================================================ */
+
+/*
+ * Escritorio amplio:
+ * conserva el menú completo de 270px definido en app.css.
+ */
+
+/*
+ * Escritorio mediano:
+ * el menú se compacta a iconos y libera espacio para el contenido.
+ * Al colocar el mouse encima o navegar con teclado se expande de forma
+ * temporal sin desplazar nuevamente la página.
+ */
+@media (min-width: 901px) and (max-width: 1350px) {
+    .admin-shell {
+        grid-template-columns:
+            82px
+            minmax(0, 1fr) !important;
+    }
+
+    .sidebar {
+        width: 82px !important;
+        padding:
+            16px
+            10px
+            14px !important;
+        overflow: hidden;
+        box-shadow:
+            8px 0 24px
+            rgba(16, 39, 31, .08);
+        transition:
+            width 180ms ease,
+            box-shadow 180ms ease;
+    }
+
+    .sidebar:hover,
+    .sidebar:focus-within {
+        width: 270px !important;
+        box-shadow:
+            16px 0 42px
+            rgba(10, 31, 24, .24);
+    }
+
+    .brand {
+        justify-content: center;
+        gap: 12px;
+        min-height: 64px;
+        padding:
+            4px
+            4px
+            18px !important;
+    }
+
+    .brand-icon {
+        width: 46px;
+        height: 46px;
+    }
+
+    .brand > div:last-child {
+        width: 0;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateX(-8px);
+        white-space: nowrap;
+        transition:
+            width 180ms ease,
+            opacity 130ms ease,
+            transform 180ms ease;
+    }
+
+    .sidebar:hover .brand,
+    .sidebar:focus-within .brand {
+        justify-content: flex-start;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+
+    .sidebar:hover .brand > div:last-child,
+    .sidebar:focus-within .brand > div:last-child {
+        width: 175px;
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .nav-menu {
+        gap: 5px;
+        padding:
+            16px
+            0 !important;
+        overflow-x: hidden;
+    }
+
+    .nav-menu a {
+        justify-content: center;
+        gap: 13px;
+        min-height: 46px;
+        padding:
+            0
+            12px !important;
+        white-space: nowrap;
+    }
+
+    .nav-menu a i {
+        flex: 0 0 24px;
+        width: 24px;
+        font-size: 17px;
+    }
+
+    .nav-menu a span {
+        display: block;
+        width: 0;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateX(-8px);
+        transition:
+            width 180ms ease,
+            opacity 120ms ease,
+            transform 180ms ease;
+    }
+
+    .sidebar:hover .nav-menu a,
+    .sidebar:focus-within .nav-menu a {
+        justify-content: flex-start;
+    }
+
+    .sidebar:hover .nav-menu a span,
+    .sidebar:focus-within .nav-menu a span {
+        width: 190px;
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .nav-section {
+        height: 18px;
+        margin:
+            13px
+            4px
+            5px !important;
+        overflow: hidden;
+        color: transparent !important;
+        font-size: 0 !important;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .nav-section::after {
+        display: inline-block;
+        width: 28px;
+        height: 1px;
+        background:
+            rgba(255, 255, 255, .18);
+        content: "";
+        vertical-align: middle;
+    }
+
+    .sidebar:hover .nav-section,
+    .sidebar:focus-within .nav-section {
+        height: auto;
+        margin:
+            18px
+            12px
+            7px !important;
+        color:
+            rgba(255, 255, 255, .42) !important;
+        font-size: 11px !important;
+        text-align: left;
+    }
+
+    .sidebar:hover .nav-section::after,
+    .sidebar:focus-within .nav-section::after {
+        display: none;
+    }
+
+    .sidebar-user {
+        justify-content: center;
+        gap: 10px;
+        min-height: 64px;
+        padding:
+            12px
+            3px
+            0 !important;
+    }
+
+    .sidebar-user-data {
+        flex: 0 0 0;
+        width: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition:
+            flex-basis 180ms ease,
+            width 180ms ease,
+            opacity 120ms ease;
+    }
+
+    .sidebar-user .icon-button {
+        display: none;
+    }
+
+    .sidebar:hover .sidebar-user,
+    .sidebar:focus-within .sidebar-user {
+        justify-content: flex-start;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+
+    .sidebar:hover .sidebar-user-data,
+    .sidebar:focus-within .sidebar-user-data {
+        flex: 1 1 auto;
+        width: auto;
+        opacity: 1;
+    }
+
+    .sidebar:hover .sidebar-user .icon-button,
+    .sidebar:focus-within .sidebar-user .icon-button {
+        display: grid;
+    }
+
+    /*
+     * El contenido se alinea con la columna compacta, no con el ancho
+     * temporal de la expansión.
+     */
+    .content-shell {
+        grid-column: 2 !important;
+        min-width: 0;
+        width: 100%;
+    }
+}
+
+/* ================================================================
+   TABLET Y MÓVIL
+   ================================================================ */
+
+@media (max-width: 900px) {
+    .admin-shell {
+        display: block !important;
+    }
+
+    .sidebar {
+        inset:
+            0
+            auto
+            0
+            0;
+        width:
+            min(320px, 88vw) !important;
+        max-width: 88vw;
+        padding:
+            18px
+            14px
+            16px !important;
+        overflow: hidden;
+        transform:
+            translateX(-104%);
+        transition:
+            transform 200ms ease;
+    }
+
+    .sidebar.open {
+        transform:
+            translateX(0);
+        box-shadow:
+            18px 0 48px
+            rgba(10, 31, 24, .30);
+    }
+
+    /*
+     * En móvil siempre se muestran textos cuando el panel está abierto.
+     */
+    .sidebar .brand {
+        justify-content: flex-start;
+    }
+
+    .sidebar .brand > div:last-child,
+    .sidebar .nav-menu a span,
+    .sidebar .sidebar-user-data {
+        width: auto;
+        overflow: visible;
+        opacity: 1;
+        transform: none;
+    }
+
+    .sidebar .nav-menu a {
+        justify-content: flex-start;
+    }
+
+    .sidebar .nav-section {
+        height: auto;
+        color:
+            rgba(255, 255, 255, .42) !important;
+        font-size: 11px !important;
+        text-align: left;
+    }
+
+    .sidebar .nav-section::after {
+        display: none;
+    }
+
+    .sidebar .sidebar-user {
+        justify-content: flex-start;
+    }
+
+    .sidebar .sidebar-user .icon-button {
+        display: grid;
+    }
+
+    .nav-menu {
+        min-height: 0;
+        overscroll-behavior: contain;
+    }
+
+    .content-shell {
+        width: 100%;
+    }
+
+    .topbar {
+        padding:
+            0
+            clamp(12px, 3vw, 20px) !important;
+    }
+
+    .menu-button {
+        display: grid !important;
+        flex: 0 0 auto;
+    }
+}
+
+/* Teléfonos estrechos. */
+@media (max-width: 480px) {
+    .sidebar {
+        width:
+            min(300px, 92vw) !important;
+        max-width: 92vw;
+    }
+
+    .brand {
+        padding-bottom: 16px !important;
+    }
+
+    .brand-icon {
+        width: 42px;
+        height: 42px;
+    }
+
+    .nav-menu a {
+        min-height: 43px;
+        padding:
+            0
+            11px !important;
+    }
+
+    .sidebar-user {
+        min-height: 58px;
+    }
+}
+
+/*
+ * Reduce animaciones cuando el sistema operativo lo solicita.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .brand > div:last-child,
+    .nav-menu a span,
+    .sidebar-user-data {
+        transition: none !important;
+    }
+}
+
+
+/* ================================================================
+   CORRECCIÓN DEFINITIVA DEL MENÚ RESPONSIVO
+   ================================================================ */
+
+/*
+ * Todos los elementos internos deben respetar el ancho real del sidebar.
+ * Esto elimina la barra horizontal que aparecía en ventanas estrechas.
+ */
+.sidebar,
+.sidebar *,
+.brand,
+.nav-menu,
+.nav-menu a,
+.sidebar-user {
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.sidebar {
+    max-width: 100vw;
+}
+
+.brand,
+.nav-menu,
+.sidebar-user {
+    max-width: 100%;
+    width: 100%;
+}
+
+.nav-menu {
+    overflow-x: hidden !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+
+.nav-menu a {
+    max-width: 100%;
+    overflow: hidden;
+    width: 100%;
+}
+
+.nav-menu a span {
+    min-width: 0;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    text-overflow: ellipsis;
+}
+
+.brand > div:last-child,
+.sidebar-user-data {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.brand strong,
+.brand span,
+.sidebar-user-data strong,
+.sidebar-user-data span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ================================================================
+   ESCRITORIO INTERMEDIO: MENÚ REDUCIDO, SIN EXPANSIÓN INVASIVA
+   ================================================================ */
+
+@media (min-width: 901px) and (max-width: 1350px) {
+    .admin-shell {
+        grid-template-columns:
+            clamp(158px, 17vw, 205px)
+            minmax(0, 1fr) !important;
+    }
+
+    /*
+     * El menú no vuelve a 270px al pasar el mouse.
+     * Mantiene un ancho proporcional y deja espacio al contenido.
+     */
+    .sidebar,
+    .sidebar:hover,
+    .sidebar:focus-within {
+        width:
+            clamp(158px, 17vw, 205px) !important;
+        padding:
+            16px
+            10px
+            14px !important;
+        overflow: hidden;
+        box-shadow:
+            7px 0 22px
+            rgba(16, 39, 31, .08);
+    }
+
+    .brand,
+    .sidebar:hover .brand,
+    .sidebar:focus-within .brand {
+        align-items: center;
+        justify-content: flex-start;
+        gap: 9px;
+        min-height: 58px;
+        padding:
+            3px
+            5px
+            15px !important;
+    }
+
+    .brand-icon {
+        flex: 0 0 38px;
+        height: 38px;
+        width: 38px;
+        border-radius: 11px;
+        font-size: 18px;
+    }
+
+    .brand > div:last-child,
+    .sidebar:hover .brand > div:last-child,
+    .sidebar:focus-within .brand > div:last-child {
+        display: block;
+        width: auto;
+        opacity: 1;
+        transform: none;
+        white-space: normal;
+    }
+
+    .brand strong {
+        font-size:
+            clamp(11px, 1.05vw, 14px);
+        line-height: 1.15;
+    }
+
+    .brand span {
+        margin-top: 2px;
+        font-size:
+            clamp(8px, .8vw, 10px);
+        line-height: 1.2;
+    }
+
+    .nav-menu {
+        gap: 4px;
+        padding:
+            13px
+            0 !important;
+    }
+
+    .nav-menu a,
+    .sidebar:hover .nav-menu a,
+    .sidebar:focus-within .nav-menu a {
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        min-height: 40px;
+        padding:
+            7px
+            9px !important;
+        white-space: normal;
+    }
+
+    .nav-menu a i {
+        flex: 0 0 19px;
+        width: 19px;
+        font-size: 14px;
+    }
+
+    .nav-menu a span,
+    .sidebar:hover .nav-menu a span,
+    .sidebar:focus-within .nav-menu a span {
+        display: block;
+        width: auto;
+        opacity: 1;
+        transform: none;
+        white-space: normal;
+        font-size:
+            clamp(9px, .9vw, 12px);
+        line-height: 1.18;
+    }
+
+    .nav-section,
+    .sidebar:hover .nav-section,
+    .sidebar:focus-within .nav-section {
+        height: auto;
+        margin:
+            14px
+            8px
+            5px !important;
+        color:
+            rgba(255, 255, 255, .42) !important;
+        font-size:
+            clamp(7px, .7vw, 9px) !important;
+        line-height: 1.25;
+        text-align: left;
+        white-space: normal;
+    }
+
+    .nav-section::after,
+    .sidebar:hover .nav-section::after,
+    .sidebar:focus-within .nav-section::after {
+        display: none;
+    }
+
+    .sidebar-user,
+    .sidebar:hover .sidebar-user,
+    .sidebar:focus-within .sidebar-user {
+        align-items: center;
+        justify-content: flex-start;
+        gap: 7px;
+        min-height: 55px;
+        padding:
+            10px
+            4px
+            0 !important;
+    }
+
+    .avatar {
+        flex: 0 0 32px;
+        height: 32px;
+        width: 32px;
+        font-size: 11px;
+    }
+
+    .sidebar-user-data,
+    .sidebar:hover .sidebar-user-data,
+    .sidebar:focus-within .sidebar-user-data {
+        display: block;
+        flex: 1 1 auto;
+        width: auto;
+        opacity: 1;
+    }
+
+    .sidebar-user-data strong {
+        font-size:
+            clamp(9px, .85vw, 11px);
+    }
+
+    .sidebar-user-data span {
+        font-size:
+            clamp(7px, .7vw, 9px);
+    }
+
+    .sidebar-user .icon-button,
+    .sidebar:hover .sidebar-user .icon-button,
+    .sidebar:focus-within .sidebar-user .icon-button {
+        display: grid;
+        flex: 0 0 29px;
+        height: 29px;
+        width: 29px;
+    }
+
+    .content-shell {
+        grid-column: 2 !important;
+        min-width: 0;
+        width: 100%;
+    }
+}
+
+/* ================================================================
+   TABLET Y MÓVIL: PANEL MÁS ESTRECHO Y CONTENIDO AJUSTABLE
+   ================================================================ */
+
+@media (max-width: 900px) {
+    .admin-shell {
+        display: block !important;
+    }
+
+    /*
+     * Antes ocupaba hasta 88vw. Ahora deja visible una parte amplia del
+     * contenido y del overlay para cerrar el menú fácilmente.
+     */
+    .sidebar,
+    .sidebar:hover,
+    .sidebar:focus-within {
+        inset:
+            0
+            auto
+            0
+            0;
+        width:
+            min(250px, 72vw) !important;
+        max-width: 72vw;
+        padding:
+            13px
+            9px
+            12px !important;
+        overflow: hidden;
+        transform:
+            translateX(-104%);
+        transition:
+            transform 190ms ease;
+    }
+
+    .sidebar.open {
+        transform:
+            translateX(0);
+        box-shadow:
+            16px 0 42px
+            rgba(10, 31, 24, .30);
+    }
+
+    .brand,
+    .sidebar:hover .brand,
+    .sidebar:focus-within .brand {
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        min-height: 54px;
+        padding:
+            3px
+            4px
+            13px !important;
+    }
+
+    .brand-icon {
+        flex: 0 0 36px;
+        height: 36px;
+        width: 36px;
+        border-radius: 10px;
+        font-size: 17px;
+    }
+
+    .brand > div:last-child,
+    .sidebar:hover .brand > div:last-child,
+    .sidebar:focus-within .brand > div:last-child {
+        display: block;
+        width: auto;
+        opacity: 1;
+        transform: none;
+        white-space: normal;
+    }
+
+    .brand strong {
+        font-size:
+            clamp(11px, 3.4vw, 14px);
+        line-height: 1.1;
+    }
+
+    .brand span {
+        margin-top: 2px;
+        font-size:
+            clamp(8px, 2.7vw, 10px);
+        line-height: 1.15;
+    }
+
+    .nav-menu {
+        gap: 3px;
+        min-height: 0;
+        padding:
+            11px
+            0 !important;
+    }
+
+    .nav-menu a,
+    .sidebar:hover .nav-menu a,
+    .sidebar:focus-within .nav-menu a {
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        min-height: 39px;
+        padding:
+            7px
+            8px !important;
+        white-space: normal;
+    }
+
+    .nav-menu a i {
+        flex: 0 0 18px;
+        width: 18px;
+        font-size: 14px;
+    }
+
+    .nav-menu a span,
+    .sidebar:hover .nav-menu a span,
+    .sidebar:focus-within .nav-menu a span {
+        display: block;
+        width: auto;
+        opacity: 1;
+        transform: none;
+        white-space: normal;
+        font-size:
+            clamp(9px, 3vw, 12px);
+        line-height: 1.18;
+    }
+
+    .nav-section,
+    .sidebar:hover .nav-section,
+    .sidebar:focus-within .nav-section {
+        height: auto;
+        margin:
+            12px
+            7px
+            4px !important;
+        color:
+            rgba(255, 255, 255, .42) !important;
+        font-size:
+            clamp(7px, 2.4vw, 9px) !important;
+        line-height: 1.2;
+        text-align: left;
+        white-space: normal;
+    }
+
+    .nav-section::after,
+    .sidebar:hover .nav-section::after,
+    .sidebar:focus-within .nav-section::after {
+        display: none;
+    }
+
+    .sidebar-user,
+    .sidebar:hover .sidebar-user,
+    .sidebar:focus-within .sidebar-user {
+        align-items: center;
+        justify-content: flex-start;
+        gap: 7px;
+        min-height: 52px;
+        padding:
+            9px
+            4px
+            0 !important;
+    }
+
+    .avatar {
+        flex: 0 0 31px;
+        height: 31px;
+        width: 31px;
+        font-size: 10px;
+    }
+
+    .sidebar-user-data,
+    .sidebar:hover .sidebar-user-data,
+    .sidebar:focus-within .sidebar-user-data {
+        display: block;
+        flex: 1 1 auto;
+        width: auto;
+        opacity: 1;
+        transform: none;
+    }
+
+    .sidebar-user-data strong {
+        font-size:
+            clamp(9px, 2.9vw, 11px);
+    }
+
+    .sidebar-user-data span {
+        font-size:
+            clamp(7px, 2.4vw, 9px);
+    }
+
+    .sidebar-user .icon-button,
+    .sidebar:hover .sidebar-user .icon-button,
+    .sidebar:focus-within .sidebar-user .icon-button {
+        display: grid;
+        flex: 0 0 28px;
+        height: 28px;
+        width: 28px;
+    }
+
+    .content-shell {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .topbar {
+        padding:
+            0
+            clamp(11px, 3vw, 18px) !important;
+    }
+
+    .menu-button {
+        display: grid !important;
+        flex: 0 0 38px;
+        height: 38px;
+        margin-right: 10px;
+        width: 38px;
+    }
+}
+
+/* Ventanas extremadamente estrechas o zoom elevado. */
+@media (max-width: 480px) {
+    .sidebar,
+    .sidebar:hover,
+    .sidebar:focus-within {
+        width:
+            min(220px, 70vw) !important;
+        max-width: 70vw;
+        padding:
+            11px
+            7px
+            10px !important;
+    }
+
+    .brand-icon {
+        flex-basis: 32px;
+        height: 32px;
+        width: 32px;
+        font-size: 15px;
+    }
+
+    .nav-menu a {
+        min-height: 36px;
+        padding:
+            6px
+            7px !important;
+    }
+
+    .nav-menu a span {
+        font-size:
+            clamp(8px, 3vw, 10px);
+    }
+
+    .sidebar-user {
+        min-height: 48px;
+    }
+}

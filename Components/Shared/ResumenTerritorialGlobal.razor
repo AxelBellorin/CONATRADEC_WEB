@@ -1,0 +1,413 @@
+@implements IAsyncDisposable
+@using System.Globalization
+@using System.Text
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject MapaService MapaService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@code {
+    private const string ElementoMapa =
+        "mapaTerrenos";
+
+    private readonly SemaphoreSlim sincronizador =
+        new(1, 1);
+
+    private List<MunicipioSelectorItem> municipios = [];
+    private DotNetObjectReference<ResumenTerritorialGlobal>?
+        referenciaDotNet;
+
+    private bool registrado;
+    private bool terrenosActivos = true;
+    private bool departamentosActivos = true;
+    private bool municipiosActivos;
+    private string departamento = string.Empty;
+    private string municipio = string.Empty;
+    private int versionSolicitud;
+    private bool dispuesto;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged +=
+            UbicacionCambiada;
+    }
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        referenciaDotNet =
+            DotNetObjectReference.Create(this);
+
+        await RegistrarAsync();
+    }
+
+    private async void UbicacionCambiada(
+        object? sender,
+        Microsoft.AspNetCore.Components.Routing
+            .LocationChangedEventArgs args)
+    {
+        await InvokeAsync(async () =>
+        {
+            if (EsCentroGeoespacial)
+            {
+                await RegistrarAsync();
+            }
+            else
+            {
+                await OcultarAsync();
+            }
+        });
+    }
+
+    private async Task RegistrarAsync()
+    {
+        if (dispuesto ||
+            !AuthState.IsAuthenticated ||
+            !EsCentroGeoespacial ||
+            referenciaDotNet is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecResumenTerritorial.registrar",
+                ElementoMapa,
+                referenciaDotNet);
+
+            registrado = true;
+        }
+        catch (JSException)
+        {
+            registrado = false;
+        }
+    }
+
+    [JSInvokable]
+    public async Task EstadoResumenTerritorialCambiado(
+        bool capaTerrenosActiva,
+        bool capaDepartamentosActiva,
+        bool capaMunicipiosActiva,
+        string? nombreDepartamento,
+        string? nombreMunicipio)
+    {
+        if (dispuesto ||
+            !EsCentroGeoespacial)
+        {
+            return;
+        }
+
+        terrenosActivos =
+            capaTerrenosActiva;
+
+        departamentosActivos =
+            capaDepartamentosActiva;
+
+        municipiosActivos =
+            capaMunicipiosActiva;
+
+        departamento =
+            nombreDepartamento?.Trim() ??
+            string.Empty;
+
+        municipio =
+            nombreMunicipio?.Trim() ??
+            string.Empty;
+
+        /*
+         * El resumen se consulta mientras exista una capa territorial
+         * visible. Con terrenos activos se usa como ficha informativa;
+         * sin terrenos también colorea el territorio.
+         */
+        if (!departamentosActivos &&
+            !municipiosActivos)
+        {
+            await OcultarAsync();
+            return;
+        }
+
+        await CargarResumenAsync();
+    }
+
+    private async Task CargarResumenAsync()
+    {
+        int version =
+            Interlocked.Increment(
+                ref versionSolicitud);
+
+        await sincronizador.WaitAsync();
+
+        try
+        {
+            if (dispuesto ||
+                (!departamentosActivos &&
+                 !municipiosActivos) ||
+                version != versionSolicitud)
+            {
+                return;
+            }
+
+            await AsegurarMunicipiosAsync();
+
+            int? departamentoId =
+                ResolverDepartamentoId(
+                    departamento);
+
+            int? municipioId =
+                ResolverMunicipioId(
+                    municipio,
+                    departamento);
+
+            string ruta =
+                "api/centro-geoespacial/" +
+                "resumen-territorial";
+
+            var parametros =
+                new List<string>();
+
+            if (departamentoId.HasValue)
+            {
+                parametros.Add(
+                    $"departamentoId={departamentoId.Value}");
+            }
+
+            if (municipioId.HasValue)
+            {
+                parametros.Add(
+                    $"municipioId={municipioId.Value}");
+            }
+
+            parametros.Add(
+                "nivel=" +
+                (municipiosActivos
+                    ? "MUNICIPIO"
+                    : "DEPARTAMENTO"));
+
+            if (parametros.Count > 0)
+            {
+                ruta +=
+                    "?" +
+                    string.Join(
+                        "&",
+                        parametros);
+            }
+
+            ResumenTerritorialMapaRespuesta respuesta =
+                await Api.GetAsync<
+                    ResumenTerritorialMapaRespuesta>(
+                    ruta) ??
+                new ResumenTerritorialMapaRespuesta();
+
+            if (version != versionSolicitud ||
+                (!departamentosActivos &&
+                 !municipiosActivos) ||
+                dispuesto)
+            {
+                return;
+            }
+
+            await JS.InvokeVoidAsync(
+                "conatradecResumenTerritorial.mostrar",
+                ElementoMapa,
+                respuesta,
+                terrenosActivos);
+        }
+        catch (Exception ex)
+        {
+            if (!dispuesto &&
+                (departamentosActivos ||
+                 municipiosActivos))
+            {
+                await JS.InvokeVoidAsync(
+                    "conatradecResumenTerritorial.mostrarError",
+                    ElementoMapa,
+                    ex.Message);
+            }
+        }
+        finally
+        {
+            sincronizador.Release();
+        }
+    }
+
+    private async Task AsegurarMunicipiosAsync()
+    {
+        if (municipios.Count > 0)
+            return;
+
+        try
+        {
+            municipios =
+                await MapaService
+                    .ObtenerMunicipiosAsync();
+        }
+        catch
+        {
+            municipios = [];
+        }
+    }
+
+    private int? ResolverDepartamentoId(
+        string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return null;
+
+        string buscado =
+            Normalizar(nombre);
+
+        return municipios
+            .Where(item =>
+                Normalizar(
+                    item.NombreDepartamento) ==
+                buscado)
+            .Select(item =>
+                (int?)item.DepartamentoId)
+            .FirstOrDefault();
+    }
+
+    private int? ResolverMunicipioId(
+        string nombreMunicipio,
+        string nombreDepartamento)
+    {
+        if (string.IsNullOrWhiteSpace(
+                nombreMunicipio))
+        {
+            return null;
+        }
+
+        string municipioBuscado =
+            Normalizar(
+                nombreMunicipio);
+
+        string departamentoBuscado =
+            Normalizar(
+                nombreDepartamento);
+
+        return municipios
+            .Where(item =>
+                Normalizar(
+                    item.NombreMunicipio) ==
+                municipioBuscado &&
+                (string.IsNullOrWhiteSpace(
+                    departamentoBuscado) ||
+                 Normalizar(
+                    item.NombreDepartamento) ==
+                 departamentoBuscado))
+            .Select(item =>
+                (int?)item.MunicipioId)
+            .FirstOrDefault();
+    }
+
+    private async Task OcultarAsync()
+    {
+        Interlocked.Increment(
+            ref versionSolicitud);
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecResumenTerritorial.ocultar",
+                ElementoMapa);
+        }
+        catch
+        {
+        }
+    }
+
+    private bool EsCentroGeoespacial
+    {
+        get
+        {
+            string ruta =
+                Navigation
+                    .ToBaseRelativePath(
+                        Navigation.Uri);
+
+            int indice =
+                ruta.IndexOfAny(
+                    ['?', '#']);
+
+            if (indice >= 0)
+                ruta = ruta[..indice];
+
+            return ruta
+                .Trim('/')
+                .Equals(
+                    "mapa",
+                    StringComparison
+                        .OrdinalIgnoreCase);
+        }
+    }
+
+    private static string Normalizar(
+        string? valor)
+    {
+        string texto =
+            (valor ??
+             string.Empty)
+                .Normalize(
+                    NormalizationForm.FormD);
+
+        var resultado =
+            new StringBuilder();
+
+        foreach (char caracter in texto)
+        {
+            UnicodeCategory categoria =
+                CharUnicodeInfo
+                    .GetUnicodeCategory(
+                        caracter);
+
+            if (categoria !=
+                UnicodeCategory
+                    .NonSpacingMark)
+            {
+                resultado.Append(
+                    char.ToLowerInvariant(
+                        caracter));
+            }
+        }
+
+        return string.Join(
+            " ",
+            resultado
+                .ToString()
+                .Split(
+                    ' ',
+                    StringSplitOptions
+                        .RemoveEmptyEntries));
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        dispuesto = true;
+
+        Navigation.LocationChanged -=
+            UbicacionCambiada;
+
+        await OcultarAsync();
+
+        if (registrado)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync(
+                    "conatradecResumenTerritorial.desregistrar",
+                    ElementoMapa);
+            }
+            catch
+            {
+            }
+        }
+
+        referenciaDotNet?.Dispose();
+        referenciaDotNet = null;
+        sincronizador.Dispose();
+    }
+}

@@ -1,0 +1,86 @@
+.config-section[b-e0fitnw97r] {
+    margin-bottom: 1.5rem;
+}
+
+.config-section-title[b-e0fitnw97r] {
+    align-items: end;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: .85rem;
+}
+
+.config-section-title h2[b-e0fitnw97r] {
+    margin: 0;
+}
+
+.config-section-title > span[b-e0fitnw97r] {
+    color: #697a74;
+    font-size: .86rem;
+    max-width: 520px;
+    text-align: right;
+}
+
+.config-card-grid[b-e0fitnw97r] {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.config-action-card[b-e0fitnw97r] {
+    align-items: center;
+    color: inherit;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: auto 1fr auto;
+    padding: 1rem;
+    text-decoration: none;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.config-action-card:hover[b-e0fitnw97r] {
+    box-shadow: 0 12px 30px rgba(31, 72, 62, .12);
+    transform: translateY(-2px);
+}
+
+.config-action-card > span:nth-child(2)[b-e0fitnw97r] {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+}
+
+.config-action-card strong[b-e0fitnw97r] {
+    color: #294c44;
+}
+
+.config-action-card small[b-e0fitnw97r] {
+    color: #697a74;
+    line-height: 1.45;
+}
+
+.config-action-icon[b-e0fitnw97r] {
+    align-items: center;
+    background: #e8f1ee;
+    border-radius: 12px;
+    color: #3b655b;
+    display: flex;
+    font-size: 1.2rem;
+    height: 46px;
+    justify-content: center;
+    width: 46px;
+}
+
+@media (max-width: 760px) {
+    .config-card-grid[b-e0fitnw97r] {
+        grid-template-columns: 1fr;
+    }
+
+    .config-section-title[b-e0fitnw97r] {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .config-section-title > span[b-e0fitnw97r] {
+        text-align: left;
+    }
+}

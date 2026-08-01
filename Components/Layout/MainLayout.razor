@@ -175,15 +175,70 @@ else
                         </NavLink>
                     }
 
-                    @if (PuedeVerParametrizacionAcceso)
+                    @if (PuedeVerTerrenos ||
+                         PuedeVerParametrizacionAcceso)
                     {
                         <div class="nav-section">
                             Propietarios y cobertura
                         </div>
 
-                        <NavLink href="/parametrizacion-acceso">
-                            <i class="fa-solid fa-people-roof"></i>
-                            <span>Acceso a terrenos</span>
+                        @if (PuedeVerTerrenos)
+                        {
+                            <NavLink href="/terrenos">
+                                <i class="fa-solid fa-map-location-dot"></i>
+                                <span>Terrenos</span>
+                            </NavLink>
+                        }
+
+                        @if (PuedeVerParametrizacionAcceso)
+                        {
+                            <NavLink href="/parametrizacion-acceso">
+                                <i class="fa-solid fa-people-roof"></i>
+                                <span>Acceso a terrenos</span>
+                            </NavLink>
+                        }
+                    }
+
+                    @if (PuedeVerParametrosAgronomicos)
+                    {
+                        <div class="nav-section">
+                            Parámetros agronómicos
+                        </div>
+
+                        @if (PuedeVerElementosQuimicos)
+                        {
+                            <NavLink href="/parametros-agronomicos/elementos-quimicos">
+                                <i class="fa-solid fa-flask"></i>
+                                <span>Elementos químicos</span>
+                            </NavLink>
+                        }
+
+                        @if (PuedeVerTiposCultivo)
+                        {
+                            <NavLink href="/parametros-agronomicos/tipos-cultivo">
+                                <i class="fa-solid fa-wheat-awn"></i>
+                                <span>Tipos de cultivo</span>
+                            </NavLink>
+                        }
+
+                        @if (PuedeVerTiposAnalisis)
+                        {
+                            <NavLink href="/parametros-agronomicos/tipos-analisis-suelo">
+                                <i class="fa-solid fa-vials"></i>
+                                <span>Tipos de análisis</span>
+                            </NavLink>
+                        }
+                    }
+
+                    @if (PuedeVerAlbumBotanico)
+                    {
+                        <div class="nav-section">
+                            Contenido
+                        </div>
+
+                        <NavLink href="/contenido/album-botanico">
+                            <i class="fa-solid fa-seedling"></i>
+                            <span>Álbum botánico</span>
                         </NavLink>
                     }
 
@@ -322,10 +377,17 @@ else
                 </div>
             </header>
 
-            <main class="page-content">
+            <main class="page-content @(EsRutaMapaNacional
+                ? "map-page-content"
+                : string.Empty)">
                 @if (PuedeMostrarContenidoActual)
                 {
                     @Body
+
+                    @if (EsInicioPortalPropietario)
+                    {
+                        <ResumenPoligonosPropietario />
+                    }
                 }
                 else
                 {
@@ -343,11 +405,38 @@ else
             </main>
         </section>
     </div>
+
+    <!--
+        Carga las delimitaciones según el contexto:
+        administración o terrenos propios del propietario.
+    -->
+    <TerrenoPoligonosGlobal />
+
+    <!--
+        Se activa únicamente en /mapa. No modifica Mi Centro Geoespacial
+        del propietario.
+    -->
+    <ResumenTerritorialGlobal />
 }
 
 @code {
     private const string PermisoReglasClima =
         "ReglasAgricolasClimaPage";
+
+    private const string PermisoAlbumBotanico =
+        "albumFotosPage";
+
+    private const string PermisoTerrenos =
+        "terrenoPage";
+
+    private const string PermisoElementosQuimicos =
+        "elementoQuimicoPage";
+
+    private const string PermisoTiposCultivo =
+        "tipoCultivoPage";
+
+    private const string PermisoTiposAnalisis =
+        "tipoAnalisisSueloPage";
 
     private bool menuAbierto;
     private bool monitorInactividadActivo;
@@ -378,6 +467,38 @@ else
         AuthState.TienePermisoLectura(
             PermisoReglasClima);
 
+    private bool PuedeVerAlbumBotanico =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoAlbumBotanico);
+
+    private bool PuedeVerTerrenos =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoTerrenos) ||
+        AuthState.TienePermisoLectura(
+            "TerrenoPage");
+
+    private bool PuedeVerElementosQuimicos =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoElementosQuimicos);
+
+    private bool PuedeVerTiposCultivo =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoTiposCultivo);
+
+    private bool PuedeVerTiposAnalisis =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoTiposAnalisis);
+
+    private bool PuedeVerParametrosAgronomicos =>
+        PuedeVerElementosQuimicos ||
+        PuedeVerTiposCultivo ||
+        PuedeVerTiposAnalisis;
+
     private bool EsPortalPropietarioExclusivo =>
         TienePortalPropietario &&
         !TieneFuncionesAdministrativas;
@@ -396,6 +517,14 @@ else
             PermisosWeb.AuditoriaAnalisis) ||
         AuthState.TienePermisoLectura(
             PermisoReglasClima) ||
+        AuthState.TienePermisoLectura(
+            PermisoAlbumBotanico) ||
+        AuthState.TienePermisoLectura(
+            PermisoElementosQuimicos) ||
+        AuthState.TienePermisoLectura(
+            PermisoTiposCultivo) ||
+        AuthState.TienePermisoLectura(
+            PermisoTiposAnalisis) ||
         AuthState.TienePermisoLectura(
             PermisosWeb.ParametrizacionAcceso) ||
         AuthState.TienePermisoLectura(
@@ -444,11 +573,21 @@ else
         AuthState.TienePermisoLectura(
             PermisosWeb.CoberturaTerritorial);
 
+    private bool EsRutaMapaNacional =>
+        ObtenerRutaActual().Equals(
+            "mapa",
+            StringComparison.OrdinalIgnoreCase);
+
     private bool EsRutaPortalPropietario =>
         ObtenerRutaActual()
             .StartsWith(
                 "mi-portal",
                 StringComparison.OrdinalIgnoreCase);
+
+    private bool EsInicioPortalPropietario =>
+        ObtenerRutaActual().Equals(
+            "mi-portal",
+            StringComparison.OrdinalIgnoreCase);
 
     private bool EsRutaCentroPropietario =>
         ObtenerRutaActual().Equals(

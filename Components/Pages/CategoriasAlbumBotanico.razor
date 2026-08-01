@@ -1,0 +1,12 @@
+@page "/contenido/album-botanico/categorias"
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo(
+            "/contenido/album-botanico",
+            forceLoad: false,
+            replace: true);
+    }
+}

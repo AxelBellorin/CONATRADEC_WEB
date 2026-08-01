@@ -1,0 +1,25 @@
+.terrain-polygon-tooltip {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+    min-width: 130px;
+}
+
+.terrain-polygon-tooltip strong {
+    color: #294c44;
+}
+
+.terrain-polygon-tooltip span {
+    color: #586b64;
+    font-size: .78rem;
+}
+
+.terrain-polygon-tooltip small {
+    color: #a45e18;
+    font-size: .72rem;
+    margin-top: .2rem;
+}
+
+.leaflet-pane.leaflet-geoTerrainPolygonPane-pane {
+    pointer-events: auto;
+}

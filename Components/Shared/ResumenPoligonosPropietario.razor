@@ -1,0 +1,97 @@
+@inject ApiClientService Api
+
+<section class="owner-polygon-summary">
+    <div class="owner-polygon-heading">
+        <div>
+            <p class="eyebrow">Delimitación territorial</p>
+            <h2>Polígonos de mis terrenos</h2>
+            <span>
+                El punto principal se mantiene visible aunque un terreno
+                todavía no tenga delimitación.
+            </span>
+        </div>
+
+        @if (!cargando)
+        {
+            <strong>
+                @poligonos.Count delimitado(s)
+            </strong>
+        }
+    </div>
+
+    @if (cargando)
+    {
+        <div class="owner-polygon-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            Consultando delimitaciones...
+        </div>
+    }
+    else if (poligonos.Count == 0)
+    {
+        <div class="owner-polygon-empty">
+            <i class="fa-solid fa-location-dot"></i>
+            <div>
+                <strong>Sus terrenos continúan representados por puntos</strong>
+                <span>
+                    Cuando un técnico delimite un terreno, el polígono
+                    aparecerá aquí y en Mi Centro Geoespacial.
+                </span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="owner-polygon-grid">
+            @foreach (TerrenoPoligonoWeb item in poligonos)
+            {
+                <article>
+                    <span class="owner-polygon-icon">
+                        <i class="fa-solid fa-draw-polygon"></i>
+                    </span>
+
+                    <div>
+                        <strong>@item.CodigoTerreno</strong>
+                        <span>
+                            @item.AreaManzanasCalculada.ToString("N2") Mz delimitadas
+                        </span>
+                        <small>
+                            Área registrada:
+                            @item.ExtensionRegistradaManzanas.ToString("N2") Mz
+                        </small>
+                    </div>
+
+                    @if (!item.PuntoDentroPoligono)
+                    {
+                        <span class="owner-polygon-warning"
+                              title="El punto principal está fuera de la delimitación">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </span>
+                    }
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private List<TerrenoPoligonoWeb> poligonos = [];
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            poligonos =
+                await Api.GetAsync<List<TerrenoPoligonoWeb>>(
+                    "api/terreno-poligono/mis-terrenos") ?? [];
+        }
+        catch
+        {
+            poligonos = [];
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}

@@ -1,0 +1,121 @@
+.owner-polygon-summary {
+    background: white;
+    border: 1px solid #dfe9e5;
+    border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(42, 75, 67, .07);
+    margin-top: 1.25rem;
+    padding: 1.2rem;
+}
+
+.owner-polygon-heading {
+    align-items: flex-end;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.owner-polygon-heading h2 {
+    margin: .15rem 0 .25rem;
+}
+
+.owner-polygon-heading span {
+    color: #6c7c76;
+}
+
+.owner-polygon-heading > strong {
+    background: #e9f2ef;
+    border-radius: 999px;
+    color: #315f54;
+    padding: .45rem .75rem;
+    white-space: nowrap;
+}
+
+.owner-polygon-loading,
+.owner-polygon-empty {
+    align-items: center;
+    background: #f5f8f7;
+    border-radius: 12px;
+    color: #61726c;
+    display: flex;
+    gap: .75rem;
+    padding: 1rem;
+}
+
+.owner-polygon-empty > i {
+    color: #3b655b;
+    font-size: 1.4rem;
+}
+
+.owner-polygon-empty strong,
+.owner-polygon-empty span {
+    display: block;
+}
+
+.owner-polygon-empty span {
+    font-size: .84rem;
+    margin-top: .2rem;
+}
+
+.owner-polygon-grid {
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.owner-polygon-grid article {
+    align-items: center;
+    border: 1px solid #e0e9e5;
+    border-radius: 12px;
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: auto 1fr auto;
+    padding: .85rem;
+}
+
+.owner-polygon-grid strong,
+.owner-polygon-grid span,
+.owner-polygon-grid small {
+    display: block;
+}
+
+.owner-polygon-grid span {
+    color: #49675f;
+    font-size: .86rem;
+    margin-top: .15rem;
+}
+
+.owner-polygon-grid small {
+    color: #7a8984;
+    font-size: .76rem;
+    margin-top: .2rem;
+}
+
+.owner-polygon-icon {
+    align-items: center;
+    background: #e8f2ee;
+    border-radius: 10px;
+    color: #315f54 !important;
+    display: flex !important;
+    height: 42px;
+    justify-content: center;
+    margin: 0 !important;
+    width: 42px;
+}
+
+.owner-polygon-warning {
+    color: #bd741e !important;
+    font-size: 1rem !important;
+    margin: 0 !important;
+}
+
+@media (max-width: 680px) {
+    .owner-polygon-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .owner-polygon-grid {
+        grid-template-columns: 1fr;
+    }
+}

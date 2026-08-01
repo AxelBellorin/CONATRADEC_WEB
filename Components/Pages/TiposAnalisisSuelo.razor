@@ -1,0 +1,963 @@
+@page "/parametros-agronomicos/tipos-analisis-suelo"
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Tipos de análisis de suelo | CONATRADEC</PageTitle>
+
+<div class="catalog-page-header">
+    <div>
+        <p class="eyebrow">Parámetros agronómicos</p>
+        <h1>Tipos de análisis de suelo</h1>
+        <p>
+            Administra las modalidades de análisis. Los tipos internos del
+            sistema conservan su código técnico y no pueden eliminarse.
+        </p>
+    </div>
+
+    <div class="catalog-header-actions">
+        @if (PuedeActualizar)
+        {
+            <button class="btn-secondary"
+                    disabled="@procesando"
+                    @onclick="AbrirEliminadosAsync">
+                <i class="fa-solid fa-trash-arrow-up"></i>
+                Eliminados
+            </button>
+        }
+
+        <button class="btn-secondary"
+                disabled="@procesando"
+                @onclick="CargarAsync">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+
+        @if (PuedeAgregar)
+        {
+            <button class="btn-primary"
+                    disabled="@procesando"
+                    @onclick="AbrirCrear">
+                <i class="fa-solid fa-plus"></i>
+                Nuevo tipo
+            </button>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert alert-success-custom">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensaje</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+@if (!PuedeLeer)
+{
+    <section class="empty-state panel compact-empty">
+        <i class="fa-solid fa-lock"></i>
+        <h2>Sin permiso de lectura</h2>
+        <p>Su rol no puede consultar los tipos de análisis de suelo.</p>
+    </section>
+}
+else
+{
+    <section class="panel catalog-toolbar">
+        <div class="form-group">
+            <label>Buscar</label>
+            <div class="catalog-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input class="form-control"
+                       placeholder="Nombre, descripción o código"
+                       @bind="buscar"
+                       @bind:event="oninput" />
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Ordenar por</label>
+            <select class="form-control"
+                    disabled>
+                <option>Nombre</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Dirección</label>
+            <select class="form-control"
+                    @bind="direccion">
+                <option value="asc">Ascendente</option>
+                <option value="desc">Descendente</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Por página</label>
+            <select class="form-control"
+                    @bind="tamanoPagina">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="40">40</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+
+        <div class="catalog-header-actions">
+            <button class="btn-primary"
+                    disabled="@procesando"
+                    @onclick="BuscarAsync">
+                Buscar
+            </button>
+            <button class="btn-secondary"
+                    disabled="@procesando"
+                    @onclick="LimpiarAsync">
+                Limpiar
+            </button>
+        </div>
+
+        <div class="catalog-summary">
+            <strong>@pagina.TotalRegistros</strong>
+            <span>tipo(s)</span>
+        </div>
+    </section>
+
+    @if (cargando)
+    {
+        <LoadingState Mensaje="Cargando tipos de análisis..." />
+    }
+    else if (pagina.Items.Count == 0)
+    {
+        <section class="empty-state panel compact-empty">
+            <i class="fa-solid fa-vials"></i>
+            <h2>No se encontraron tipos de análisis</h2>
+            <p>No existen registros activos que coincidan con la búsqueda.</p>
+        </section>
+    }
+    else
+    {
+        <section class="panel catalog-table-panel">
+            <div class="catalog-table-scroll">
+                <table class="catalog-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Tipo de análisis</th>
+                            <th>Descripción</th>
+                            <th>Clase</th>
+                            <th>Análisis</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (TipoAnalisisSueloWebItem item in pagina.Items)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="catalog-symbol">
+                                        @item.CodigoMostrar
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="catalog-primary">
+                                        @item.NombreMostrar
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="catalog-secondary">
+                                        @item.DescripcionMostrar
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="catalog-badge @(item.EsTipoSistema ? "system" : "custom")">
+                                        <i class="fa-solid @(item.EsTipoSistema ? "fa-shield-halved" : "fa-user-pen")"></i>
+                                        @(item.EsTipoSistema ? "Sistema" : "Personalizado")
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="catalog-count">
+                                        <i class="fa-solid fa-flask-vial"></i>
+                                        @item.CantidadAnalisis
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="catalog-row-actions">
+                                        <button class="btn-icon-view"
+                                                title="Ver detalle"
+                                                @onclick="() => AbrirVer(item)">
+                                            <i class="fa-regular fa-eye"></i>
+                                        </button>
+
+                                        @if (PuedeActualizar)
+                                        {
+                                            <button class="btn-icon-edit"
+                                                    title="Editar"
+                                                    @onclick="() => AbrirEditar(item)">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                        }
+
+                                        @if (PuedeEliminar &&
+                                             item.PuedeEliminar &&
+                                             !item.EsTipoSistema)
+                                        {
+                                            <button class="btn-icon-delete"
+                                                    title="Desactivar"
+                                                    @onclick="() => EliminarAsync(item)">
+                                                <i class="fa-solid fa-ban"></i>
+                                            </button>
+                                        }
+                                        else if (item.EsTipoSistema)
+                                        {
+                                            <span class="catalog-badge protected"
+                                                  title="Tipo interno protegido">
+                                                <i class="fa-solid fa-lock"></i>
+                                                Protegido
+                                            </span>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="catalog-pagination">
+                <span>
+                    Página @pagina.PaginaActual de @Math.Max(1, pagina.TotalPaginas)
+                </span>
+
+                <div class="catalog-pagination-buttons">
+                    <button class="catalog-page-button"
+                            disabled="@(pagina.PaginaActual <= 1 || procesando)"
+                            @onclick="() => IrPaginaAsync(pagina.PaginaActual - 1)">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+
+                    @foreach (int numero in PaginasVisibles)
+                    {
+                        <button class="catalog-page-button @(numero == pagina.PaginaActual ? "active" : string.Empty)"
+                                disabled="@procesando"
+                                @onclick="() => IrPaginaAsync(numero)">
+                            @numero
+                        </button>
+                    }
+
+                    <button class="catalog-page-button"
+                            disabled="@(pagina.PaginaActual >= pagina.TotalPaginas || procesando)"
+                            @onclick="() => IrPaginaAsync(pagina.PaginaActual + 1)">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+    }
+}
+
+@if (modalFormulario)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarFormularioAsync">
+        <article class="modal-card catalog-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Tipo de análisis de suelo</p>
+                    <h2>@TituloFormulario</h2>
+                </div>
+                <button class="modal-close"
+                        @onclick="CerrarFormularioAsync">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            @if (modoFormulario == "ver")
+            {
+                <div class="catalog-view-grid">
+                    <div class="catalog-view-item">
+                        <small>Código interno</small>
+                        <strong>@formulario.CodigoTipoAnalisisSuelo</strong>
+                    </div>
+                    <div class="catalog-view-item">
+                        <small>Clase</small>
+                        <strong>
+                            @(formulario.EsTipoSistema ? "Sistema" : "Personalizado")
+                        </strong>
+                    </div>
+                    <div class="catalog-view-item full">
+                        <small>Nombre</small>
+                        <strong>@formulario.NombreTipoAnalisisSuelo</strong>
+                    </div>
+                    <div class="catalog-view-item full">
+                        <small>Descripción</small>
+                        <span>@formulario.DescripcionTipoAnalisisSuelo</span>
+                    </div>
+                    <div class="catalog-view-item">
+                        <small>Análisis asociados</small>
+                        <strong>@itemVista?.CantidadAnalisis</strong>
+                    </div>
+                </div>
+
+                @if (formulario.EsTipoSistema)
+                {
+                    <div class="catalog-protected-note">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>
+                            Este registro pertenece a un módulo interno y su
+                            código técnico se conserva permanentemente.
+                        </span>
+                    </div>
+                }
+
+                <div class="modal-footer">
+                    <button class="btn-secondary"
+                            @onclick="CerrarFormularioAsync">
+                        Regresar
+                    </button>
+                </div>
+            }
+            else
+            {
+                <EditForm Model="formulario"
+                          OnValidSubmit="GuardarAsync"
+                          FormName="tipo-analisis-suelo-web-form">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    @if (!string.IsNullOrWhiteSpace(
+                            formulario.CodigoTipoAnalisisSuelo))
+                    {
+                        <div class="form-group">
+                            <label>Código interno</label>
+                            <input class="form-control"
+                                   value="@formulario.CodigoTipoAnalisisSuelo"
+                                   disabled />
+                        </div>
+                    }
+
+                    <div class="catalog-form-note">
+                        El nombre se guardará en mayúsculas. El código interno
+                        es generado y administrado exclusivamente por el sistema.
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nombre del tipo *</label>
+                        <InputText class="form-control"
+                                   maxlength="100"
+                                   @bind-Value="formulario.NombreTipoAnalisisSuelo" />
+                        <ValidationMessage For="() => formulario.NombreTipoAnalisisSuelo" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Descripción *</label>
+                        <InputTextArea class="form-control"
+                                       maxlength="200"
+                                       @bind-Value="formulario.DescripcionTipoAnalisisSuelo" />
+                        <ValidationMessage For="() => formulario.DescripcionTipoAnalisisSuelo" />
+                    </div>
+
+                    @if (formulario.EsTipoSistema)
+                    {
+                        <div class="catalog-protected-note">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span>
+                                Puede actualizar el nombre y la descripción,
+                                pero este tipo interno no puede eliminarse.
+                            </span>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(errorFormulario))
+                    {
+                        <div class="catalog-error-text">
+                            @errorFormulario
+                        </div>
+                    }
+
+                    <div class="modal-footer">
+                        <button type="button"
+                                class="btn-secondary"
+                                @onclick="CerrarFormularioAsync">
+                            Cancelar
+                        </button>
+                        <button type="submit"
+                                class="btn-primary"
+                                disabled="@procesando">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            @(procesando ? "Guardando..." : "Guardar")
+                        </button>
+                    </div>
+                </EditForm>
+            }
+        </article>
+    </div>
+}
+
+@if (modalEliminados)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarEliminados">
+        <article class="modal-card catalog-inactive-modal"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Papelera administrativa</p>
+                    <h2>Tipos de análisis eliminados</h2>
+                </div>
+                <button class="modal-close"
+                        @onclick="CerrarEliminados">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="catalog-form-note">
+                Los códigos técnicos internos se mantienen cuando un registro
+                personalizado es reactivado.
+            </div>
+
+            <div class="catalog-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input class="form-control"
+                       placeholder="Buscar eliminado"
+                       @bind="buscarEliminado"
+                       @bind:event="oninput" />
+            </div>
+
+            @if (cargandoEliminados)
+            {
+                <LoadingState Mensaje="Cargando eliminados..." />
+            }
+            else if (EliminadosFiltrados.Count == 0)
+            {
+                <div class="empty-state compact-empty">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <h3>No hay tipos de análisis eliminados</h3>
+                </div>
+            }
+            else
+            {
+                <div class="catalog-inactive-list">
+                    @foreach (CatalogoEliminadoItemWeb item in EliminadosFiltrados)
+                    {
+                        <article class="catalog-inactive-item">
+                            <div>
+                                <h3>@item.Titulo</h3>
+                                <p>
+                                    @item.Codigo
+                                    @if (!string.IsNullOrWhiteSpace(item.Subtitulo))
+                                    {
+                                        <span> · @item.Subtitulo</span>
+                                    }
+                                </p>
+                            </div>
+                            <button class="btn-primary"
+                                    disabled="@procesando"
+                                    @onclick="() => ReactivarAsync(item)">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                Reactivar
+                            </button>
+                        </article>
+                    }
+                </div>
+            }
+        </article>
+    </div>
+}
+
+@code {
+    private const string CodigoPermiso = "tipoAnalisisSueloPage";
+    private const string CodigoEliminados = "tipo-analisis";
+
+    private CatalogoPaginaRespuesta<TipoAnalisisSueloWebItem> pagina = new();
+    private readonly List<CatalogoEliminadoItemWeb> eliminados = [];
+    private TipoAnalisisSueloWebFormulario formulario = new();
+    private TipoAnalisisSueloWebFormulario original = new();
+    private TipoAnalisisSueloWebItem? itemVista;
+
+    private bool cargando = true;
+    private bool procesando;
+    private bool modalFormulario;
+    private bool modalEliminados;
+    private bool cargandoEliminados;
+    private string modoFormulario = "crear";
+    private string buscar = string.Empty;
+    private string direccion = "asc";
+    private int tamanoPagina = 20;
+    private string buscarEliminado = string.Empty;
+    private string? mensaje;
+    private string? error;
+    private string? errorFormulario;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoPermiso);
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(CodigoPermiso);
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(CodigoPermiso);
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(CodigoPermiso);
+
+    private string TituloFormulario =>
+        modoFormulario switch
+        {
+            "editar" => "Editar tipo de análisis de suelo",
+            "ver" => "Detalle del tipo de análisis de suelo",
+            _ => "Crear tipo de análisis de suelo"
+        };
+
+    private IEnumerable<int> PaginasVisibles
+    {
+        get
+        {
+            int inicio = Math.Max(1, pagina.PaginaActual - 2);
+            int fin = Math.Min(Math.Max(1, pagina.TotalPaginas), inicio + 4);
+            inicio = Math.Max(1, fin - 4);
+
+            return Enumerable.Range(
+                inicio,
+                Math.Max(1, fin - inicio + 1));
+        }
+    }
+
+    private List<CatalogoEliminadoItemWeb> EliminadosFiltrados =>
+        eliminados
+            .Where(x =>
+                string.IsNullOrWhiteSpace(buscarEliminado) ||
+                x.Titulo.Contains(
+                    buscarEliminado,
+                    StringComparison.OrdinalIgnoreCase) ||
+                (x.Subtitulo?.Contains(
+                    buscarEliminado,
+                    StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (x.Codigo?.Contains(
+                    buscarEliminado,
+                    StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderBy(x => x.Titulo)
+            .ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private Task BuscarAsync() =>
+        CargarPaginaAsync(1);
+
+    private async Task LimpiarAsync()
+    {
+        buscar = string.Empty;
+        direccion = "asc";
+        tamanoPagina = 20;
+        await CargarPaginaAsync(1);
+    }
+
+    private Task CargarAsync() =>
+        CargarPaginaAsync(
+            Math.Max(1, pagina.PaginaActual));
+
+    private async Task IrPaginaAsync(int numero)
+    {
+        if (numero < 1 ||
+            numero > Math.Max(1, pagina.TotalPaginas))
+        {
+            return;
+        }
+
+        await CargarPaginaAsync(numero);
+    }
+
+    private async Task CargarPaginaAsync(int numero)
+    {
+        if (!PuedeLeer)
+        {
+            cargando = false;
+            return;
+        }
+
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            string ruta =
+                "api/configuracion/tipos-analisis-suelo/buscar" +
+                $"?pagina={numero}" +
+                $"&tamanoPagina={tamanoPagina}" +
+                "&orden=nombre" +
+                $"&direccion={Uri.EscapeDataString(direccion)}";
+
+            if (!string.IsNullOrWhiteSpace(buscar))
+            {
+                ruta +=
+                    $"&buscar={Uri.EscapeDataString(buscar.Trim())}";
+            }
+
+            CatalogoPaginaRespuesta<TipoAnalisisSueloWebItem>? respuesta =
+                await Api.GetAsync<
+                    CatalogoPaginaRespuesta<
+                        TipoAnalisisSueloWebItem>>(
+                    ruta);
+
+            pagina =
+                respuesta ??
+                new CatalogoPaginaRespuesta<
+                    TipoAnalisisSueloWebItem>();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AbrirCrear()
+    {
+        LimpiarMensajes();
+        modoFormulario = "crear";
+        itemVista = null;
+        formulario = new TipoAnalisisSueloWebFormulario();
+        original = Copiar(formulario);
+        modalFormulario = true;
+    }
+
+    private void AbrirEditar(TipoAnalisisSueloWebItem item)
+    {
+        LimpiarMensajes();
+        modoFormulario = "editar";
+        itemVista = item;
+        formulario = CrearFormulario(item);
+        original = Copiar(formulario);
+        modalFormulario = true;
+    }
+
+    private void AbrirVer(TipoAnalisisSueloWebItem item)
+    {
+        LimpiarMensajes();
+        modoFormulario = "ver";
+        itemVista = item;
+        formulario = CrearFormulario(item);
+        original = Copiar(formulario);
+        modalFormulario = true;
+    }
+
+    private async Task CerrarFormularioAsync()
+    {
+        if (procesando)
+            return;
+
+        if (modoFormulario != "ver" &&
+            HayCambios())
+        {
+            bool salir =
+                await JS.InvokeAsync<bool>(
+                    "confirm",
+                    "Hay cambios sin guardar. ¿Desea cerrar el formulario?");
+
+            if (!salir)
+                return;
+        }
+
+        modalFormulario = false;
+        itemVista = null;
+        formulario = new TipoAnalisisSueloWebFormulario();
+        errorFormulario = null;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (procesando)
+            return;
+
+        errorFormulario = null;
+
+        formulario.NombreTipoAnalisisSuelo =
+            formulario.NombreTipoAnalisisSuelo
+                .ReplaceLineEndings(" ")
+                .Trim()
+                .ToUpperInvariant();
+
+        formulario.DescripcionTipoAnalisisSuelo =
+            formulario.DescripcionTipoAnalisisSuelo
+                .ReplaceLineEndings(" ")
+                .Trim();
+
+        if (string.IsNullOrWhiteSpace(
+                formulario.NombreTipoAnalisisSuelo))
+        {
+            errorFormulario =
+                "Ingrese el nombre del tipo de análisis.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                formulario.DescripcionTipoAnalisisSuelo))
+        {
+            errorFormulario =
+                "Ingrese la descripción del tipo de análisis.";
+            return;
+        }
+
+        if (modoFormulario == "editar" &&
+            !HayCambios())
+        {
+            errorFormulario =
+                "No hay cambios para guardar.";
+            return;
+        }
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                modoFormulario == "editar"
+                    ? "¿Desea actualizar el tipo de análisis de suelo?"
+                    : "¿Desea guardar el tipo de análisis de suelo?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            CatalogoOperacionRespuesta<object>? respuesta;
+
+            if (modoFormulario == "editar")
+            {
+                respuesta =
+                    await Api.PutAsync<
+                        TipoAnalisisSueloWebFormulario,
+                        CatalogoOperacionRespuesta<object>>(
+                        $"api/configuracion/tipos-analisis-suelo/{formulario.TipoAnalisisSueloId}",
+                        formulario);
+            }
+            else
+            {
+                respuesta =
+                    await Api.PostAsync<
+                        TipoAnalisisSueloWebFormulario,
+                        CatalogoOperacionRespuesta<object>>(
+                        "api/configuracion/tipos-analisis-suelo",
+                        formulario);
+            }
+
+            modalFormulario = false;
+            await CargarPaginaAsync(
+                modoFormulario == "crear"
+                    ? 1
+                    : pagina.PaginaActual);
+
+            mensaje =
+                respuesta?.Message ??
+                "Tipo de análisis de suelo guardado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            errorFormulario = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task EliminarAsync(
+        TipoAnalisisSueloWebItem item)
+    {
+        if (!item.PuedeEliminar ||
+            item.EsTipoSistema)
+        {
+            error =
+                "Este tipo pertenece a un módulo interno del sistema y no puede eliminarse.";
+            return;
+        }
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea desactivar el tipo de análisis " +
+                $"\"{item.NombreMostrar}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                $"api/configuracion/tipos-analisis-suelo/{item.TipoAnalisisSueloId}/eliminar");
+
+            await CargarPaginaAsync(
+                pagina.PaginaActual);
+
+            mensaje =
+                "Tipo de análisis de suelo desactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task AbrirEliminadosAsync()
+    {
+        modalEliminados = true;
+        buscarEliminado = string.Empty;
+        cargandoEliminados = true;
+        LimpiarMensajes();
+
+        try
+        {
+            CatalogoOperacionRespuesta<List<CatalogoEliminadoItemWeb>>?
+                respuesta =
+                    await Api.GetAsync<
+                        CatalogoOperacionRespuesta<
+                            List<CatalogoEliminadoItemWeb>>>(
+                        $"api/catalogos-eliminados/{CodigoEliminados}",
+                        AuthState.CrearEncabezadosSesion());
+
+            eliminados.Clear();
+
+            if (respuesta?.Data is not null)
+                eliminados.AddRange(respuesta.Data);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargandoEliminados = false;
+        }
+    }
+
+    private void CerrarEliminados()
+    {
+        if (procesando)
+            return;
+
+        modalEliminados = false;
+        eliminados.Clear();
+    }
+
+    private async Task ReactivarAsync(
+        CatalogoEliminadoItemWeb item)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea reactivar \"{item.Titulo}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                $"api/catalogos-eliminados/{CodigoEliminados}/{item.Id}/reactivar",
+                AuthState.CrearEncabezadosSesion());
+
+            eliminados.Remove(item);
+            await CargarPaginaAsync(1);
+
+            mensaje =
+                "Tipo de análisis de suelo reactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private bool HayCambios() =>
+        !string.Equals(
+            formulario.NombreTipoAnalisisSuelo.Trim(),
+            original.NombreTipoAnalisisSuelo.Trim(),
+            StringComparison.OrdinalIgnoreCase) ||
+        !string.Equals(
+            formulario.DescripcionTipoAnalisisSuelo.Trim(),
+            original.DescripcionTipoAnalisisSuelo.Trim(),
+            StringComparison.Ordinal);
+
+    private static TipoAnalisisSueloWebFormulario CrearFormulario(
+        TipoAnalisisSueloWebItem item) =>
+        new()
+        {
+            TipoAnalisisSueloId =
+                item.TipoAnalisisSueloId,
+            CodigoTipoAnalisisSuelo =
+                item.CodigoMostrar,
+            EsTipoSistema =
+                item.EsTipoSistema,
+            NombreTipoAnalisisSuelo =
+                item.NombreMostrar,
+            DescripcionTipoAnalisisSuelo =
+                item.DescripcionTipoAnalisisSuelo ?? string.Empty
+        };
+
+    private static TipoAnalisisSueloWebFormulario Copiar(
+        TipoAnalisisSueloWebFormulario valor) =>
+        new()
+        {
+            TipoAnalisisSueloId =
+                valor.TipoAnalisisSueloId,
+            CodigoTipoAnalisisSuelo =
+                valor.CodigoTipoAnalisisSuelo,
+            EsTipoSistema =
+                valor.EsTipoSistema,
+            NombreTipoAnalisisSuelo =
+                valor.NombreTipoAnalisisSuelo,
+            DescripcionTipoAnalisisSuelo =
+                valor.DescripcionTipoAnalisisSuelo
+        };
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+        errorFormulario = null;
+    }
+}
