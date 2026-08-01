@@ -27,7 +27,7 @@
         </a>
 
         <button class="btn-primary"
-                @onclick="Cargar"
+                @onclick="Actualizar"
                 disabled="@cargando">
             <i class="fa-solid fa-rotate"></i>
             Actualizar
@@ -47,25 +47,22 @@
 <section class="followup-summary-grid">
     <article>
         <span>Total</span>
-        <strong>@seguimientos.Count</strong>
+        <strong>@resumen.Total</strong>
     </article>
 
     <article class="pending">
         <span>Pendientes</span>
-        <strong>@Contar("PENDIENTE")</strong>
+        <strong>@resumen.Pendientes</strong>
     </article>
 
     <article class="progress">
         <span>En proceso</span>
-        <strong>@Contar("EN_PROCESO")</strong>
+        <strong>@resumen.EnProceso</strong>
     </article>
 
     <article class="closed">
         <span>Cerrados</span>
-        <strong>
-            @(Contar("ATENDIDA") +
-              Contar("DESCARTADA"))
-        </strong>
+        <strong>@resumen.Cerradas</strong>
     </article>
 </section>
 
@@ -99,9 +96,7 @@
             <option value="">Todos</option>
             <option value="0">Sin asignar</option>
 
-            @foreach (
-                TecnicoAlertaItem tecnico
-                in tecnicos)
+            @foreach (TecnicoAlertaItem tecnico in tecnicos)
             {
                 <option value="@tecnico.UsuarioId">
                     @tecnico.NombreCompleto
@@ -112,12 +107,14 @@
 
     <div class="followup-filter-actions">
         <button class="btn-primary"
-                @onclick="AplicarFiltros">
+                @onclick="AplicarFiltros"
+                disabled="@cargando">
             Aplicar
         </button>
 
         <button class="btn-link"
-                @onclick="LimpiarFiltros">
+                @onclick="LimpiarFiltros"
+                disabled="@cargando">
             Limpiar
         </button>
     </div>
@@ -127,7 +124,7 @@
 {
     <LoadingState Mensaje="Cargando seguimientos..." />
 }
-else if (Filtrados.Count == 0)
+else if (seguimientos.Count == 0)
 {
     <section class="panel followup-empty-state">
         <i class="fa-solid fa-clipboard-check"></i>
@@ -141,9 +138,7 @@ else if (Filtrados.Count == 0)
 else
 {
     <section class="followup-grid">
-        @foreach (
-            SeguimientoAlertaItem item
-            in Filtrados)
+        @foreach (SeguimientoAlertaItem item in seguimientos)
         {
             <article class="followup-card">
                 <div class="followup-card-header">
@@ -212,6 +207,14 @@ else
             </article>
         }
     </section>
+
+    <Paginador Pagina="pagina"
+               TotalPaginas="totalPaginas"
+               TotalRegistros="totalRegistros"
+               TamanoPagina="tamanoPagina"
+               Procesando="cargando"
+               PaginaCambiada="CambiarPagina"
+               TamanoPaginaCambiado="CambiarTamanoPagina" />
 }
 
 @if (editando is not null)
@@ -291,9 +294,7 @@ else
                                      disabled="@(!PuedeActualizar)">
                             <option value="">Sin asignar</option>
 
-                            @foreach (
-                                TecnicoAlertaItem tecnico
-                                in tecnicos)
+                            @foreach (TecnicoAlertaItem tecnico in tecnicos)
                             {
                                 <option value="@tecnico.UsuarioId">
                                     @tecnico.Etiqueta
@@ -369,9 +370,7 @@ else
                     <p>No hay movimientos registrados.</p>
                 }
 
-                @foreach (
-                    HistorialAlertaItem item
-                    in historial)
+                @foreach (HistorialAlertaItem item in historial)
                 {
                     <article class="timeline-item">
                         <div class="timeline-icon">
@@ -401,33 +400,28 @@ else
     [SupplyParameterFromQuery(Name = "id")]
     public int? SeguimientoId { get; set; }
 
-    private List<SeguimientoAlertaItem> seguimientos =
-        [];
-
-    private List<TecnicoAlertaItem> tecnicos =
-        [];
-
-    private List<HistorialAlertaItem> historial =
-        [];
+    private List<SeguimientoAlertaItem> seguimientos = [];
+    private List<TecnicoAlertaItem> tecnicos = [];
+    private List<HistorialAlertaItem> historial = [];
 
     private SeguimientoAlertaItem? editando;
+    private ActualizarSeguimientoAlerta formulario = new();
+    private ResumenSeguimientoAlertas resumen = new();
 
-    private ActualizarSeguimientoAlerta formulario =
-        new();
+    private string buscar = string.Empty;
+    private string estado = string.Empty;
+    private string responsableId = string.Empty;
 
-    private string buscar =
-        string.Empty;
-
-    private string estado =
-        string.Empty;
-
-    private string responsableId =
-        string.Empty;
+    private int pagina = 1;
+    private int tamanoPagina = 12;
+    private int totalRegistros;
+    private int totalPaginas;
 
     private bool cargando = true;
     private bool cargandoHistorial;
     private bool guardando;
     private bool enlaceProcesado;
+    private bool tecnicosCargados;
     private string? mensaje;
     private bool esError;
 
@@ -435,17 +429,6 @@ else
         AuthState.EsAdministrador ||
         AuthState.TienePermisoActualizar(
             PermisosWeb.SeguimientoAlertas);
-
-    private List<SeguimientoAlertaItem> Filtrados =>
-        seguimientos
-            .Where(CoincideBusqueda)
-            .Where(CoincideEstado)
-            .Where(CoincideResponsable)
-            .OrderBy(item =>
-                OrdenEstado(item.Estado))
-            .ThenByDescending(item =>
-                item.FechaUltimaModificacionUtc)
-            .ToList();
 
     protected override async Task OnAfterRenderAsync(
         bool firstRender)
@@ -484,38 +467,36 @@ else
                     SeguimientoId.Value);
 
             if (seleccionado != null)
-            {
                 await Editar(seleccionado);
-            }
         }
 
         StateHasChanged();
     }
 
-    private async Task Cargar()
+    private Task Actualizar() =>
+        Cargar();
+
+    private async Task Cargar(bool limpiarMensaje = true)
     {
         cargando = true;
-        mensaje = null;
+
+        if (limpiarMensaje)
+            mensaje = null;
 
         try
         {
-            Task<List<SeguimientoAlertaItem>>
-                seguimientosTask =
-                    Service.ListarAsync();
+            Task tecnicosTask = Task.CompletedTask;
 
-            Task<List<TecnicoAlertaItem>>
-                tecnicosTask =
-                    Service.TecnicosAsync();
+            if (!tecnicosCargados)
+                tecnicosTask = CargarTecnicos();
+
+            Task paginaTask = CargarPagina();
 
             await Task.WhenAll(
-                seguimientosTask,
-                tecnicosTask);
+                tecnicosTask,
+                paginaTask);
 
-            seguimientos =
-                await seguimientosTask;
-
-            tecnicos =
-                await tecnicosTask;
+            tecnicosCargados = true;
         }
         catch (Exception ex)
         {
@@ -528,42 +509,95 @@ else
         }
     }
 
+    private async Task CargarTecnicos() =>
+        tecnicos = await Service.TecnicosAsync();
+
+    private async Task CargarPagina()
+    {
+        SeguimientosPaginados resultado =
+            await Service.ListarPaginadoAsync(
+                pagina,
+                tamanoPagina,
+                buscar,
+                estado,
+                ObtenerResponsableId());
+
+        seguimientos = resultado.Items;
+        resumen = resultado.Resumen;
+        pagina = resultado.Pagina <= 0 ? 1 : resultado.Pagina;
+        tamanoPagina = resultado.TamanoPagina <= 0
+            ? tamanoPagina
+            : resultado.TamanoPagina;
+        totalRegistros = resultado.TotalRegistros;
+        totalPaginas = resultado.TotalPaginas;
+    }
+
+    private async Task AplicarFiltros()
+    {
+        pagina = 1;
+        await Cargar();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        buscar = string.Empty;
+        estado = string.Empty;
+        responsableId = string.Empty;
+        pagina = 1;
+        await Cargar();
+    }
+
+    private async Task CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina == pagina || cargando)
+            return;
+
+        pagina = nuevaPagina;
+        await Cargar();
+    }
+
+    private async Task CambiarTamanoPagina(int nuevoTamano)
+    {
+        tamanoPagina = nuevoTamano;
+        pagina = 1;
+        await Cargar();
+    }
+
+    private int? ObtenerResponsableId()
+    {
+        if (string.IsNullOrWhiteSpace(responsableId))
+            return null;
+
+        return int.TryParse(responsableId, out int valor)
+            ? valor
+            : null;
+    }
+
     private async Task Editar(
         SeguimientoAlertaItem item)
     {
-        editando =
-            item;
+        editando = item;
 
-        formulario =
-            new ActualizarSeguimientoAlerta
-            {
-                Estado =
-                    item.Estado,
-
-                UsuarioAsignadoId =
-                    item.UsuarioAsignadoId,
-
-                Observacion =
-                    item.Observacion,
-
-                UsuarioAccionId =
-                    AuthState.Usuario?
-                        .UsuarioId ?? 0
-            };
+        formulario = new ActualizarSeguimientoAlerta
+        {
+            Estado = item.Estado,
+            UsuarioAsignadoId = item.UsuarioAsignadoId,
+            Observacion = item.Observacion,
+            UsuarioAccionId =
+                AuthState.Usuario?.UsuarioId ?? 0
+        };
 
         await CargarHistorial(
             item.SeguimientoAlertaAgricolaId);
     }
 
-    private async Task CargarHistorial(
-        int id)
+    private async Task CargarHistorial(int id)
     {
         cargandoHistorial = true;
 
         try
         {
-            historial =
-                await Service.HistorialAsync(id);
+            historial = await Service.HistorialAsync(id);
         }
         catch (Exception ex)
         {
@@ -604,8 +638,7 @@ else
         {
             SeguimientoAlertaItem? actualizado =
                 await Service.ActualizarAsync(
-                    editando
-                        .SeguimientoAlertaAgricolaId,
+                    editando.SeguimientoAlertaAgricolaId,
                     formulario);
 
             if (actualizado == null)
@@ -614,21 +647,16 @@ else
                     "La API no devolvió el seguimiento actualizado.");
             }
 
-            editando =
-                actualizado;
+            editando = actualizado;
 
-            historial =
-                await Service.HistorialAsync(
-                    actualizado
-                        .SeguimientoAlertaAgricolaId);
+            historial = await Service.HistorialAsync(
+                actualizado.SeguimientoAlertaAgricolaId);
 
             mensaje =
                 "Seguimiento actualizado correctamente.";
 
             esError = false;
-
-            seguimientos =
-                await Service.ListarAsync();
+            await Cargar(limpiarMensaje: false);
         }
         catch (Exception ex)
         {
@@ -641,105 +669,14 @@ else
         }
     }
 
-    private Task AplicarFiltros()
-    {
-        StateHasChanged();
-        return Task.CompletedTask;
-    }
-
-    private Task LimpiarFiltros()
-    {
-        buscar =
-            estado =
-            responsableId =
-            string.Empty;
-
-        StateHasChanged();
-        return Task.CompletedTask;
-    }
-
-    private bool CoincideBusqueda(
-        SeguimientoAlertaItem item)
-    {
-        if (string.IsNullOrWhiteSpace(buscar))
-            return true;
-
-        string texto =
-            buscar.Trim();
-
-        return
-            item.CodigoTerreno.Contains(
-                texto,
-                StringComparison.OrdinalIgnoreCase) ||
-            item.Propietario.Contains(
-                texto,
-                StringComparison.OrdinalIgnoreCase) ||
-            item.TipoAlerta.Contains(
-                texto,
-                StringComparison.OrdinalIgnoreCase) ||
-            (item.UsuarioAsignado?.Contains(
-                texto,
-                StringComparison.OrdinalIgnoreCase) == true) ||
-            item.Ubicacion.Contains(
-                texto,
-                StringComparison.OrdinalIgnoreCase);
-    }
-
-    private bool CoincideEstado(
-        SeguimientoAlertaItem item) =>
-        string.IsNullOrWhiteSpace(estado) ||
-        string.Equals(
-            item.Estado,
-            estado,
-            StringComparison.OrdinalIgnoreCase);
-
-    private bool CoincideResponsable(
-        SeguimientoAlertaItem item)
-    {
-        if (string.IsNullOrWhiteSpace(
-                responsableId))
-        {
-            return true;
-        }
-
-        if (responsableId == "0")
-        {
-            return !item.UsuarioAsignadoId
-                .HasValue;
-        }
-
-        return int.TryParse(
-                   responsableId,
-                   out int id) &&
-               item.UsuarioAsignadoId == id;
-    }
-
-    private int Contar(
-        string valor) =>
-        seguimientos.Count(item =>
-            item.Estado == valor);
-
-    private static int OrdenEstado(
-        string valor) =>
-        valor switch
-        {
-            "PENDIENTE" => 0,
-            "EN_PROCESO" => 1,
-            "ATENDIDA" => 2,
-            "DESCARTADA" => 3,
-            _ => 4
-        };
-
-    private static string ClaseNivel(
-        string nivel) =>
+    private static string ClaseNivel(string nivel) =>
         nivel == "CRITICA"
             ? "critical"
             : nivel == "ATENCION"
                 ? "attention"
                 : "without-analysis";
 
-    private static string NivelTexto(
-        string nivel) =>
+    private static string NivelTexto(string nivel) =>
         nivel switch
         {
             "CRITICA" => "Crítica",
@@ -747,14 +684,12 @@ else
             _ => "Sin análisis"
         };
 
-    private static string ClaseEstado(
-        string estado) =>
+    private static string ClaseEstado(string estado) =>
         estado
             .ToLowerInvariant()
             .Replace("_", "-");
 
-    private static string EstadoTexto(
-        string estado) =>
+    private static string EstadoTexto(string estado) =>
         estado switch
         {
             "EN_PROCESO" => "En proceso",
@@ -763,8 +698,7 @@ else
             _ => "Pendiente"
         };
 
-    private static string AccionTexto(
-        string accion) =>
+    private static string AccionTexto(string accion) =>
         accion switch
         {
             "CREADA" => "Seguimiento creado",
@@ -772,8 +706,7 @@ else
             _ => accion
         };
 
-    private static string IconoHistorial(
-        string accion) =>
+    private static string IconoHistorial(string accion) =>
         accion switch
         {
             "CREADA" => "fa-solid fa-plus",
@@ -781,10 +714,8 @@ else
             _ => "fa-solid fa-circle"
         };
 
-    private static string FormatearFecha(
-        DateTime fecha) =>
+    private static string FormatearFecha(DateTime fecha) =>
         fecha
             .ToLocalTime()
-            .ToString(
-                "dd/MM/yyyy hh:mm tt");
+            .ToString("dd/MM/yyyy hh:mm tt");
 }

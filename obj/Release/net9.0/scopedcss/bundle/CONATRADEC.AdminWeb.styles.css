@@ -6812,6 +6812,58 @@
         grid-template-columns: 1fr;
     }
 }
+/* /Components/Shared/Paginador.razor.rz.scp.css */
+.admin-pager[b-506vrsgfhd] {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto minmax(160px, 1fr);
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.25rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--border-color, #d9e2df);
+    border-radius: 16px;
+    background: var(--surface-color, #ffffff);
+}
+
+.admin-pager-summary[b-506vrsgfhd],
+.admin-pager-current[b-506vrsgfhd],
+.admin-pager-size[b-506vrsgfhd] {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    color: var(--text-muted, #64748b);
+}
+
+.admin-pager-controls[b-506vrsgfhd] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+}
+
+.admin-pager-size[b-506vrsgfhd] {
+    justify-content: flex-end;
+}
+
+.admin-pager-size .form-control[b-506vrsgfhd] {
+    width: 82px;
+}
+
+@media (max-width: 900px) {
+    .admin-pager[b-506vrsgfhd] {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .admin-pager-summary[b-506vrsgfhd],
+    .admin-pager-size[b-506vrsgfhd] {
+        justify-content: center;
+    }
+
+    .admin-pager-controls[b-506vrsgfhd] {
+        flex-wrap: wrap;
+    }
+}
 /* /Components/Shared/ResumenPoligonosPropietario.razor.rz.scp.css */
 .owner-polygon-summary[b-7koatb28mz] {
     background: white;

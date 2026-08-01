@@ -1,62 +1,66 @@
 wwwroot\css\alertas-integracion.css
 wwwroot\css\animations.css
 wwwroot\css\app.css
+wwwroot\css\clima-labores.css
 wwwroot\css\dashboard-ejecutivo.css
 wwwroot\css\mapa-alertas.css
 wwwroot\css\mapa-panel-compacto.css
+wwwroot\css\mapa-paneles-movibles.css
 wwwroot\css\parametrizacion-acceso.css
 wwwroot\css\portal-centro-geoespacial.css
 wwwroot\css\portal-propietario.css
 wwwroot\css\pronostico-clima.css
+wwwroot\css\responsive-layout.css
+wwwroot\css\resumen-territorial-mapa.css
 wwwroot\css\seguimiento-alertas.css
 wwwroot\css\seguridad-web.css
+wwwroot\css\tarjeta-territorial-mapa.css
+wwwroot\css\terreno-poligonos.css
 wwwroot\data\nicaragua.geojson
 wwwroot\favicon.svg
 wwwroot\images\mascota-conatradec.webp
+wwwroot\js\climaLaboresTimeline.js
 wwwroot\js\dispositivosMapa.js
 wwwroot\js\mapa.js
 wwwroot\js\mapaInteligente.js
 wwwroot\js\mapaInteligenteMejoras.js
+wwwroot\js\mapaPanelesMovibles.js
 wwwroot\js\portalCentroGeoespacial.js
 wwwroot\js\portalPropietarioMapa.js
+wwwroot\js\resumenTerritorialMapa.js
 wwwroot\js\session-inactivity.js
-wwwroot\css\clima-labores.css
-wwwroot\js\climaLaboresTimeline.js
-wwwroot\css\terreno-poligonos.css
+wwwroot\js\tarjetaTerritorialMapa.js
 wwwroot\js\terrenoPoligonoEditor.js
 wwwroot\js\terrenoPoligonosMapa.js
-wwwroot\css\resumen-territorial-mapa.css
-wwwroot\js\mapaPanelesMovibles.js
-wwwroot\css\mapa-paneles-movibles.css
-wwwroot\js\resumenTerritorialMapa.js
-wwwroot\css\responsive-layout.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\app.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\dispositivosMapa.js
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\favicon.svg
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\portal-centro-geoespacial.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\mapa-alertas.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\dashboard-ejecutivo.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\mapa-panel-compacto.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\parametrizacion-acceso.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\mapaInteligente.js
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\mapa.js
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\session-inactivity.js
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\mapaInteligenteMejoras.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\alertas-integracion.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\animations.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\responsive-layout.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\app.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\clima-labores.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\dashboard-ejecutivo.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\mapa-alertas.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\mapa-panel-compacto.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\mapa-paneles-movibles.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\parametrizacion-acceso.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\portal-centro-geoespacial.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\portal-propietario.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\pronostico-clima.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\resumen-territorial-mapa.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\seguimiento-alertas.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\seguridad-web.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\terreno-poligonos.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\favicon.svg
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\climaLaboresTimeline.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\dispositivosMapa.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\mapa.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\mapaInteligente.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\mapaInteligenteMejoras.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\mapaPanelesMovibles.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\portalCentroGeoespacial.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\portalPropietarioMapa.js
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\seguridad-web.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\seguimiento-alertas.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\pronostico-clima.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\portal-propietario.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\alertas-integracion.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\clima-labores.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\climaLaboresTimeline.js
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\mapaPanelesMovibles.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\resumenTerritorialMapa.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\session-inactivity.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\terrenoPoligonoEditor.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\terrenoPoligonosMapa.js
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\mapa-paneles-movibles.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\terreno-poligonos.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\resumen-territorial-mapa.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\responsive-layout.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\tarjeta-territorial-mapa.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\tarjetaTerritorialMapa.js

@@ -2,7 +2,6 @@
 @page "/parametrizacion-acceso/propietarios"
 @inject AuthStateService AuthState
 @inject ParametrizacionAccesoService Servicio
-@inject ApiClientService Api
 
 <PageTitle>Propietarios | CONATRADEC</PageTitle>
 
@@ -18,8 +17,8 @@
 
     <div class="page-header-actions">
         <button class="btn-secondary"
-                disabled="@procesando"
-                @onclick="CargarAsync">
+                disabled="@(procesando || cargando)"
+                @onclick="ActualizarAsync">
             <i class="fa-solid fa-rotate"></i>
             Actualizar
         </button>
@@ -66,18 +65,23 @@ else
             <i class="fa-solid fa-magnifying-glass"></i>
             <InputText class="form-control"
                        @bind-Value="buscar"
-                       @bind-Value:event="oninput"
                        placeholder="Buscar por nombre, identificación o correo" />
         </div>
 
         <button class="btn-secondary"
-                @onclick="CargarAsync"
-                disabled="@procesando">
+                @onclick="BuscarAsync"
+                disabled="@(procesando || cargando)">
             Buscar
         </button>
 
+        <button class="btn-link"
+                @onclick="LimpiarBusquedaAsync"
+                disabled="@(procesando || cargando || string.IsNullOrWhiteSpace(buscar))">
+            Limpiar
+        </button>
+
         <div class="toolbar-summary">
-            <strong>@PropietariosFiltrados.Count</strong>
+            <strong>@totalRegistros</strong>
             <span>propietarios activos</span>
         </div>
     </section>
@@ -86,7 +90,7 @@ else
     {
         <LoadingState Mensaje="Cargando propietarios..." />
     }
-    else if (PropietariosFiltrados.Count == 0)
+    else if (propietarios.Count == 0)
     {
         <section class="empty-state panel compact-empty">
             <i class="fa-solid fa-people-roof"></i>
@@ -97,8 +101,7 @@ else
     else
     {
         <section class="user-grid">
-            @foreach (PropietarioAccesoItem propietario
-                      in PropietariosFiltrados)
+            @foreach (PropietarioAccesoItem propietario in propietarios)
             {
                 <article class="user-card panel">
                     <div class="user-card-top">
@@ -165,6 +168,14 @@ else
                 </article>
             }
         </section>
+
+        <Paginador Pagina="pagina"
+                   TotalPaginas="totalPaginas"
+                   TotalRegistros="totalRegistros"
+                   TamanoPagina="tamanoPagina"
+                   Procesando="@(cargando || procesando)"
+                   PaginaCambiada="CambiarPaginaAsync"
+                   TamanoPaginaCambiado="CambiarTamanoPaginaAsync" />
     }
 }
 
@@ -302,8 +313,7 @@ else
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (TerrenoPropietarioItem terreno
-                                      in detalle.Terrenos)
+                            @foreach (TerrenoPropietarioItem terreno in detalle.Terrenos)
                             {
                                 <tr>
                                     <td>@terreno.CodigoTerreno</td>
@@ -391,6 +401,11 @@ else
     private bool modalVisualizar;
     private bool modalEliminar;
 
+    private int pagina = 1;
+    private int tamanoPagina = 12;
+    private int totalRegistros;
+    private int totalPaginas;
+
     private string buscar = string.Empty;
     private string? mensaje;
     private string? error;
@@ -411,16 +426,6 @@ else
         AuthState.TienePermisoEliminar(
             PermisosWeb.Propietarios);
 
-    private List<PropietarioAccesoItem> PropietariosFiltrados =>
-        propietarios
-            .Where(x =>
-                string.IsNullOrWhiteSpace(buscar) ||
-                Contiene(x.NombreCompleto, buscar) ||
-                Contiene(x.Identificacion, buscar) ||
-                Contiene(x.Correo, buscar))
-            .OrderBy(x => x.NombreCompleto)
-            .ToList();
-
     protected override async Task OnInitializedAsync()
     {
         if (PuedeLeer)
@@ -429,20 +434,48 @@ else
             cargando = false;
     }
 
-    private async Task CargarAsync()
+    private Task ActualizarAsync() =>
+        CargarAsync();
+
+    private async Task BuscarAsync()
     {
-        if (!PuedeLeer || procesando)
+        pagina = 1;
+        await CargarAsync();
+    }
+
+    private async Task LimpiarBusquedaAsync()
+    {
+        buscar = string.Empty;
+        pagina = 1;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync(bool limpiarMensajes = true)
+    {
+        if (!PuedeLeer)
             return;
 
         cargando = true;
-        LimpiarMensajes();
+
+        if (limpiarMensajes)
+            LimpiarMensajes();
 
         try
         {
-            propietarios =
-                await Servicio.ListarPropietariosAsync(
+            ResultadoPaginado<PropietarioAccesoItem> resultado =
+                await Servicio.ListarPropietariosPaginadoAsync(
+                    pagina,
+                    tamanoPagina,
                     buscar,
-                    incluirInactivos: false) ?? [];
+                    incluirInactivos: false);
+
+            propietarios = resultado.Items;
+            pagina = resultado.Pagina <= 0 ? 1 : resultado.Pagina;
+            tamanoPagina = resultado.TamanoPagina <= 0
+                ? tamanoPagina
+                : resultado.TamanoPagina;
+            totalRegistros = resultado.TotalRegistros;
+            totalPaginas = resultado.TotalPaginas;
         }
         catch (Exception ex)
         {
@@ -452,6 +485,22 @@ else
         {
             cargando = false;
         }
+    }
+
+    private async Task CambiarPaginaAsync(int nuevaPagina)
+    {
+        if (nuevaPagina == pagina || cargando)
+            return;
+
+        pagina = nuevaPagina;
+        await CargarAsync();
+    }
+
+    private async Task CambiarTamanoPaginaAsync(int nuevoTamano)
+    {
+        tamanoPagina = nuevoTamano;
+        pagina = 1;
+        await CargarAsync();
     }
 
     private void AbrirNuevo()
@@ -467,8 +516,7 @@ else
         modalFormulario = true;
     }
 
-    private void AbrirEditar(
-        PropietarioAccesoItem propietario)
+    private void AbrirEditar(PropietarioAccesoItem propietario)
     {
         if (!PuedeActualizar)
             return;
@@ -487,9 +535,8 @@ else
 
         try
         {
-            detalle =
-                await Servicio.ObtenerPropietarioAsync(
-                    propietario.PropietarioId);
+            detalle = await Servicio.ObtenerPropietarioAsync(
+                propietario.PropietarioId);
 
             modalVisualizar = detalle is not null;
         }
@@ -499,8 +546,7 @@ else
         }
     }
 
-    private void AbrirEliminar(
-        PropietarioAccesoItem propietario)
+    private void AbrirEliminar(PropietarioAccesoItem propietario)
     {
         if (!PuedeEliminar)
             return;
@@ -515,8 +561,7 @@ else
         if (procesando)
             return;
 
-        bool esEdicion =
-            formulario.PropietarioId > 0;
+        bool esEdicion = formulario.PropietarioId > 0;
 
         if (esEdicion && !PuedeActualizar)
             return;
@@ -529,29 +574,24 @@ else
 
         try
         {
-            /*
-             * No existe control visual para Activo. Se mantiene true y la
-             * desactivación solo se realiza mediante DELETE.
-             */
             formulario.Activo = true;
 
             ApiOperacionAccesoRespuesta? respuesta =
                 esEdicion
-                    ? await Servicio
-                        .ActualizarPropietarioAsync(
-                            formulario)
-                    : await Servicio
-                        .CrearPropietarioAsync(
-                            formulario);
+                    ? await Servicio.ActualizarPropietarioAsync(formulario)
+                    : await Servicio.CrearPropietarioAsync(formulario);
 
-            mensaje =
-                respuesta?.Message ??
+            mensaje = respuesta?.Message ??
                 (esEdicion
                     ? "Propietario actualizado correctamente."
                     : "Propietario creado correctamente.");
 
             CerrarModales();
-            await CargarSinBorrarMensajeAsync();
+
+            if (!esEdicion)
+                pagina = 1;
+
+            await CargarAsync(limpiarMensajes: false);
         }
         catch (Exception ex)
         {
@@ -577,23 +617,15 @@ else
 
         try
         {
-            await Api.EliminarAsync(
-                "api/parametrizacion-acceso/" +
-                $"propietarios/{seleccionado.PropietarioId}");
+            await Servicio.EliminarPropietarioAsync(
+                seleccionado.PropietarioId);
 
-            mensaje =
-                "Propietario eliminado correctamente.";
-
+            mensaje = "Propietario eliminado correctamente.";
             CerrarModales();
-            await CargarSinBorrarMensajeAsync();
+            await CargarAsync(limpiarMensajes: false);
         }
         catch (Exception ex)
         {
-            /*
-             * ApiClientService conserva el mensaje del backend. Cuando el
-             * propietario adquirió una relación después de abrir el modal,
-             * se mostrará aquí la validación de terrenos vinculados.
-             */
             error = ex.Message;
         }
         finally
@@ -602,37 +634,16 @@ else
         }
     }
 
-    private async Task CargarSinBorrarMensajeAsync()
-    {
-        try
-        {
-            propietarios =
-                await Servicio.ListarPropietariosAsync(
-                    buscar,
-                    incluirInactivos: false) ?? [];
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-        }
-    }
-
     private static PropietarioAccesoFormulario CrearFormulario(
         PropietarioAccesoItem propietario) =>
         new()
         {
-            PropietarioId =
-                propietario.PropietarioId,
-            Identificacion =
-                propietario.Identificacion,
-            NombreCompleto =
-                propietario.NombreCompleto,
-            Telefono =
-                propietario.Telefono,
-            Correo =
-                propietario.Correo,
-            Direccion =
-                propietario.Direccion,
+            PropietarioId = propietario.PropietarioId,
+            Identificacion = propietario.Identificacion,
+            NombreCompleto = propietario.NombreCompleto,
+            Telefono = propietario.Telefono,
+            Correo = propietario.Correo,
+            Direccion = propietario.Direccion,
             Activo = true
         };
 
@@ -651,25 +662,14 @@ else
         error = null;
     }
 
-    private static bool Contiene(
-        string? texto,
-        string valor) =>
-        !string.IsNullOrWhiteSpace(texto) &&
-        texto.Contains(
-            valor.Trim(),
-            StringComparison.OrdinalIgnoreCase);
-
-    private static string Iniciales(
-        string nombre)
+    private static string Iniciales(string nombre)
     {
-        string[] partes =
-            nombre.Split(
-                ' ',
-                StringSplitOptions.RemoveEmptyEntries);
+        string[] partes = nombre.Split(
+            ' ',
+            StringSplitOptions.RemoveEmptyEntries);
 
         return string.Concat(
             partes.Take(2)
-                .Select(x =>
-                    char.ToUpperInvariant(x[0])));
+                .Select(x => char.ToUpperInvariant(x[0])));
     }
 }

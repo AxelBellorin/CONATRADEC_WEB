@@ -1,4 +1,5 @@
 @page "/usuarios"
+@implements IDisposable
 @inject AuthStateService AuthState
 @inject UsuarioService UsuarioService
 @inject NavigationManager Navigation
@@ -21,7 +22,7 @@
 
         <button class="btn-secondary"
                 @onclick="CargarTodo"
-                disabled="@procesando">
+                disabled="@(procesando || cargando)">
             <i class="fa-solid fa-rotate"></i>
             Actualizar
         </button>
@@ -55,14 +56,14 @@
 <section class="panel toolbar-panel">
     <div class="search-box">
         <i class="fa-solid fa-magnifying-glass"></i>
-        <InputText class="form-control"
-                   @bind-Value="buscar"
-                   @bind-Value:event="oninput"
-                   placeholder="Buscar por nombre, usuario, correo, identificación o rol" />
+        <input class="form-control"
+               value="@buscar"
+               @oninput="ProgramarBusqueda"
+               placeholder="Buscar por nombre, usuario, correo, identificación o rol" />
     </div>
 
     <div class="toolbar-summary">
-        <strong>@UsuariosFiltrados.Count</strong>
+        <strong>@totalRegistros</strong>
         <span>usuarios activos</span>
     </div>
 </section>
@@ -71,7 +72,7 @@
 {
     <LoadingState Mensaje="Cargando usuarios..." />
 }
-else if (UsuariosFiltrados.Count == 0)
+else if (usuarios.Count == 0)
 {
     <section class="empty-state panel compact-empty">
         <i class="fa-solid fa-users-slash"></i>
@@ -82,7 +83,7 @@ else if (UsuariosFiltrados.Count == 0)
 else
 {
     <section class="user-grid">
-        @foreach (UsuarioListadoItem usuario in UsuariosFiltrados)
+        @foreach (UsuarioListadoItem usuario in usuarios)
         {
             <article class="user-card panel">
                 <div class="user-card-top">
@@ -148,6 +149,14 @@ else
             </article>
         }
     </section>
+
+    <Paginador Pagina="pagina"
+               TotalPaginas="totalPaginas"
+               TotalRegistros="totalRegistros"
+               TamanoPagina="tamanoPagina"
+               Procesando="@(cargando || procesando)"
+               PaginaCambiada="CambiarPagina"
+               TamanoPaginaCambiado="CambiarTamanoPagina" />
 }
 
 @if (modalCrear)
@@ -283,14 +292,21 @@ else
 
     private bool cargando = true;
     private bool procesando;
+    private bool catalogosCargados;
     private bool modalCrear;
     private bool modalEditar;
     private bool modalVisualizar;
     private bool modalEliminar;
 
+    private int pagina = 1;
+    private int tamanoPagina = 12;
+    private int totalRegistros;
+    private int totalPaginas;
+
     private string buscar = string.Empty;
     private string? mensaje;
     private string? error;
+    private CancellationTokenSource? busquedaCts;
 
     private bool PuedeAgregar =>
         AuthState.TienePermisoAgregar("UsuarioPage") ||
@@ -303,17 +319,6 @@ else
     private bool PuedeEliminar =>
         AuthState.TienePermisoEliminar("UsuarioPage") ||
         AuthState.TienePermisoEliminar("usuarioPage");
-
-    private List<UsuarioListadoItem> UsuariosFiltrados => usuarios
-        .Where(usuario =>
-            string.IsNullOrWhiteSpace(buscar) ||
-            Contiene(usuario.NombreCompletoUsuario, buscar) ||
-            Contiene(usuario.NombreUsuario, buscar) ||
-            Contiene(usuario.CorreoUsuario, buscar) ||
-            Contiene(usuario.IdentificacionUsuario, buscar) ||
-            Contiene(usuario.RolNombre, buscar) ||
-            Contiene(usuario.ProcedenciaNombre, buscar))
-        .ToList();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -337,9 +342,23 @@ else
 
         try
         {
-            usuarios = await UsuarioService.ListarAsync();
-            roles = await UsuarioService.ListarRolesAsync();
-            municipios = await UsuarioService.ListarMunicipiosAsync();
+            Task rolesTask = Task.CompletedTask;
+            Task municipiosTask = Task.CompletedTask;
+
+            if (!catalogosCargados)
+            {
+                rolesTask = CargarRoles();
+                municipiosTask = CargarMunicipios();
+            }
+
+            Task paginaTask = CargarUsuarios(false);
+
+            await Task.WhenAll(
+                rolesTask,
+                municipiosTask,
+                paginaTask);
+
+            catalogosCargados = true;
         }
         catch (Exception ex)
         {
@@ -349,6 +368,84 @@ else
         {
             cargando = false;
         }
+    }
+
+    private async Task CargarRoles() =>
+        roles = await UsuarioService.ListarRolesAsync();
+
+    private async Task CargarMunicipios() =>
+        municipios = await UsuarioService.ListarMunicipiosAsync();
+
+    private async Task CargarUsuarios(bool controlarCarga = true)
+    {
+        if (controlarCarga)
+            cargando = true;
+
+        try
+        {
+            ResultadoPaginado<UsuarioListadoItem> resultado =
+                await UsuarioService.ListarPaginadoAsync(
+                    pagina,
+                    tamanoPagina,
+                    buscar);
+
+            usuarios = resultado.Items;
+            pagina = resultado.Pagina <= 0 ? 1 : resultado.Pagina;
+            tamanoPagina = resultado.TamanoPagina <= 0
+                ? tamanoPagina
+                : resultado.TamanoPagina;
+            totalRegistros = resultado.TotalRegistros;
+            totalPaginas = resultado.TotalPaginas;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            if (controlarCarga)
+                cargando = false;
+        }
+    }
+
+    private async Task ProgramarBusqueda(ChangeEventArgs args)
+    {
+        buscar = args.Value?.ToString() ?? string.Empty;
+
+        busquedaCts?.Cancel();
+        busquedaCts?.Dispose();
+        busquedaCts = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(
+                350,
+                busquedaCts.Token);
+
+            pagina = 1;
+            LimpiarMensajes();
+            await CargarUsuarios();
+        }
+        catch (OperationCanceledException)
+        {
+            // Se escribió otro carácter antes de finalizar el retraso.
+        }
+    }
+
+    private async Task CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina == pagina || cargando)
+            return;
+
+        pagina = nuevaPagina;
+        await CargarUsuarios();
+    }
+
+    private async Task CambiarTamanoPagina(int nuevoTamano)
+    {
+        tamanoPagina = nuevoTamano;
+        pagina = 1;
+        await CargarUsuarios();
     }
 
     private void AbrirUsuariosInactivos() =>
@@ -408,7 +505,8 @@ else
 
             mensaje = "Usuario creado correctamente.";
             CerrarModales();
-            await CargarUsuariosSinBorrarMensaje();
+            pagina = 1;
+            await CargarUsuarios();
         }
         catch (Exception ex)
         {
@@ -441,7 +539,7 @@ else
 
             mensaje = "Usuario actualizado correctamente.";
             CerrarModales();
-            await CargarUsuariosSinBorrarMensaje();
+            await CargarUsuarios();
         }
         catch (Exception ex)
         {
@@ -466,7 +564,7 @@ else
             await UsuarioService.DesactivarAsync(seleccionado.UsuarioId);
             mensaje = "Usuario desactivado correctamente.";
             CerrarModales();
-            await CargarUsuariosSinBorrarMensaje();
+            await CargarUsuarios();
         }
         catch (Exception ex)
         {
@@ -475,18 +573,6 @@ else
         finally
         {
             procesando = false;
-        }
-    }
-
-    private async Task CargarUsuariosSinBorrarMensaje()
-    {
-        try
-        {
-            usuarios = await UsuarioService.ListarAsync();
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
         }
     }
 
@@ -770,6 +856,9 @@ else
     private static string FechaTexto(DateOnly? fecha) =>
         fecha?.ToString("dd/MM/yyyy") ?? "No registrada";
 
-    private static bool Contiene(string? valor, string texto) =>
-        valor?.Contains(texto.Trim(), StringComparison.OrdinalIgnoreCase) == true;
+    public void Dispose()
+    {
+        busquedaCts?.Cancel();
+        busquedaCts?.Dispose();
+    }
 }

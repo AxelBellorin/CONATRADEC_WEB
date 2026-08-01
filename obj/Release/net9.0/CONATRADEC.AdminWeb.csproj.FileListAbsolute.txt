@@ -150,6 +150,9 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\comp
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\5gg9nb1hz0-{0}-gd1h8kn1v2-gd1h8kn1v2.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\1pzfdh27hz-{0}-5bsmnc10t1-5bsmnc10t1.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\89ux2kv4cx-{0}-510rwnnwoc-510rwnnwoc.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\fkskmko7yw-{0}-t6cmpqtfj2-t6cmpqtfj2.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\722bys1tf3-{0}-civ27ilc3o-civ27ilc3o.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\bh50ruxdel-{0}-civ27ilc3o-civ27ilc3o.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\5v1vlaheh5-{0}-vjogyc8xv7-vjogyc8xv7.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\gre11vclvp-{0}-u2evv4os4q-u2evv4os4q.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\fkskmko7yw-{0}-qnckdzcvdc-qnckdzcvdc.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Shared\Paginador.razor.rz.scp.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\722bys1tf3-{0}-z4n9dgfc6a-z4n9dgfc6a.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\bh50ruxdel-{0}-z4n9dgfc6a-z4n9dgfc6a.gz

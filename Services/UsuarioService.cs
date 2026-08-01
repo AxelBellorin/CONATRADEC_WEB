@@ -12,11 +12,47 @@ public sealed class UsuarioService
         this.apiClient = apiClient;
     }
 
+    /// <summary>
+    /// Endpoint histórico conservado para pantallas que todavía necesitan
+    /// descargar la lista completa, como la administración de inactivos.
+    /// </summary>
     public async Task<List<UsuarioListadoItem>> ListarAsync(
         CancellationToken cancellationToken = default) =>
         await apiClient.GetAsync<List<UsuarioListadoItem>>(
             "api/usuarios/listar",
             cancellationToken) ?? [];
+
+    /// <summary>
+    /// Listado paginado utilizado por la pantalla principal de usuarios.
+    /// </summary>
+    public async Task<ResultadoPaginado<UsuarioListadoItem>>
+        ListarPaginadoAsync(
+            int pagina,
+            int tamanoPagina,
+            string? buscar = null,
+            CancellationToken cancellationToken = default)
+    {
+        string ruta =
+            "api/usuarios/paginado" +
+            $"?pagina={Math.Max(1, pagina)}" +
+            $"&tamanoPagina={Math.Clamp(tamanoPagina, 6, 100)}";
+
+        if (!string.IsNullOrWhiteSpace(buscar))
+        {
+            ruta +=
+                $"&buscar={Uri.EscapeDataString(buscar.Trim())}";
+        }
+
+        return await apiClient.GetAsync<
+                   ResultadoPaginado<UsuarioListadoItem>>(
+                       ruta,
+                       cancellationToken) ??
+               new ResultadoPaginado<UsuarioListadoItem>
+               {
+                   Pagina = Math.Max(1, pagina),
+                   TamanoPagina = tamanoPagina
+               };
+    }
 
     public async Task<UsuarioListadoItem?> ObtenerAsync(
         int usuarioId,

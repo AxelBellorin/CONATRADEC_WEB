@@ -28,6 +28,34 @@ public sealed class ParametrizacionAccesoService
             cancellationToken);
     }
 
+    public async Task<ResultadoPaginado<PropietarioAccesoItem>>
+        ListarPropietariosPaginadoAsync(
+            int pagina,
+            int tamanoPagina,
+            string? buscar = null,
+            bool incluirInactivos = false,
+            CancellationToken cancellationToken = default)
+    {
+        string ruta =
+            "api/parametrizacion-acceso/propietarios/paginado" +
+            $"?pagina={Math.Max(1, pagina)}" +
+            $"&tamanoPagina={Math.Clamp(tamanoPagina, 6, 100)}" +
+            $"&incluirInactivos={incluirInactivos.ToString().ToLowerInvariant()}";
+
+        if (!string.IsNullOrWhiteSpace(buscar))
+            ruta += $"&buscar={Uri.EscapeDataString(buscar.Trim())}";
+
+        return await api.GetAsync<
+                   ResultadoPaginado<PropietarioAccesoItem>>(
+                       ruta,
+                       cancellationToken) ??
+               new ResultadoPaginado<PropietarioAccesoItem>
+               {
+                   Pagina = Math.Max(1, pagina),
+                   TamanoPagina = tamanoPagina
+               };
+    }
+
     public Task<PropietarioDetalleRespuesta?> ObtenerPropietarioAsync(
         int propietarioId,
         CancellationToken cancellationToken = default) =>

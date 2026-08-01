@@ -1,0 +1,51 @@
+.admin-pager {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto minmax(160px, 1fr);
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.25rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--border-color, #d9e2df);
+    border-radius: 16px;
+    background: var(--surface-color, #ffffff);
+}
+
+.admin-pager-summary,
+.admin-pager-current,
+.admin-pager-size {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    color: var(--text-muted, #64748b);
+}
+
+.admin-pager-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+}
+
+.admin-pager-size {
+    justify-content: flex-end;
+}
+
+.admin-pager-size .form-control {
+    width: 82px;
+}
+
+@media (max-width: 900px) {
+    .admin-pager {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .admin-pager-summary,
+    .admin-pager-size {
+        justify-content: center;
+    }
+
+    .admin-pager-controls {
+        flex-wrap: wrap;
+    }
+}

@@ -18,14 +18,10 @@ public sealed class SeguimientoAlertasService
             string? estado = null,
             CancellationToken cancellationToken = default)
     {
-        var parametros =
-            new List<string>();
+        var parametros = new List<string>();
 
         if (terrenoId.HasValue)
-        {
-            parametros.Add(
-                $"terrenoId={terrenoId.Value}");
-        }
+            parametros.Add($"terrenoId={terrenoId.Value}");
 
         if (!string.IsNullOrWhiteSpace(estado))
         {
@@ -37,15 +33,60 @@ public sealed class SeguimientoAlertasService
             "api/seguimiento-alertas-agricolas";
 
         if (parametros.Count > 0)
-        {
-            ruta +=
-                "?" + string.Join("&", parametros);
-        }
+            ruta += "?" + string.Join("&", parametros);
 
         return await api.GetAsync<
             List<SeguimientoAlertaItem>>(
                 ruta,
                 cancellationToken) ?? [];
+    }
+
+    public async Task<SeguimientosPaginados>
+        ListarPaginadoAsync(
+            int pagina,
+            int tamanoPagina,
+            string? buscar = null,
+            string? estado = null,
+            int? responsableId = null,
+            int? terrenoId = null,
+            CancellationToken cancellationToken = default)
+    {
+        var parametros = new List<string>
+        {
+            $"pagina={Math.Max(1, pagina)}",
+            $"tamanoPagina={Math.Clamp(tamanoPagina, 6, 100)}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(buscar))
+        {
+            parametros.Add(
+                $"buscar={Uri.EscapeDataString(buscar.Trim())}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            parametros.Add(
+                $"estado={Uri.EscapeDataString(estado.Trim())}");
+        }
+
+        if (responsableId.HasValue)
+            parametros.Add($"responsableId={responsableId.Value}");
+
+        if (terrenoId.HasValue)
+            parametros.Add($"terrenoId={terrenoId.Value}");
+
+        string ruta =
+            "api/seguimiento-alertas-agricolas/paginado?" +
+            string.Join("&", parametros);
+
+        return await api.GetAsync<SeguimientosPaginados>(
+                   ruta,
+                   cancellationToken) ??
+               new SeguimientosPaginados
+               {
+                   Pagina = Math.Max(1, pagina),
+                   TamanoPagina = tamanoPagina
+               };
     }
 
     public Task<SeguimientoAlertaItem?> ObtenerAsync(

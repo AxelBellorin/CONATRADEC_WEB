@@ -1,0 +1,452 @@
+/*
+ * CONATRADEC
+ * Tarjeta territorial enriquecida.
+ */
+
+.geo-territorial-rich-popup
+    .leaflet-popup-content-wrapper {
+    border-radius: 17px;
+    overflow: hidden;
+    padding: 0;
+}
+
+.geo-territorial-rich-popup
+    .leaflet-popup-content {
+    margin: 0;
+    min-width: 350px;
+    width: auto !important;
+}
+
+.geo-territorial-rich-popup
+    .leaflet-popup-tip {
+    background: #fff;
+}
+
+.geo-territory-card {
+    color: #334155;
+    font-family:
+        Inter,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+    width: 100%;
+}
+
+.geo-territory-card > header {
+    align-items: flex-start;
+    background:
+        linear-gradient(
+            145deg,
+            #eef6f3,
+            #fff);
+    border-bottom: 1px solid #dce7e2;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 16px;
+}
+
+.geo-territory-card > header.critical {
+    background:
+        linear-gradient(
+            145deg,
+            #fff1f1,
+            #fff);
+}
+
+.geo-territory-card > header.attention {
+    background:
+        linear-gradient(
+            145deg,
+            #fff8eb,
+            #fff);
+}
+
+.geo-territory-card > header.missing {
+    background:
+        linear-gradient(
+            145deg,
+            #f1f5f9,
+            #fff);
+}
+
+.geo-territory-card > header > div {
+    min-width: 0;
+}
+
+.geo-territory-card > header span {
+    color: #62746e;
+    display: block;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+.geo-territory-card > header h3 {
+    color: #213f37;
+    font-size: 19px;
+    line-height: 1.15;
+    margin: 3px 0 4px;
+    overflow-wrap: anywhere;
+}
+
+.geo-territory-card > header p {
+    color: #6b7b76;
+    font-size: 10px;
+    margin: 0;
+}
+
+.geo-territory-card > header > b {
+    align-items: center;
+    background: #e8f3ef;
+    border-radius: 999px;
+    color: #2f6f5f;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 9px;
+    gap: 5px;
+    padding: 7px 9px;
+}
+
+.geo-territory-card > header.critical > b {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.geo-territory-card > header.attention > b {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.geo-territory-card > header.missing > b {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.geo-territory-main-stats {
+    display: grid;
+    gap: 7px;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    padding: 13px 14px 8px;
+}
+
+.geo-territory-main-stats > span {
+    background: #f5f8f7;
+    border: 1px solid #e5ece9;
+    border-radius: 10px;
+    display: grid;
+    grid-template-columns:
+        24px minmax(0, 1fr);
+    grid-template-rows:
+        auto auto;
+    min-width: 0;
+    padding: 8px;
+}
+
+.geo-territory-main-stats > span > i {
+    align-self: center;
+    color: #3b655b;
+    grid-row: 1 / 3;
+    justify-self: center;
+}
+
+.geo-territory-main-stats small {
+    color: #788781;
+    font-size: 8px;
+}
+
+.geo-territory-main-stats strong {
+    color: #29483e;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.geo-territory-coverage {
+    border-bottom: 1px solid #edf1ef;
+    border-top: 1px solid #edf1ef;
+    margin: 5px 14px 0;
+    padding: 11px 0;
+}
+
+.geo-territory-coverage > div:first-child {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+}
+
+.geo-territory-coverage strong {
+    color: #40564e;
+    font-size: 10px;
+}
+
+.geo-territory-coverage span,
+.geo-territory-coverage small {
+    color: #7b8984;
+    font-size: 8px;
+}
+
+.geo-territory-progress {
+    background: #e6ece9;
+    border-radius: 999px;
+    height: 7px;
+    margin: 7px 0 5px;
+    overflow: hidden;
+}
+
+.geo-territory-progress i {
+    background:
+        linear-gradient(
+            90deg,
+            #4d796e,
+            #2f5249);
+    border-radius: inherit;
+    display: block;
+    height: 100%;
+}
+
+.geo-territory-distribution {
+    display: grid;
+    gap: 6px;
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+    padding: 12px 14px;
+}
+
+.geo-territory-distribution > span {
+    border-radius: 9px;
+    display: grid;
+    gap: 1px;
+    padding: 7px 5px;
+    text-align: center;
+}
+
+.geo-territory-distribution small {
+    font-size: 7px;
+}
+
+.geo-territory-distribution strong {
+    font-size: 13px;
+}
+
+.geo-territory-distribution em {
+    font-size: 7px;
+    font-style: normal;
+}
+
+.geo-territory-distribution .critical {
+    background: #fff1f1;
+    color: #b91c1c;
+}
+
+.geo-territory-distribution .attention {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.geo-territory-distribution .normal {
+    background: #ecfdf3;
+    color: #15803d;
+}
+
+.geo-territory-distribution .missing {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.geo-territory-soil,
+.geo-territory-findings {
+    border-top: 1px solid #edf1ef;
+    margin: 0 14px;
+    padding: 12px 0;
+}
+
+.geo-territory-section-title {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.geo-territory-section-title strong {
+    color: #40564e;
+    font-size: 9px;
+}
+
+.geo-territory-section-title strong i {
+    color: #3b655b;
+    margin-right: 4px;
+}
+
+.geo-territory-section-title small {
+    color: #84918c;
+    font-size: 7px;
+}
+
+.geo-territory-soil > div:last-child {
+    display: grid;
+    gap: 6px;
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+}
+
+.geo-territory-soil > div:last-child span {
+    background: #f5f8f7;
+    border-radius: 8px;
+    display: grid;
+    gap: 2px;
+    padding: 7px;
+}
+
+.geo-territory-soil small {
+    color: #7b8984;
+    font-size: 7px;
+}
+
+.geo-territory-soil strong {
+    color: #29483e;
+    font-size: 11px;
+}
+
+.geo-territory-soil.empty {
+    align-items: center;
+    color: #7a8883;
+    display: flex;
+    font-size: 8px;
+    gap: 7px;
+}
+
+.geo-territory-findings > div:last-child {
+    display: grid;
+    gap: 5px;
+}
+
+.geo-territory-findings > div:last-child span {
+    align-items: center;
+    background: #fff8eb;
+    border-radius: 8px;
+    color: #8a5a16;
+    display: flex;
+    font-size: 8px;
+    justify-content: space-between;
+    padding: 7px 8px;
+}
+
+.geo-territory-findings em {
+    background: #ffedd5;
+    border-radius: 999px;
+    color: #c2410c;
+    font-style: normal;
+    font-weight: 800;
+    padding: 3px 6px;
+}
+
+.geo-territory-findings.clear {
+    align-items: center;
+    color: #4f7a6d;
+    display: flex;
+    font-size: 8px;
+    gap: 7px;
+}
+
+.geo-territory-card > footer {
+    background: #f8faf9;
+    border-top: 1px solid #e8eeeb;
+    color: #65756f;
+    display: grid;
+    gap: 3px;
+    padding: 10px 14px 12px;
+}
+
+.geo-territory-card > footer span {
+    font-size: 8px;
+}
+
+.geo-territory-card > footer small {
+    color: #89958f;
+    font-size: 7px;
+    line-height: 1.35;
+}
+
+.geo-territory-empty {
+    align-items: center;
+    display: grid;
+    gap: 5px;
+    justify-items: center;
+    min-height: 150px;
+    padding: 22px;
+    text-align: center;
+}
+
+.geo-territory-empty i {
+    color: #3b655b;
+    font-size: 28px;
+}
+
+.geo-territory-empty strong {
+    color: #29483e;
+}
+
+.geo-territory-empty span {
+    color: #74827d;
+    font-size: 10px;
+    line-height: 1.45;
+    max-width: 260px;
+}
+
+.geo-territory-tooltip {
+    border: 0 !important;
+    padding: 0 !important;
+}
+
+.geo-territory-hover {
+    display: grid;
+    gap: 2px;
+    min-width: 150px;
+}
+
+.geo-territory-hover strong {
+    color: #fff;
+    font-size: 10px;
+}
+
+.geo-territory-hover span {
+    color: rgba(255, 255, 255, .88);
+    font-size: 8px;
+}
+
+.geo-territory-hover small {
+    color: rgba(255, 255, 255, .68);
+    font-size: 7px;
+}
+
+.geo-territory-hover.empty span {
+    max-width: 190px;
+}
+
+@media (max-width: 680px) {
+    .geo-territorial-rich-popup
+        .leaflet-popup-content {
+        min-width:
+            min(320px, calc(100vw - 54px));
+    }
+
+    .geo-territory-card > header {
+        padding: 13px;
+    }
+
+    .geo-territory-main-stats,
+    .geo-territory-distribution {
+        padding-left: 11px;
+        padding-right: 11px;
+    }
+
+    .geo-territory-soil,
+    .geo-territory-findings,
+    .geo-territory-coverage {
+        margin-left: 11px;
+        margin-right: 11px;
+    }
+}

@@ -304,3 +304,33 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/* ================================================================
+   EXCEPCIÓN DE RENDERIZADO PARA LEAFLET
+   ================================================================ */
+
+/*
+ * Leaflet crea canvas y SVG más grandes que el viewport visible para
+ * renderizar polígonos, límites y círculos durante el desplazamiento.
+ *
+ * La regla responsiva general `max-width: 100%` no debe aplicarse dentro
+ * del mapa porque altera el sistema de coordenadas del renderer.
+ */
+.page-content .leaflet-container canvas,
+.page-content .leaflet-container svg,
+.page-content .leaflet-container img {
+    max-height: none !important;
+    max-width: none !important;
+}
+
+/*
+ * Conserva el posicionamiento absoluto que Leaflet necesita para sus
+ * renderizadores de departamentos, municipios, suelos y alertas.
+ */
+.page-content .leaflet-container
+    .leaflet-pane > canvas,
+.page-content .leaflet-container
+    .leaflet-pane > svg {
+    position: absolute;
+}
