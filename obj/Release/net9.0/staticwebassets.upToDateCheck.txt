@@ -1,7 +1,6 @@
 wwwroot\css\alertas-integracion.css
 wwwroot\css\animations.css
 wwwroot\css\app.css
-wwwroot\css\clima-labores.css
 wwwroot\css\dashboard-ejecutivo.css
 wwwroot\css\mapa-alertas.css
 wwwroot\css\mapa-panel-compacto.css
@@ -14,7 +13,6 @@ wwwroot\css\seguridad-web.css
 wwwroot\data\nicaragua.geojson
 wwwroot\favicon.svg
 wwwroot\images\mascota-conatradec.webp
-wwwroot\js\climaLaboresTimeline.js
 wwwroot\js\dispositivosMapa.js
 wwwroot\js\mapa.js
 wwwroot\js\mapaInteligente.js
@@ -22,6 +20,8 @@ wwwroot\js\mapaInteligenteMejoras.js
 wwwroot\js\portalCentroGeoespacial.js
 wwwroot\js\portalPropietarioMapa.js
 wwwroot\js\session-inactivity.js
+wwwroot\css\clima-labores.css
+wwwroot\js\climaLaboresTimeline.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\alertas-integracion.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\animations.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\app.css
