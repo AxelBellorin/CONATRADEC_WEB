@@ -1,0 +1,1095 @@
+@page "/parametros-agronomicos/extraccion-nutrientes"
+@page "/extraccion-nutrientes"
+@implements IDisposable
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Extracción de nutrientes | CONATRADEC</PageTitle>
+
+<section class="ex-page">
+    <header class="ex-hero">
+        <div>
+            <span class="ex-eyebrow">Parámetros agronómicos</span>
+            <h1>Extracción de nutrientes del café</h1>
+            <p>
+                Define cuántas libras de cada nutriente exporta la cosecha por
+                cada quintal de café oro producido.
+            </p>
+        </div>
+
+        <div class="ex-actions">
+            @if (PuedeActualizar)
+            {
+                <button class="ex-button secondary"
+                        disabled="@procesando"
+                        @onclick="AbrirEliminadosAsync">
+                    <i class="fa-solid fa-trash-arrow-up"></i>
+                    Eliminados
+                </button>
+            }
+
+            <button class="ex-button secondary"
+                    disabled="@procesando"
+                    @onclick="ActualizarAsync">
+                <i class="fa-solid fa-rotate"></i>
+                Actualizar
+            </button>
+
+            @if (PuedeAgregar)
+            {
+                <button class="ex-button primary"
+                        disabled="@procesando"
+                        @onclick="AbrirCrear">
+                    <i class="fa-solid fa-plus"></i>
+                    Nuevo parámetro
+                </button>
+            }
+        </div>
+    </header>
+
+    <aside class="ex-system-note">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+            <strong>Configuración actual del motor</strong>
+            <span>
+                Estos valores se aplican al cultivo de café y se multiplican
+                por los quintales oro esperados para calcular la extracción
+                por producción. La unidad administrada es lb/QQ oro.
+            </span>
+        </div>
+    </aside>
+
+    @if (!string.IsNullOrWhiteSpace(mensaje))
+    {
+        <div class="ex-alert success">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>@mensaje</span>
+            <button @onclick="LimpiarMensajes" aria-label="Cerrar mensaje">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="ex-alert error">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>@error</span>
+            <button @onclick="LimpiarMensajes" aria-label="Cerrar error">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    }
+
+    @if (!PuedeLeer)
+    {
+        <section class="ex-empty">
+            <i class="fa-solid fa-lock"></i>
+            <h2>Sin permiso de lectura</h2>
+            <p>Su rol no puede consultar los parámetros de extracción.</p>
+        </section>
+    }
+    else
+    {
+        <section class="ex-summary-grid">
+            <article>
+                <i class="fa-solid fa-list-check"></i>
+                <div>
+                    <small>Parámetros activos</small>
+                    <strong>@pagina.TotalRegistros</strong>
+                </div>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-chart-line"></i>
+                <div>
+                    <small>Promedio de esta página</small>
+                    <strong>@PromedioPagina.ToString("N4") lb/QQ</strong>
+                </div>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-arrow-down"></i>
+                <div>
+                    <small>Menor valor visible</small>
+                    <strong>@MinimoPagina.ToString("N4") lb/QQ</strong>
+                </div>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-arrow-up"></i>
+                <div>
+                    <small>Mayor valor visible</small>
+                    <strong>@MaximoPagina.ToString("N4") lb/QQ</strong>
+                </div>
+            </article>
+        </section>
+
+        <section class="ex-toolbar">
+            <div class="ex-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="search"
+                       maxlength="150"
+                       placeholder="Buscar elemento, símbolo o descripción"
+                       @bind="buscar"
+                       @bind:event="oninput" />
+            </div>
+
+            <button class="ex-button primary"
+                    disabled="@procesando"
+                    @onclick="BuscarAsync">
+                Buscar
+            </button>
+
+            <button class="ex-button ghost"
+                    disabled="@procesando"
+                    @onclick="LimpiarBusquedaAsync">
+                Limpiar
+            </button>
+        </section>
+
+        @if (cargando)
+        {
+            <LoadingState Mensaje="Cargando parámetros de extracción..." />
+        }
+        else if (pagina.Items.Count == 0)
+        {
+            <section class="ex-empty">
+                <i class="fa-solid fa-arrow-up-right-dots"></i>
+                <h2>No se encontraron parámetros</h2>
+                <p>
+                    Registre la extracción correspondiente a los elementos
+                    utilizados por el requerimiento anual.
+                </p>
+            </section>
+        }
+        else
+        {
+            <section class="ex-grid">
+                @foreach (ExtraccionNutrienteItemModel item in pagina.Items)
+                {
+                    <article class="ex-card">
+                        <header>
+                            <div class="ex-symbol">
+                                @item.SimboloElementoQuimico
+                            </div>
+
+                            <div>
+                                <span>Elemento químico</span>
+                                <h3>@item.NombreElementoQuimico</h3>
+                            </div>
+
+                            <b class="ex-state">Activo</b>
+                        </header>
+
+                        <div class="ex-value">
+                            <span>Extracción por producción</span>
+                            <strong>
+                                @item.CantidadExtraidaPorQQOro.ToString("N4")
+                                <small>lb/QQ oro</small>
+                            </strong>
+                        </div>
+
+                        <p>
+                            @(string.IsNullOrWhiteSpace(item.DescripcionParametro)
+                                ? "Sin descripción registrada."
+                                : item.DescripcionParametro)
+                        </p>
+
+                        <footer>
+                            <button class="ex-icon view"
+                                    title="Ver detalle"
+                                    @onclick="() => AbrirVer(item)">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+
+                            @if (PuedeActualizar)
+                            {
+                                <button class="ex-icon edit"
+                                        title="Editar"
+                                        @onclick="() => AbrirEditar(item)">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                            }
+
+                            @if (PuedeEliminar)
+                            {
+                                <button class="ex-icon delete"
+                                        title="Desactivar"
+                                        @onclick="() => EliminarAsync(item)">
+                                    <i class="fa-solid fa-ban"></i>
+                                </button>
+                            }
+                        </footer>
+                    </article>
+                }
+            </section>
+
+            <Paginador Pagina="@pagina.PaginaActual"
+                       TotalPaginas="@pagina.TotalPaginas"
+                       TotalRegistros="@pagina.TotalRegistros"
+                       TamanoPagina="@pagina.TamanoPagina"
+                       Procesando="@procesando"
+                       PaginaCambiada="CambiarPaginaAsync"
+                       TamanoPaginaCambiado="CambiarTamanoPaginaAsync" />
+        }
+    }
+</section>
+
+@if (mostrarFormulario)
+{
+    <div class="ex-modal-backdrop"
+         @onclick="CerrarFormularioAsync">
+        <article class="ex-modal"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>Extracción del café</span>
+                    <h2>@TituloFormulario</h2>
+                </div>
+
+                <button disabled="@procesando"
+                        aria-label="Cerrar"
+                        @onclick="CerrarFormularioAsync">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            @if (modoFormulario == "ver")
+            {
+                <div class="ex-modal-body">
+                    <section class="ex-view-grid">
+                        <article>
+                            <small>Elemento</small>
+                            <strong>@ElementoFormularioTexto</strong>
+                        </article>
+
+                        <article>
+                            <small>Cantidad extraída</small>
+                            <strong>
+                                @formulario.CantidadExtraidaPorQQOro.ToString("N4")
+                                lb/QQ oro
+                            </strong>
+                        </article>
+
+                        <article class="full">
+                            <small>Descripción</small>
+                            <span>@formulario.DescripcionParametro</span>
+                        </article>
+                    </section>
+                </div>
+
+                <footer>
+                    <button class="ex-button secondary"
+                            @onclick="CerrarFormularioAsync">
+                        Cerrar
+                    </button>
+                </footer>
+            }
+            else
+            {
+                <EditForm Model="formulario"
+                          OnValidSubmit="GuardarAsync"
+                          FormName="extraccion-nutriente-form">
+                    <DataAnnotationsValidator />
+
+                    <div class="ex-modal-body">
+                        <div class="ex-form-note">
+                            Cada elemento puede tener solamente un parámetro
+                            activo. La cantidad se expresa en libras extraídas
+                            por quintal de café oro.
+                        </div>
+
+                        <div class="ex-form-grid">
+                            <label>
+                                <span>Elemento químico *</span>
+                                <InputSelect class="ex-control"
+                                             @bind-Value="formulario.ElementoQuimicosId">
+                                    <option value="0">Seleccione</option>
+                                    @foreach (ExtraccionElementoOptionModel elemento
+                                        in ElementosDisponiblesFormulario)
+                                    {
+                                        <option value="@elemento.ElementoQuimicosId">
+                                            @elemento.Texto
+                                        </option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="() => formulario.ElementoQuimicosId" />
+                            </label>
+
+                            <label>
+                                <span>Cantidad extraída (lb/QQ oro) *</span>
+                                <InputNumber class="ex-control"
+                                             step="0.0001"
+                                             min="0.0001"
+                                             @bind-Value="formulario.CantidadExtraidaPorQQOro" />
+                                <ValidationMessage For="() => formulario.CantidadExtraidaPorQQOro" />
+                            </label>
+
+                            <label class="full">
+                                <span>Descripción *</span>
+                                <InputTextArea class="ex-control"
+                                               rows="3"
+                                               maxlength="150"
+                                               @bind-Value="formulario.DescripcionParametro" />
+                                <ValidationMessage For="() => formulario.DescripcionParametro" />
+                            </label>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(errorFormulario))
+                        {
+                            <div class="ex-form-error">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                @errorFormulario
+                            </div>
+                        }
+                    </div>
+
+                    <footer>
+                        <button type="button"
+                                class="ex-button ghost"
+                                disabled="@procesando"
+                                @onclick="CerrarFormularioAsync">
+                            Cancelar
+                        </button>
+
+                        <button type="submit"
+                                class="ex-button primary"
+                                disabled="@procesando">
+                            <i class="fa-solid @(procesando
+                                ? "fa-spinner fa-spin"
+                                : "fa-floppy-disk")"></i>
+                            @(procesando ? "Guardando..." : "Guardar")
+                        </button>
+                    </footer>
+                </EditForm>
+            }
+        </article>
+    </div>
+}
+
+@if (mostrarEliminados)
+{
+    <div class="ex-modal-backdrop"
+         @onclick="CerrarEliminados">
+        <article class="ex-modal inactive"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>Papelera administrativa</span>
+                    <h2>Parámetros eliminados</h2>
+                </div>
+
+                <button disabled="@procesando"
+                        aria-label="Cerrar"
+                        @onclick="CerrarEliminados">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div class="ex-modal-body">
+                <div class="ex-form-note">
+                    Reactivar conserva el mismo identificador histórico. El
+                    elemento relacionado debe continuar activo.
+                </div>
+
+                <div class="ex-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search"
+                           placeholder="Buscar eliminado"
+                           @bind="buscarEliminado"
+                           @bind:event="oninput" />
+                </div>
+
+                @if (cargandoEliminados)
+                {
+                    <LoadingState Mensaje="Cargando parámetros eliminados..." />
+                }
+                else if (EliminadosFiltrados.Count == 0)
+                {
+                    <section class="ex-empty compact">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <h3>No hay parámetros eliminados</h3>
+                    </section>
+                }
+                else
+                {
+                    <div class="ex-inactive-list">
+                        @foreach (ExtraccionEliminadaItemModel item
+                            in EliminadosFiltrados)
+                        {
+                            <article>
+                                <div class="ex-symbol small">
+                                    @item.Codigo
+                                </div>
+
+                                <div>
+                                    <h3>@item.Titulo</h3>
+                                    <p>@item.Detalle</p>
+                                </div>
+
+                                <button class="ex-button primary"
+                                        disabled="@procesando"
+                                        @onclick="() => ReactivarAsync(item)">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                    Reactivar
+                                </button>
+                            </article>
+                        }
+                    </div>
+                }
+            </div>
+        </article>
+    </div>
+}
+
+@code {
+    private const string CodigoPermiso =
+        "extraccionNutrientePage";
+
+    private const string CodigoEliminados =
+        "extraccion-nutriente";
+
+    private readonly CancellationTokenSource cancellation =
+        new();
+
+    private ExtraccionNutrientePaginaModel pagina =
+        new();
+
+    private readonly List<ExtraccionElementoOptionModel> elementos =
+        new();
+
+    private readonly List<ExtraccionEliminadaItemModel> eliminados =
+        new();
+
+    private ExtraccionNutrienteFormModel formulario =
+        new();
+
+    private ExtraccionNutrienteFormModel original =
+        new();
+
+    private ExtraccionNutrienteItemModel? itemVista;
+
+    private string buscar = string.Empty;
+    private string buscarEliminado = string.Empty;
+    private string modoFormulario = "crear";
+    private string? mensaje;
+    private string? error;
+    private string? errorFormulario;
+
+    private int tamanoPagina = 20;
+
+    private bool cargando = true;
+    private bool procesando;
+    private bool mostrarFormulario;
+    private bool mostrarEliminados;
+    private bool cargandoEliminados;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoPermiso);
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(CodigoPermiso);
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(CodigoPermiso);
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(CodigoPermiso);
+
+    private decimal PromedioPagina =>
+        pagina.Items.Count == 0
+            ? 0
+            : pagina.Items.Average(item =>
+                item.CantidadExtraidaPorQQOro);
+
+    private decimal MinimoPagina =>
+        pagina.Items.Count == 0
+            ? 0
+            : pagina.Items.Min(item =>
+                item.CantidadExtraidaPorQQOro);
+
+    private decimal MaximoPagina =>
+        pagina.Items.Count == 0
+            ? 0
+            : pagina.Items.Max(item =>
+                item.CantidadExtraidaPorQQOro);
+
+    private string TituloFormulario =>
+        modoFormulario switch
+        {
+            "editar" => "Editar parámetro de extracción",
+            "ver" => "Detalle del parámetro",
+            _ => "Crear parámetro de extracción"
+        };
+
+    private string ElementoFormularioTexto =>
+        elementos
+            .FirstOrDefault(item =>
+                item.ElementoQuimicosId ==
+                formulario.ElementoQuimicosId)
+            ?.Texto ??
+        itemVista?.ElementoMostrar ??
+        "Sin elemento";
+
+    private IReadOnlyList<ExtraccionElementoOptionModel>
+        ElementosDisponiblesFormulario
+    {
+        get
+        {
+            HashSet<int> usados =
+                pagina.Items
+                    .Where(item =>
+                        item.ParametroExtraccionNutrienteCafeId !=
+                        formulario.ParametroExtraccionNutrienteCafeId)
+                    .Select(item =>
+                        item.ElementoQuimicosId)
+                    .ToHashSet();
+
+            return elementos
+                .Where(item =>
+                    item.Activo &&
+                    (!usados.Contains(item.ElementoQuimicosId) ||
+                     item.ElementoQuimicosId ==
+                        formulario.ElementoQuimicosId))
+                .OrderBy(item =>
+                    item.NombreElementoQuimico)
+                .ToList();
+        }
+    }
+
+    private List<ExtraccionEliminadaItemModel>
+        EliminadosFiltrados =>
+            eliminados
+                .Where(item =>
+                    string.IsNullOrWhiteSpace(buscarEliminado) ||
+                    item.Titulo.Contains(
+                        buscarEliminado,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    item.Codigo.Contains(
+                        buscarEliminado,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    item.Detalle.Contains(
+                        buscarEliminado,
+                        StringComparison.OrdinalIgnoreCase))
+                .OrderBy(item =>
+                    item.Titulo)
+                .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!PuedeLeer)
+        {
+            cargando = false;
+            return;
+        }
+
+        await CargarElementosAsync();
+        await CargarPaginaAsync(1);
+    }
+
+    private async Task CargarElementosAsync()
+    {
+        try
+        {
+            List<ExtraccionElementoOptionModel>? respuesta =
+                await Api.GetAsync<List<ExtraccionElementoOptionModel>>(
+                    "api/elemento-quimico/listar",
+                    cancellation.Token);
+
+            elementos.Clear();
+
+            if (respuesta is not null)
+            {
+                elementos.AddRange(
+                    respuesta.Where(item => item.Activo));
+            }
+        }
+        catch (Exception ex)
+        {
+            error =
+                "No fue posible cargar los elementos químicos. " +
+                ex.Message;
+        }
+    }
+
+    private Task BuscarAsync() =>
+        CargarPaginaAsync(1);
+
+    private async Task LimpiarBusquedaAsync()
+    {
+        buscar = string.Empty;
+        await CargarPaginaAsync(1);
+    }
+
+    private Task ActualizarAsync() =>
+        CargarPaginaAsync(
+            Math.Max(1, pagina.PaginaActual));
+
+    private async Task CargarPaginaAsync(int numero)
+    {
+        if (!PuedeLeer)
+            return;
+
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            string ruta =
+                "api/configuracion/extraccion-nutrientes/buscar" +
+                $"?pagina={Math.Max(1, numero)}" +
+                $"&tamanoPagina={tamanoPagina}";
+
+            if (!string.IsNullOrWhiteSpace(buscar))
+            {
+                ruta +=
+                    $"&buscar={Uri.EscapeDataString(buscar.Trim())}";
+            }
+
+            ExtraccionNutrientePaginaModel? respuesta =
+                await Api.GetAsync<ExtraccionNutrientePaginaModel>(
+                    ruta,
+                    cancellation.Token);
+
+            pagina =
+                respuesta ??
+                new ExtraccionNutrientePaginaModel();
+
+            if (pagina.TamanoPagina > 0)
+                tamanoPagina = pagina.TamanoPagina;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            pagina = new ExtraccionNutrientePaginaModel();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CambiarPaginaAsync(int nuevaPagina)
+    {
+        if (procesando ||
+            nuevaPagina < 1 ||
+            nuevaPagina > Math.Max(1, pagina.TotalPaginas) ||
+            nuevaPagina == pagina.PaginaActual)
+        {
+            return;
+        }
+
+        await CargarPaginaAsync(nuevaPagina);
+    }
+
+    private async Task CambiarTamanoPaginaAsync(int nuevoTamano)
+    {
+        if (procesando)
+            return;
+
+        tamanoPagina =
+            Math.Clamp(nuevoTamano, 5, 100);
+
+        await CargarPaginaAsync(1);
+    }
+
+    private void AbrirCrear()
+    {
+        LimpiarMensajes();
+        modoFormulario = "crear";
+        itemVista = null;
+        formulario = new ExtraccionNutrienteFormModel();
+        original = Copiar(formulario);
+        mostrarFormulario = true;
+    }
+
+    private void AbrirEditar(ExtraccionNutrienteItemModel item)
+    {
+        LimpiarMensajes();
+        modoFormulario = "editar";
+        itemVista = item;
+        formulario = CrearFormulario(item);
+        original = Copiar(formulario);
+        mostrarFormulario = true;
+    }
+
+    private void AbrirVer(ExtraccionNutrienteItemModel item)
+    {
+        LimpiarMensajes();
+        modoFormulario = "ver";
+        itemVista = item;
+        formulario = CrearFormulario(item);
+        original = Copiar(formulario);
+        mostrarFormulario = true;
+    }
+
+    private async Task CerrarFormularioAsync()
+    {
+        if (procesando)
+            return;
+
+        if (modoFormulario != "ver" && HayCambios())
+        {
+            bool salir =
+                await JS.InvokeAsync<bool>(
+                    "confirm",
+                    "Hay cambios sin guardar. ¿Desea cerrar el formulario?");
+
+            if (!salir)
+                return;
+        }
+
+        mostrarFormulario = false;
+        itemVista = null;
+        formulario = new ExtraccionNutrienteFormModel();
+        errorFormulario = null;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (procesando)
+            return;
+
+        errorFormulario = null;
+
+        formulario.DescripcionParametro =
+            (formulario.DescripcionParametro ?? string.Empty)
+                .ReplaceLineEndings(" ")
+                .Trim();
+
+        if (formulario.ElementoQuimicosId <= 0)
+        {
+            errorFormulario = "Seleccione un elemento químico.";
+            return;
+        }
+
+        if (formulario.CantidadExtraidaPorQQOro <= 0)
+        {
+            errorFormulario =
+                "La cantidad extraída debe ser mayor que cero.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(formulario.DescripcionParametro))
+        {
+            errorFormulario = "Ingrese una descripción.";
+            return;
+        }
+
+        if (modoFormulario == "editar" && !HayCambios())
+        {
+            errorFormulario = "No hay cambios para guardar.";
+            return;
+        }
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                modoFormulario == "editar"
+                    ? "¿Desea actualizar este parámetro de extracción?"
+                    : "¿Desea crear este parámetro de extracción?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            ExtraccionMutationResponseModel? respuesta;
+
+            if (modoFormulario == "editar")
+            {
+                respuesta =
+                    await Api.PutAsync<
+                        ExtraccionNutrienteFormModel,
+                        ExtraccionMutationResponseModel>(
+                        "api/configuracion/extraccion-nutrientes/" +
+                        formulario.ParametroExtraccionNutrienteCafeId,
+                        formulario,
+                        cancellation.Token);
+            }
+            else
+            {
+                ExtraccionEliminadaItemModel? inactivo =
+                    await BuscarInactivoDelElementoAsync(
+                        formulario.ElementoQuimicosId);
+
+                if (inactivo is not null)
+                {
+                    bool reactivar =
+                        await JS.InvokeAsync<bool>(
+                            "confirm",
+                            "Ya existe un parámetro eliminado para este " +
+                            "elemento. ¿Desea reactivarlo y actualizarlo " +
+                            "con los datos ingresados?");
+
+                    if (!reactivar)
+                    {
+                        errorFormulario =
+                            "La creación fue cancelada. Reactive el registro " +
+                            "eliminado para conservar su historial.";
+                        return;
+                    }
+
+                    await Api.PutSinContenidoAsync(
+                        $"api/catalogos-eliminados/{CodigoEliminados}/" +
+                        $"{inactivo.Id}/reactivar",
+                        AuthState.CrearEncabezadosSesion(),
+                        cancellation.Token);
+
+                    formulario.ParametroExtraccionNutrienteCafeId =
+                        inactivo.Id;
+
+                    respuesta =
+                        await Api.PutAsync<
+                            ExtraccionNutrienteFormModel,
+                            ExtraccionMutationResponseModel>(
+                            "api/configuracion/extraccion-nutrientes/" +
+                            inactivo.Id,
+                            formulario,
+                            cancellation.Token);
+                }
+                else
+                {
+                    respuesta =
+                        await Api.PostAsync<
+                            ExtraccionNutrienteFormModel,
+                            ExtraccionMutationResponseModel>(
+                            "api/configuracion/extraccion-nutrientes",
+                            formulario,
+                            cancellation.Token);
+                }
+            }
+
+            mostrarFormulario = false;
+            await CargarPaginaAsync(
+                modoFormulario == "crear"
+                    ? 1
+                    : pagina.PaginaActual);
+
+            mensaje =
+                respuesta?.Mensaje ??
+                "Parámetro de extracción guardado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            errorFormulario = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task<ExtraccionEliminadaItemModel?>
+        BuscarInactivoDelElementoAsync(int elementoId)
+    {
+        ExtraccionElementoOptionModel? elemento =
+            elementos.FirstOrDefault(item =>
+                item.ElementoQuimicosId == elementoId);
+
+        if (elemento is null)
+            return null;
+
+        await ObtenerEliminadosAsync(mostrarErrores: false);
+
+        return eliminados.FirstOrDefault(item =>
+            string.Equals(
+                item.Codigo,
+                elemento.SimboloElementoQuimico,
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                item.Titulo,
+                elemento.NombreElementoQuimico,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task EliminarAsync(
+        ExtraccionNutrienteItemModel item)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea desactivar la extracción configurada para " +
+                $"\"{item.ElementoMostrar}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                "api/configuracion/extraccion-nutrientes/" +
+                $"{item.ParametroExtraccionNutrienteCafeId}/eliminar",
+                cancellationToken: cancellation.Token);
+
+            await CargarPaginaAsync(pagina.PaginaActual);
+
+            if (pagina.Items.Count == 0 && pagina.PaginaActual > 1)
+                await CargarPaginaAsync(pagina.PaginaActual - 1);
+
+            mensaje =
+                "Parámetro de extracción desactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task AbrirEliminadosAsync()
+    {
+        mostrarEliminados = true;
+        buscarEliminado = string.Empty;
+        await ObtenerEliminadosAsync(mostrarErrores: true);
+    }
+
+    private async Task ObtenerEliminadosAsync(bool mostrarErrores)
+    {
+        cargandoEliminados = true;
+
+        try
+        {
+            ExtraccionCatalogoResponseModel<
+                List<ExtraccionEliminadaItemModel>>? respuesta =
+                await Api.GetAsync<
+                    ExtraccionCatalogoResponseModel<
+                        List<ExtraccionEliminadaItemModel>>>(
+                    $"api/catalogos-eliminados/{CodigoEliminados}",
+                    AuthState.CrearEncabezadosSesion(),
+                    cancellation.Token);
+
+            eliminados.Clear();
+
+            if (respuesta?.Data is not null)
+                eliminados.AddRange(respuesta.Data);
+        }
+        catch (Exception ex)
+        {
+            if (mostrarErrores)
+                error = ex.Message;
+        }
+        finally
+        {
+            cargandoEliminados = false;
+        }
+    }
+
+    private void CerrarEliminados()
+    {
+        if (procesando)
+            return;
+
+        mostrarEliminados = false;
+        eliminados.Clear();
+    }
+
+    private async Task ReactivarAsync(
+        ExtraccionEliminadaItemModel item)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea reactivar el parámetro de \"{item.Titulo}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                $"api/catalogos-eliminados/{CodigoEliminados}/" +
+                $"{item.Id}/reactivar",
+                AuthState.CrearEncabezadosSesion(),
+                cancellation.Token);
+
+            eliminados.Remove(item);
+            await CargarPaginaAsync(1);
+
+            mensaje =
+                "Parámetro de extracción reactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private bool HayCambios() =>
+        formulario.ElementoQuimicosId !=
+            original.ElementoQuimicosId ||
+        formulario.CantidadExtraidaPorQQOro !=
+            original.CantidadExtraidaPorQQOro ||
+        !string.Equals(
+            formulario.DescripcionParametro.Trim(),
+            original.DescripcionParametro.Trim(),
+            StringComparison.Ordinal);
+
+    private static ExtraccionNutrienteFormModel CrearFormulario(
+        ExtraccionNutrienteItemModel item) =>
+        new()
+        {
+            ParametroExtraccionNutrienteCafeId =
+                item.ParametroExtraccionNutrienteCafeId,
+            ElementoQuimicosId = item.ElementoQuimicosId,
+            CantidadExtraidaPorQQOro =
+                item.CantidadExtraidaPorQQOro,
+            DescripcionParametro =
+                item.DescripcionParametro
+        };
+
+    private static ExtraccionNutrienteFormModel Copiar(
+        ExtraccionNutrienteFormModel valor) =>
+        new()
+        {
+            ParametroExtraccionNutrienteCafeId =
+                valor.ParametroExtraccionNutrienteCafeId,
+            ElementoQuimicosId = valor.ElementoQuimicosId,
+            CantidadExtraidaPorQQOro =
+                valor.CantidadExtraidaPorQQOro,
+            DescripcionParametro =
+                valor.DescripcionParametro
+        };
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+        errorFormulario = null;
+    }
+
+    public void Dispose()
+    {
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+}

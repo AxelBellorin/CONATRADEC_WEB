@@ -1,0 +1,1509 @@
+@page "/parametros-agronomicos/unidades-conversiones"
+@page "/unidades-conversiones"
+@implements IDisposable
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Unidades y conversiones | CONATRADEC</PageTitle>
+
+<section class="uc-page">
+    <header class="uc-hero">
+        <div>
+            <span class="uc-eyebrow">Parámetros agronómicos</span>
+            <h1>Unidades y conversiones</h1>
+            <p>
+                Controla las unidades permitidas, las fórmulas utilizadas por
+                cada elemento y la normalización final hacia lb/Mz.
+            </p>
+        </div>
+
+        <button class="uc-button secondary"
+                disabled="@procesando"
+                @onclick="ActualizarAsync">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+    </header>
+
+    <aside class="uc-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>
+            <strong>Todos los resultados finales se expresan en lb/Mz</strong>
+            <span>
+                Las unidades configuradas representan la forma en que el
+                laboratorio reporta los datos. El sistema realiza las
+                conversiones necesarias y normaliza los elementos químicos a
+                libras por manzana antes de calcular o generar reportes.
+            </span>
+        </div>
+    </aside>
+
+    @if (!string.IsNullOrWhiteSpace(mensaje))
+    {
+        <div class="uc-alert success">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>@mensaje</span>
+            <button @onclick="LimpiarMensajes" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="uc-alert error">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>@error</span>
+            <button @onclick="LimpiarMensajes" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    }
+
+    @if (!PuedeLeer)
+    {
+        <section class="uc-empty">
+            <i class="fa-solid fa-lock"></i>
+            <h2>Sin permiso de lectura</h2>
+            <p>
+                Este módulo reutiliza temporalmente el permiso de Elementos
+                químicos.
+            </p>
+        </section>
+    }
+    else
+    {
+        <nav class="uc-tabs" aria-label="Secciones de unidades">
+            <button class="@(seccion == "CATALOGO" ? "active" : string.Empty)"
+                    @onclick='() => CambiarSeccion("CATALOGO")'>
+                <i class="fa-solid fa-ruler-combined"></i>
+                Catálogo
+            </button>
+
+            <button class="@(seccion == "ELEMENTOS" ? "active" : string.Empty)"
+                    @onclick='() => CambiarSeccion("ELEMENTOS")'>
+                <i class="fa-solid fa-flask"></i>
+                Por elemento
+            </button>
+
+            <button class="@(seccion == "MATERIA" ? "active" : string.Empty)"
+                    @onclick='() => CambiarSeccion("MATERIA")'>
+                <i class="fa-solid fa-leaf"></i>
+                Materia orgánica
+            </button>
+
+            <button class="@(seccion == "PRUEBA" ? "active" : string.Empty)"
+                    @onclick='() => CambiarSeccion("PRUEBA")'>
+                <i class="fa-solid fa-vial-circle-check"></i>
+                Probar conversión
+            </button>
+        </nav>
+
+        @if (cargando)
+        {
+            <LoadingState Mensaje="Cargando unidades y conversiones..." />
+        }
+        else if (seccion == "CATALOGO")
+        {
+            <section class="uc-section">
+                <header class="uc-section-header">
+                    <div>
+                        <span>Catálogo base</span>
+                        <h2>Unidades de medida</h2>
+                        <p>
+                            Son las unidades que posteriormente pueden
+                            asociarse a elementos y materia orgánica.
+                        </p>
+                    </div>
+
+                    @if (PuedeAgregar)
+                    {
+                        <button class="uc-button primary"
+                                @onclick="AbrirCrearUnidad">
+                            <i class="fa-solid fa-plus"></i>
+                            Nueva unidad
+                        </button>
+                    }
+                </header>
+
+                <div class="uc-toolbar">
+                    <div class="uc-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="search"
+                               placeholder="Buscar unidad"
+                               @bind="buscarUnidad"
+                               @bind:event="oninput" />
+                    </div>
+
+                    <label class="uc-toggle">
+                        <input type="checkbox"
+                               @bind="mostrarUnidadesInactivas" />
+                        <span>Mostrar inactivas</span>
+                    </label>
+                </div>
+
+                <section class="uc-unit-grid">
+                    @foreach (UnidadCatalogoAdminModel unidad
+                        in UnidadesFiltradas)
+                    {
+                        <article class="uc-unit-card @(!unidad.Activo
+                            ? "inactive"
+                            : string.Empty)">
+                            <div class="uc-unit-symbol">
+                                @unidad.NombreUnidadMedida
+                            </div>
+
+                            <div>
+                                <small>Unidad de medida</small>
+                                <h3>@unidad.NombreUnidadMedida</h3>
+                                <span>
+                                    @(unidad.Activo ? "Activa" : "Inactiva")
+                                </span>
+                            </div>
+
+                            <footer>
+                                @if (unidad.Activo && PuedeActualizar)
+                                {
+                                    <button class="uc-icon edit"
+                                            title="Editar"
+                                            @onclick="() => AbrirEditarUnidad(unidad)">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
+                                }
+
+                                @if (unidad.Activo && PuedeEliminar)
+                                {
+                                    <button class="uc-icon delete"
+                                            title="Desactivar"
+                                            @onclick="() => EliminarUnidadAsync(unidad)">
+                                        <i class="fa-solid fa-ban"></i>
+                                    </button>
+                                }
+
+                                @if (!unidad.Activo && PuedeActualizar)
+                                {
+                                    <button class="uc-button primary compact"
+                                            @onclick="() => ReactivarUnidadAsync(unidad)">
+                                        <i class="fa-solid fa-rotate-left"></i>
+                                        Reactivar
+                                    </button>
+                                }
+                            </footer>
+                        </article>
+                    }
+                </section>
+            </section>
+        }
+        else if (seccion == "ELEMENTOS")
+        {
+            <section class="uc-section">
+                <header class="uc-section-header">
+                    <div>
+                        <span>Entradas del laboratorio</span>
+                        <h2>Unidades por elemento químico</h2>
+                        <p>
+                            Cada elemento puede aceptar varias unidades, pero
+                            todas se normalizan finalmente a lb/Mz.
+                        </p>
+                    </div>
+                </header>
+
+                <div class="uc-toolbar">
+                    <div class="uc-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="search"
+                               placeholder="Buscar elemento o símbolo"
+                               @bind="buscarElemento"
+                               @bind:event="oninput" />
+                    </div>
+                </div>
+
+                <section class="uc-element-grid">
+                    @foreach (ElementoConfiguracionUnidadesAdminModel elemento
+                        in ElementosFiltrados)
+                    {
+                        <article class="uc-element-card">
+                            <header>
+                                <div class="uc-element-symbol">
+                                    @elemento.SimboloElementoQuimico
+                                </div>
+
+                                <div>
+                                    <small>Elemento químico</small>
+                                    <h3>@elemento.NombreElementoQuimico</h3>
+                                </div>
+
+                                <b>@elemento.UnidadesActivas</b>
+                            </header>
+
+                            <div class="uc-element-info">
+                                <span>
+                                    Peso equivalente
+                                    <strong>
+                                        @elemento.PesoEquivalenteElementoQuimico.ToString("N4")
+                                    </strong>
+                                </span>
+
+                                <span>
+                                    Predeterminada
+                                    <strong>
+                                        @NombreUnidadPredeterminada(elemento)
+                                    </strong>
+                                </span>
+                            </div>
+
+                            <div class="uc-chips">
+                                @if (elemento.UnidadesActivas == 0)
+                                {
+                                    <span class="warning">
+                                        Sin unidades activas
+                                    </span>
+                                }
+                                else
+                                {
+                                    @foreach (UnidadConversionConfiguradaAdminModel unidad
+                                        in elemento.Unidades
+                                            .Where(item =>
+                                                item.Activo &&
+                                                !item.EsUnidadInternaKgHa)
+                                            .OrderBy(item => item.Orden)
+                                            .Take(5))
+                                    {
+                                        <span>
+                                            @unidad.NombreUnidadMedida
+                                            · @unidad.CodigoFormulaConversion
+                                        </span>
+                                    }
+                                }
+                            </div>
+
+                            <button class="uc-button primary full"
+                                    disabled="@(!PuedeActualizar)"
+                                    @onclick="() => AbrirEditorElementoAsync(elemento)">
+                                <i class="fa-solid fa-sliders"></i>
+                                Configurar unidades
+                            </button>
+                        </article>
+                    }
+                </section>
+            </section>
+        }
+        else if (seccion == "MATERIA")
+        {
+            <section class="uc-section">
+                <header class="uc-section-header">
+                    <div>
+                        <span>Normalización a porcentaje</span>
+                        <h2>Materia orgánica</h2>
+                        <p>
+                            Las entradas configuradas aquí se convierten a un
+                            porcentaje entre 0 y 20 antes de calcular nitrógeno.
+                        </p>
+                    </div>
+
+                    @if (PuedeActualizar)
+                    {
+                        <button class="uc-button primary"
+                                @onclick="AbrirEditorMateria">
+                            <i class="fa-solid fa-sliders"></i>
+                            Configurar
+                        </button>
+                    }
+                </header>
+
+                <section class="uc-conversion-grid">
+                    @foreach (UnidadConversionConfiguradaAdminModel unidad
+                        in materiaOrganica
+                            .Where(item =>
+                                item.Activo &&
+                                !item.EsUnidadInternaKgHa)
+                            .OrderBy(item => item.Orden))
+                    {
+                        <article>
+                            <header>
+                                <div class="uc-unit-symbol small">
+                                    @unidad.NombreUnidadMedida
+                                </div>
+
+                                <div>
+                                    <small>Unidad de entrada</small>
+                                    <h3>@unidad.NombreUnidadMedida</h3>
+                                </div>
+
+                                @if (unidad.UnidadPredeterminada)
+                                {
+                                    <b>Predeterminada</b>
+                                }
+                            </header>
+
+                            <div class="uc-formula-preview">
+                                <span>Fórmula LINEAL</span>
+                                <strong>
+                                    valor × @unidad.FactorPrincipal ×
+                                    @unidad.FactorSecundario ×
+                                    @unidad.FactorTerciario ÷
+                                    @unidad.Divisor +
+                                    @unidad.Desplazamiento
+                                </strong>
+                            </div>
+
+                            <p>
+                                @(string.IsNullOrWhiteSpace(unidad.Observacion)
+                                    ? "Sin observación."
+                                    : unidad.Observacion)
+                            </p>
+                        </article>
+                    }
+                </section>
+            </section>
+        }
+        else
+        {
+            <section class="uc-section">
+                <header class="uc-section-header">
+                    <div>
+                        <span>Validación previa</span>
+                        <h2>Simulador de conversión</h2>
+                        <p>
+                            Prueba un valor antes de modificar o utilizar una
+                            configuración dentro de un análisis real.
+                        </p>
+                    </div>
+                </header>
+
+                <div class="uc-test-layout">
+                    <EditForm Model="prueba"
+                              OnValidSubmit="ProbarConversionAsync"
+                              FormName="probar-conversion-form">
+                        <div class="uc-form-grid">
+                            <label>
+                                <span>Contexto</span>
+                                <select class="uc-control"
+                                        @bind="contextoPrueba"
+                                        @bind:after="CambiarContextoPrueba">
+                                    <option value="ELEMENTO">
+                                        Elemento químico
+                                    </option>
+                                    <option value="MATERIA_ORGANICA">
+                                        Materia orgánica
+                                    </option>
+                                </select>
+                            </label>
+
+                            @if (contextoPrueba == "ELEMENTO")
+                            {
+                                <label>
+                                    <span>Elemento químico</span>
+                                    <select class="uc-control"
+                                            @bind="elementoPruebaId"
+                                            @bind:after="SincronizarUnidadPrueba">
+                                        <option value="0">Seleccione</option>
+                                        @foreach (ElementoConfiguracionUnidadesAdminModel elemento
+                                            in elementos)
+                                        {
+                                            <option value="@elemento.ElementoQuimicosId">
+                                                @elemento.NombreMostrar
+                                            </option>
+                                        }
+                                    </select>
+                                </label>
+                            }
+
+                            <label>
+                                <span>Unidad de origen</span>
+                                <select class="uc-control"
+                                        @bind="prueba.UnidadMedidaId">
+                                    <option value="0">Seleccione</option>
+                                    @foreach (UnidadConversionConfiguradaAdminModel unidad
+                                        in UnidadesDisponiblesPrueba)
+                                    {
+                                        <option value="@unidad.UnidadMedidaId">
+                                            @unidad.NombreUnidadMedida
+                                        </option>
+                                    }
+                                </select>
+                            </label>
+
+                            <label>
+                                <span>Valor reportado</span>
+                                <InputNumber class="uc-control"
+                                             min="0"
+                                             step="0.0001"
+                                             @bind-Value="prueba.ValorReportado" />
+                            </label>
+
+                            @if (contextoPrueba == "ELEMENTO")
+                            {
+                                <label>
+                                    <span>Materia orgánica (%)</span>
+                                    <InputNumber class="uc-control"
+                                                 min="0"
+                                                 max="20"
+                                                 step="0.01"
+                                                 @bind-Value="prueba.MateriaOrganicaPorcentaje" />
+                                    <small>
+                                        Solo se utiliza en fórmulas de nitrógeno.
+                                    </small>
+                                </label>
+                            }
+                        </div>
+
+                        <button type="submit"
+                                class="uc-button primary"
+                                disabled="@procesando">
+                            <i class="fa-solid @(procesando
+                                ? "fa-spinner fa-spin"
+                                : "fa-vial-circle-check")"></i>
+                            Probar conversión
+                        </button>
+                    </EditForm>
+
+                    <section class="uc-test-result">
+                        @if (resultadoPrueba is null)
+                        {
+                            <i class="fa-solid fa-vial"></i>
+                            <h3>Sin prueba ejecutada</h3>
+                            <p>
+                                Seleccione el contexto, la unidad y un valor.
+                            </p>
+                        }
+                        else
+                        {
+                            <span>Resultado normalizado</span>
+                            <strong>
+                                @resultadoPrueba.ValorConvertido.ToString("N4")
+                                @resultadoPrueba.UnidadDestino
+                            </strong>
+                            <p>
+                                @resultadoPrueba.ValorReportado.ToString("N4")
+                                @resultadoPrueba.UnidadOrigen
+                                usando
+                                @resultadoPrueba.CodigoFormulaConversion
+                            </p>
+                            <small>@resultadoPrueba.Descripcion</small>
+                        }
+                    </section>
+                </div>
+            </section>
+        }
+    }
+</section>
+
+@if (mostrarFormularioUnidad)
+{
+    <div class="uc-modal-backdrop"
+         @onclick="CerrarFormularioUnidad">
+        <article class="uc-small-modal"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>Catálogo base</span>
+                    <h2>
+                        @(unidadForm.UnidadMedidaId > 0
+                            ? "Editar unidad"
+                            : "Nueva unidad")
+                    </h2>
+                </div>
+
+                <button class="uc-close"
+                        @onclick="CerrarFormularioUnidad">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <EditForm Model="unidadForm"
+                      OnValidSubmit="GuardarUnidadAsync"
+                      FormName="unidad-medida-form">
+                <DataAnnotationsValidator />
+
+                <div class="uc-modal-body">
+                    <label>
+                        <span>Nombre de la unidad *</span>
+                        <InputText class="uc-control"
+                                   maxlength="50"
+                                   placeholder="Ej. ppm, meq/100g, lb/Mz"
+                                   @bind-Value="unidadForm.NombreUnidadMedida" />
+                        <ValidationMessage
+                            For="() => unidadForm.NombreUnidadMedida" />
+                    </label>
+
+                    <div class="uc-form-note">
+                        El backend normalizará el nombre en mayúsculas. Evite
+                        crear unidades equivalentes con nombres diferentes.
+                    </div>
+                </div>
+
+                <footer>
+                    <button type="button"
+                            class="uc-button ghost"
+                            @onclick="CerrarFormularioUnidad">
+                        Cancelar
+                    </button>
+
+                    <button type="submit"
+                            class="uc-button primary"
+                            disabled="@procesando">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        Guardar
+                    </button>
+                </footer>
+            </EditForm>
+        </article>
+    </div>
+}
+
+@if (mostrarEditorConversion)
+{
+    <div class="uc-modal-backdrop"
+         @onclick="CerrarEditorConversionAsync">
+        <article class="uc-conversion-modal"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>@tituloEditor</span>
+                    <h2>@subtituloEditor</h2>
+                    <p>
+                        Seleccione las unidades de entrada y configure cómo
+                        se convierten al resultado final en lb/Mz.
+                    </p>
+                </div>
+
+                <button class="uc-close"
+                        disabled="@procesando"
+                        @onclick="CerrarEditorConversionAsync">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div class="uc-conversion-body">
+                @foreach (UnidadConversionEdicionModel unidad
+                    in editorUnidades
+                        .Where(item => !item.EsUnidadInternaKgHa)
+                        .OrderBy(item => item.Orden))
+                {
+                    <article class="uc-conversion-row @(unidad.Seleccionada
+                        ? "selected"
+                        : string.Empty)">
+                        <header>
+                            <label class="uc-check">
+                                <input type="checkbox"
+                                       disabled="@(!unidad.UnidadCatalogoActiva)"
+                                       @bind="unidad.Seleccionada" />
+                                <span>
+                                    <b>@unidad.NombreUnidadMedida</b>
+                                    @if (!unidad.UnidadCatalogoActiva)
+                                    {
+                                        <small>Unidad del catálogo inactiva</small>
+                                    }
+                                </span>
+                            </label>
+
+                            @if (unidad.Seleccionada)
+                            {
+                                <label class="uc-default-check">
+                                    <input type="radio"
+                                           name="unidadPredeterminada"
+                                           checked="@unidad.UnidadPredeterminada"
+                                           @onchange="() => MarcarPredeterminada(unidad)" />
+                                    Predeterminada
+                                </label>
+                            }
+                        </header>
+
+                        @if (unidad.Seleccionada)
+                        {
+                            <div class="uc-conversion-fields">
+                                <label>
+                                    <span>Fórmula</span>
+                                    <select class="uc-control"
+                                            disabled="@editorMateriaOrganica"
+                                            @bind="unidad.CodigoFormulaConversion">
+                                        @foreach (FormulaConversionAdminModel formula
+                                            in FormulasEditor)
+                                        {
+                                            <option value="@formula.Codigo">
+                                                @formula.Nombre
+                                            </option>
+                                        }
+                                    </select>
+                                </label>
+
+                                <label>
+                                    <span>Factor principal</span>
+                                    <input type="number"
+                                           class="uc-control"
+                                           step="0.000001"
+                                           @bind="unidad.FactorPrincipal" />
+                                </label>
+
+                                <label>
+                                    <span>Factor secundario</span>
+                                    <input type="number"
+                                           class="uc-control"
+                                           step="0.000001"
+                                           @bind="unidad.FactorSecundario" />
+                                </label>
+
+                                <label>
+                                    <span>Factor terciario</span>
+                                    <input type="number"
+                                           class="uc-control"
+                                           step="0.000001"
+                                           @bind="unidad.FactorTerciario" />
+                                </label>
+
+                                <label>
+                                    <span>Divisor</span>
+                                    <input type="number"
+                                           class="uc-control"
+                                           step="0.000001"
+                                           @bind="unidad.Divisor" />
+                                </label>
+
+                                <label>
+                                    <span>Desplazamiento</span>
+                                    <input type="number"
+                                           class="uc-control"
+                                           step="0.000001"
+                                           @bind="unidad.Desplazamiento" />
+                                </label>
+
+                                <label>
+                                    <span>Orden</span>
+                                    <input type="number"
+                                           class="uc-control"
+                                           min="0"
+                                           @bind="unidad.Orden" />
+                                </label>
+
+                                <label class="uc-inline-check">
+                                    <input type="checkbox"
+                                           @bind="unidad.VisibleEnFormulario" />
+                                    <span>Visible en el formulario</span>
+                                </label>
+
+                                <label class="full">
+                                    <span>Observación</span>
+                                    <textarea class="uc-control"
+                                              rows="2"
+                                              maxlength="300"
+                                              @bind="unidad.Observacion">
+                                    </textarea>
+                                </label>
+                            </div>
+
+                            <div class="uc-formula-help">
+                                @DescripcionFormula(unidad.CodigoFormulaConversion)
+                            </div>
+                        }
+                    </article>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(errorEditor))
+                {
+                    <div class="uc-form-error">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        @errorEditor
+                    </div>
+                }
+            </div>
+
+            <footer>
+                <button class="uc-button ghost"
+                        disabled="@procesando"
+                        @onclick="CerrarEditorConversionAsync">
+                    Cancelar
+                </button>
+
+                <button class="uc-button primary"
+                        disabled="@procesando"
+                        @onclick="GuardarEditorConversionAsync">
+                    <i class="fa-solid @(procesando
+                        ? "fa-spinner fa-spin"
+                        : "fa-floppy-disk")"></i>
+                    Guardar configuración
+                </button>
+            </footer>
+        </article>
+    </div>
+}
+
+@code {
+    private const string CodigoPermiso =
+        "elementoQuimicoPage";
+
+    private readonly CancellationTokenSource cancellation =
+        new();
+
+    private readonly List<UnidadCatalogoAdminModel> unidades =
+        new();
+
+    private readonly List<ElementoConfiguracionUnidadesAdminModel> elementos =
+        new();
+
+    private readonly List<FormulaConversionAdminModel> formulas =
+        new();
+
+    private readonly List<UnidadConversionConfiguradaAdminModel>
+        materiaOrganica = new();
+
+    private readonly List<UnidadConversionEdicionModel> editorUnidades =
+        new();
+
+    private UnidadMedidaFormModel unidadForm =
+        new();
+
+    private ElementoConfiguracionUnidadesAdminModel? elementoEditor;
+
+    private ProbarConversionUnidadRequestModel prueba =
+        new();
+
+    private ResultadoPruebaConversionAdminModel? resultadoPrueba;
+
+    private string seccion = "CATALOGO";
+    private string buscarUnidad = string.Empty;
+    private string buscarElemento = string.Empty;
+    private string contextoPrueba = "ELEMENTO";
+    private string tituloEditor = string.Empty;
+    private string subtituloEditor = string.Empty;
+    private string? mensaje;
+    private string? error;
+    private string? errorEditor;
+
+    private int elementoPruebaId;
+
+    private bool cargando = true;
+    private bool procesando;
+    private bool mostrarUnidadesInactivas;
+    private bool mostrarFormularioUnidad;
+    private bool mostrarEditorConversion;
+    private bool editorMateriaOrganica;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoPermiso);
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(CodigoPermiso);
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(CodigoPermiso);
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(CodigoPermiso);
+
+    private IReadOnlyList<UnidadCatalogoAdminModel> UnidadesFiltradas =>
+        unidades
+            .Where(item =>
+                !item.EsUnidadInternaKgHa)
+            .Where(item =>
+                mostrarUnidadesInactivas ||
+                item.Activo)
+            .Where(item =>
+                string.IsNullOrWhiteSpace(buscarUnidad) ||
+                item.NombreUnidadMedida.Contains(
+                    buscarUnidad,
+                    StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(item => item.Activo)
+            .ThenBy(item => item.NombreUnidadMedida)
+            .ToList();
+
+    private IReadOnlyList<ElementoConfiguracionUnidadesAdminModel>
+        ElementosFiltrados =>
+            elementos
+                .Where(item =>
+                    string.IsNullOrWhiteSpace(buscarElemento) ||
+                    item.NombreElementoQuimico.Contains(
+                        buscarElemento,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    item.SimboloElementoQuimico.Contains(
+                        buscarElemento,
+                        StringComparison.OrdinalIgnoreCase))
+                .OrderBy(item => item.NombreElementoQuimico)
+                .ToList();
+
+    private IReadOnlyList<FormulaConversionAdminModel> FormulasEditor =>
+        editorMateriaOrganica
+            ? formulas
+                .Where(item => item.Codigo == "LINEAL")
+                .ToList()
+            : formulas;
+
+    private IReadOnlyList<UnidadConversionConfiguradaAdminModel>
+        UnidadesDisponiblesPrueba
+    {
+        get
+        {
+            if (contextoPrueba == "MATERIA_ORGANICA")
+            {
+                return materiaOrganica
+                    .Where(item =>
+                        item.Activo &&
+                        !item.EsUnidadInternaKgHa)
+                    .OrderBy(item => item.Orden)
+                    .ToList();
+            }
+
+            return elementos
+                .FirstOrDefault(item =>
+                    item.ElementoQuimicosId == elementoPruebaId)
+                ?.Unidades
+                .Where(item =>
+                    item.Activo &&
+                    !item.EsUnidadInternaKgHa)
+                .OrderBy(item => item.Orden)
+                .ToList() ??
+                new List<UnidadConversionConfiguradaAdminModel>();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!PuedeLeer)
+        {
+            cargando = false;
+            return;
+        }
+
+        await CargarTodoAsync();
+    }
+
+    private async Task CargarTodoAsync()
+    {
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            ConfiguracionUnidadesApiResponseModel<
+                List<UnidadCatalogoAdminModel>>? catalogo =
+                    await Api.GetAsync<
+                        ConfiguracionUnidadesApiResponseModel<
+                            List<UnidadCatalogoAdminModel>>>(
+                        "api/configuracion-unidades/catalogo-unidades" +
+                        "?incluirInactivas=true",
+                        cancellation.Token);
+
+            ConfiguracionUnidadesApiResponseModel<
+                List<ElementoConfiguracionUnidadesAdminModel>>? elementosApi =
+                    await Api.GetAsync<
+                        ConfiguracionUnidadesApiResponseModel<
+                            List<ElementoConfiguracionUnidadesAdminModel>>>(
+                        "api/configuracion-unidades/elementos",
+                        cancellation.Token);
+
+            ConfiguracionUnidadesApiResponseModel<
+                List<UnidadConversionConfiguradaAdminModel>>? materiaApi =
+                    await Api.GetAsync<
+                        ConfiguracionUnidadesApiResponseModel<
+                            List<UnidadConversionConfiguradaAdminModel>>>(
+                        "api/configuracion-unidades/materia-organica" +
+                        "?incluirInactivas=true",
+                        cancellation.Token);
+
+            ConfiguracionUnidadesApiResponseModel<
+                List<FormulaConversionAdminModel>>? formulasApi =
+                    await Api.GetAsync<
+                        ConfiguracionUnidadesApiResponseModel<
+                            List<FormulaConversionAdminModel>>>(
+                        "api/configuracion-unidades/formulas",
+                        cancellation.Token);
+
+            unidades.Clear();
+            elementos.Clear();
+            materiaOrganica.Clear();
+            formulas.Clear();
+
+            if (catalogo?.Data is not null)
+                unidades.AddRange(catalogo.Data);
+
+            if (elementosApi?.Data is not null)
+                elementos.AddRange(elementosApi.Data);
+
+            if (materiaApi?.Data is not null)
+                materiaOrganica.AddRange(materiaApi.Data);
+
+            if (formulasApi?.Data is not null)
+                formulas.AddRange(formulasApi.Data);
+
+            InicializarPrueba();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private Task ActualizarAsync() =>
+        CargarTodoAsync();
+
+    private void CambiarSeccion(string valor)
+    {
+        seccion = valor;
+        LimpiarMensajes();
+    }
+
+    private void AbrirCrearUnidad()
+    {
+        unidadForm = new UnidadMedidaFormModel();
+        mostrarFormularioUnidad = true;
+    }
+
+    private void AbrirEditarUnidad(
+        UnidadCatalogoAdminModel unidad)
+    {
+        unidadForm = new UnidadMedidaFormModel
+        {
+            UnidadMedidaId = unidad.UnidadMedidaId,
+            NombreUnidadMedida = unidad.NombreUnidadMedida
+        };
+
+        mostrarFormularioUnidad = true;
+    }
+
+    private void CerrarFormularioUnidad()
+    {
+        if (procesando)
+            return;
+
+        mostrarFormularioUnidad = false;
+        unidadForm = new UnidadMedidaFormModel();
+    }
+
+    private async Task GuardarUnidadAsync()
+    {
+        if (procesando)
+            return;
+
+        unidadForm.NombreUnidadMedida =
+            (unidadForm.NombreUnidadMedida ?? string.Empty)
+            .ReplaceLineEndings(" ")
+            .Trim();
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            UnidadMedidaMutationResponseModel? respuesta;
+
+            if (unidadForm.UnidadMedidaId > 0)
+            {
+                respuesta =
+                    await Api.PutAsync<
+                        UnidadMedidaFormModel,
+                        UnidadMedidaMutationResponseModel>(
+                        "api/unidad-medida/editar/" +
+                        unidadForm.UnidadMedidaId,
+                        unidadForm,
+                        cancellation.Token);
+            }
+            else
+            {
+                respuesta =
+                    await Api.PostAsync<
+                        UnidadMedidaFormModel,
+                        UnidadMedidaMutationResponseModel>(
+                        "api/unidad-medida/crear",
+                        unidadForm,
+                        cancellation.Token);
+            }
+
+            mostrarFormularioUnidad = false;
+            mensaje = respuesta?.Mensaje ??
+                "Unidad guardada correctamente.";
+
+            await CargarTodoAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task EliminarUnidadAsync(
+        UnidadCatalogoAdminModel unidad)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea desactivar la unidad " +
+                $"\"{unidad.NombreUnidadMedida}\"?\n\n" +
+                "El backend impedirá la operación si existe información " +
+                "histórica relacionada.");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.EliminarAsync(
+                "api/unidad-medida/eliminar/" +
+                unidad.UnidadMedidaId,
+                cancellation.Token);
+
+            mensaje =
+                "Unidad de medida desactivada correctamente.";
+
+            await CargarTodoAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task ReactivarUnidadAsync(
+        UnidadCatalogoAdminModel unidad)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea reactivar la unidad " +
+                $"\"{unidad.NombreUnidadMedida}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                "api/unidad-medida/reactivar/" +
+                unidad.UnidadMedidaId,
+                cancellationToken: cancellation.Token);
+
+            mensaje =
+                "Unidad de medida reactivada correctamente.";
+
+            await CargarTodoAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task AbrirEditorElementoAsync(
+        ElementoConfiguracionUnidadesAdminModel elemento)
+    {
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            ConfiguracionUnidadesApiResponseModel<
+                ElementoConfiguracionUnidadesAdminModel>? respuesta =
+                    await Api.GetAsync<
+                        ConfiguracionUnidadesApiResponseModel<
+                            ElementoConfiguracionUnidadesAdminModel>>(
+                        "api/configuracion-unidades/elemento/" +
+                        elemento.ElementoQuimicosId +
+                        "?incluirInactivas=true",
+                        cancellation.Token);
+
+            elementoEditor = respuesta?.Data ?? elemento;
+            editorMateriaOrganica = false;
+            tituloEditor = elementoEditor.NombreMostrar;
+            subtituloEditor = "Unidades del elemento químico";
+
+            ConstruirEditor(elementoEditor.Unidades);
+            ForzarUnidadInternaKgHa();
+            mostrarEditorConversion = true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private void AbrirEditorMateria()
+    {
+        elementoEditor = null;
+        editorMateriaOrganica = true;
+        tituloEditor = "Materia orgánica";
+        subtituloEditor = "Unidades normalizadas a porcentaje";
+
+        ConstruirEditor(materiaOrganica);
+
+        foreach (UnidadConversionEdicionModel item in editorUnidades)
+        {
+            item.CodigoFormulaConversion = "LINEAL";
+        }
+
+        mostrarEditorConversion = true;
+    }
+
+    private void ConstruirEditor(
+        IEnumerable<UnidadConversionConfiguradaAdminModel> existentes)
+    {
+        Dictionary<int, UnidadConversionConfiguradaAdminModel> mapa =
+            existentes.ToDictionary(item => item.UnidadMedidaId);
+
+        editorUnidades.Clear();
+
+        int siguienteOrden = 10;
+
+        foreach (UnidadCatalogoAdminModel unidad in unidades
+            .OrderByDescending(item => item.Activo)
+            .ThenBy(item => item.NombreUnidadMedida))
+        {
+            mapa.TryGetValue(
+                unidad.UnidadMedidaId,
+                out UnidadConversionConfiguradaAdminModel? configuracion);
+
+            editorUnidades.Add(
+                new UnidadConversionEdicionModel
+                {
+                    ConfiguracionId = configuracion?.ConfiguracionId ?? 0,
+                    UnidadMedidaId = unidad.UnidadMedidaId,
+                    NombreUnidadMedida = unidad.NombreUnidadMedida,
+                    UnidadCatalogoActiva = unidad.Activo,
+                    Seleccionada = configuracion?.Activo ?? false,
+                    CodigoFormulaConversion =
+                        configuracion?.CodigoFormulaConversion ?? "LINEAL",
+                    FactorPrincipal = configuracion?.FactorPrincipal ?? 1m,
+                    FactorSecundario = configuracion?.FactorSecundario ?? 1m,
+                    FactorTerciario = configuracion?.FactorTerciario ?? 1m,
+                    Divisor = configuracion?.Divisor ?? 1m,
+                    Desplazamiento = configuracion?.Desplazamiento ?? 0m,
+                    UnidadPredeterminada =
+                        configuracion?.UnidadPredeterminada ?? false,
+                    VisibleEnFormulario =
+                        configuracion?.VisibleEnFormulario ?? true,
+                    Orden = configuracion?.Orden ?? siguienteOrden,
+                    Observacion = configuracion?.Observacion ?? string.Empty
+                });
+
+            siguienteOrden += 10;
+        }
+    }
+
+    private void ForzarUnidadInternaKgHa()
+    {
+        UnidadConversionEdicionModel? kgHa =
+            editorUnidades.FirstOrDefault(item => item.EsUnidadInternaKgHa);
+
+        if (kgHa is null)
+            return;
+
+        kgHa.Seleccionada = true;
+        kgHa.UnidadCatalogoActiva = true;
+    }
+
+    private void MarcarPredeterminada(
+        UnidadConversionEdicionModel seleccionada)
+    {
+        foreach (UnidadConversionEdicionModel item in editorUnidades)
+        {
+            item.UnidadPredeterminada =
+                ReferenceEquals(item, seleccionada);
+        }
+    }
+
+    private async Task CerrarEditorConversionAsync()
+    {
+        if (procesando)
+            return;
+
+        mostrarEditorConversion = false;
+        editorUnidades.Clear();
+        elementoEditor = null;
+        errorEditor = null;
+
+        await Task.CompletedTask;
+    }
+
+    private async Task GuardarEditorConversionAsync()
+    {
+        errorEditor = null;
+
+        List<UnidadConversionEdicionModel> seleccionadas =
+            editorUnidades
+                .Where(item => item.Seleccionada)
+                .ToList();
+
+        if (seleccionadas.Count == 0)
+        {
+            errorEditor =
+                "Debe seleccionar al menos una unidad.";
+            return;
+        }
+
+        if (!editorMateriaOrganica &&
+            !seleccionadas.Any(item => item.EsUnidadInternaKgHa))
+        {
+            errorEditor =
+                "No está disponible la configuración técnica requerida por " +
+                "el motor de conversión. Actualice la página y vuelva a " +
+                "intentarlo.";
+            return;
+        }
+
+        if (seleccionadas.Any(item => item.Divisor == 0))
+        {
+            errorEditor =
+                "El divisor no puede ser cero.";
+            return;
+        }
+
+        if (seleccionadas.Count(item =>
+                item.UnidadPredeterminada &&
+                item.VisibleEnFormulario) > 1)
+        {
+            errorEditor =
+                "Solo puede existir una unidad predeterminada visible.";
+            return;
+        }
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                "¿Desea guardar esta configuración de conversiones? " +
+                "Los análisis nuevos utilizarán los valores actualizados.");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+
+        try
+        {
+            var request =
+                new GuardarConfiguracionUnidadesRequestModel
+                {
+                    Unidades = seleccionadas
+                        .Select(item =>
+                            new GuardarUnidadConversionRequestModel
+                            {
+                                UnidadMedidaId = item.UnidadMedidaId,
+                                CodigoFormulaConversion =
+                                    editorMateriaOrganica
+                                        ? "LINEAL"
+                                        : item.CodigoFormulaConversion,
+                                FactorPrincipal = item.FactorPrincipal,
+                                FactorSecundario = item.FactorSecundario,
+                                FactorTerciario = item.FactorTerciario,
+                                Divisor = item.Divisor,
+                                Desplazamiento = item.Desplazamiento,
+                                UnidadPredeterminada =
+                                    item.UnidadPredeterminada,
+                                VisibleEnFormulario =
+                                    item.VisibleEnFormulario,
+                                Orden = item.Orden,
+                                Observacion =
+                                    (item.Observacion ?? string.Empty).Trim(),
+                                Activo = true
+                            })
+                        .ToList()
+                };
+
+            if (editorMateriaOrganica)
+            {
+                await Api.PutAsync<
+                    GuardarConfiguracionUnidadesRequestModel,
+                    ConfiguracionUnidadesApiResponseModel<
+                        List<UnidadConversionConfiguradaAdminModel>>>(
+                    "api/configuracion-unidades/materia-organica",
+                    request,
+                    cancellation.Token);
+            }
+            else if (elementoEditor is not null)
+            {
+                await Api.PutAsync<
+                    GuardarConfiguracionUnidadesRequestModel,
+                    ConfiguracionUnidadesApiResponseModel<
+                        ElementoConfiguracionUnidadesAdminModel>>(
+                    "api/configuracion-unidades/elemento/" +
+                    elementoEditor.ElementoQuimicosId,
+                    request,
+                    cancellation.Token);
+            }
+
+            mostrarEditorConversion = false;
+            mensaje =
+                "Configuración de unidades actualizada correctamente.";
+
+            await CargarTodoAsync();
+        }
+        catch (Exception ex)
+        {
+            errorEditor = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private void InicializarPrueba()
+    {
+        elementoPruebaId =
+            elementos.FirstOrDefault()?.ElementoQuimicosId ?? 0;
+
+        prueba = new ProbarConversionUnidadRequestModel
+        {
+            Contexto = contextoPrueba,
+            ElementoQuimicosId = elementoPruebaId > 0
+                ? elementoPruebaId
+                : null,
+            MateriaOrganicaPorcentaje = 3m
+        };
+
+        SincronizarUnidadPrueba();
+        resultadoPrueba = null;
+    }
+
+    private void CambiarContextoPrueba()
+    {
+        prueba.Contexto = contextoPrueba;
+        prueba.ElementoQuimicosId =
+            contextoPrueba == "ELEMENTO"
+                ? elementoPruebaId
+                : null;
+
+        SincronizarUnidadPrueba();
+        resultadoPrueba = null;
+    }
+
+    private void SincronizarUnidadPrueba()
+    {
+        prueba.ElementoQuimicosId =
+            contextoPrueba == "ELEMENTO"
+                ? elementoPruebaId
+                : null;
+
+        prueba.UnidadMedidaId =
+            UnidadesDisponiblesPrueba
+                .FirstOrDefault(item => item.UnidadPredeterminada)
+                ?.UnidadMedidaId ??
+            UnidadesDisponiblesPrueba
+                .FirstOrDefault()
+                ?.UnidadMedidaId ??
+            0;
+    }
+
+    private async Task ProbarConversionAsync()
+    {
+        if (prueba.UnidadMedidaId <= 0)
+        {
+            error =
+                "Seleccione una unidad configurada para ejecutar la prueba.";
+            return;
+        }
+
+        if (contextoPrueba == "ELEMENTO" &&
+            elementoPruebaId <= 0)
+        {
+            error =
+                "Seleccione un elemento químico.";
+            return;
+        }
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            prueba.Contexto = contextoPrueba;
+            prueba.ElementoQuimicosId =
+                contextoPrueba == "ELEMENTO"
+                    ? elementoPruebaId
+                    : null;
+
+            ConfiguracionUnidadesApiResponseModel<
+                ResultadoPruebaConversionAdminModel>? respuesta =
+                    await Api.PostAsync<
+                        ProbarConversionUnidadRequestModel,
+                        ConfiguracionUnidadesApiResponseModel<
+                            ResultadoPruebaConversionAdminModel>>(
+                        "api/configuracion-unidades/probar",
+                        prueba,
+                        cancellation.Token);
+
+            resultadoPrueba = respuesta?.Data;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            resultadoPrueba = null;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private string NombreUnidadPredeterminada(
+        ElementoConfiguracionUnidadesAdminModel elemento)
+    {
+        return elemento.Unidades
+            .FirstOrDefault(item =>
+                item.Activo &&
+                !item.EsUnidadInternaKgHa &&
+                item.UnidadPredeterminada)
+            ?.NombreUnidadMedida ??
+            "Sin definir";
+    }
+
+    private string DescripcionFormula(string codigo)
+    {
+        return formulas
+            .FirstOrDefault(item =>
+                string.Equals(
+                    item.Codigo,
+                    codigo,
+                    StringComparison.OrdinalIgnoreCase))
+            ?.Descripcion ??
+            codigo;
+    }
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+        errorEditor = null;
+    }
+
+    public void Dispose()
+    {
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+}

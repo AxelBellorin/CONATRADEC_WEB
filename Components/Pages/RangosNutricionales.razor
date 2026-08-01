@@ -1,0 +1,2039 @@
+@page "/parametros-agronomicos/rangos-nutricionales"
+@page "/rangos-nutricionales"
+@implements IDisposable
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Rangos nutricionales | CONATRADEC</PageTitle>
+
+<section class="rn-page">
+    <header class="rn-hero">
+        <div>
+            <span class="rn-eyebrow">Parámetros agronómicos</span>
+            <h1>Rangos nutricionales por cultivo</h1>
+            <p>
+                Administra los límites de referencia utilizados para clasificar
+                cada elemento químico y calcular el requerimiento anual.
+            </p>
+        </div>
+
+        <div class="rn-actions">
+            @if (PuedeActualizar)
+            {
+                <button class="rn-button secondary"
+                        disabled="@procesando"
+                        @onclick="AbrirCultivosEliminadosAsync">
+                    <i class="fa-solid fa-trash-arrow-up"></i>
+                    Eliminados
+                </button>
+            }
+
+            <button class="rn-button secondary"
+                    disabled="@procesando"
+                    @onclick="ActualizarCultivosAsync">
+                <i class="fa-solid fa-rotate"></i>
+                Actualizar
+            </button>
+
+            @if (PuedeAgregar)
+            {
+                <button class="rn-button primary"
+                        disabled="@procesando"
+                        @onclick="AbrirCrearCultivo">
+                    <i class="fa-solid fa-plus"></i>
+                    Nuevo cultivo
+                </button>
+            }
+        </div>
+    </header>
+
+    <aside class="rn-system-note">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+            <strong>Unidad oficial de administración: lb/Mz</strong>
+            <span>
+                La API convierte y conserva internamente los valores históricos
+                en kg/Ha, pero esta pantalla siempre recibe y presenta libras
+                por manzana. No escriba manualmente factores de conversión.
+            </span>
+        </div>
+    </aside>
+
+    @if (!string.IsNullOrWhiteSpace(mensaje))
+    {
+        <div class="rn-alert success">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>@mensaje</span>
+            <button aria-label="Cerrar mensaje"
+                    @onclick="LimpiarMensajes">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="rn-alert error">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>@error</span>
+            <button aria-label="Cerrar error"
+                    @onclick="LimpiarMensajes">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    }
+
+    @if (!PuedeLeer)
+    {
+        <section class="rn-empty">
+            <i class="fa-solid fa-lock"></i>
+            <h2>Sin permiso de lectura</h2>
+            <p>
+                Su rol no puede consultar los rangos nutricionales.
+            </p>
+        </section>
+    }
+    else
+    {
+        <section class="rn-summary">
+            <article>
+                <i class="fa-solid fa-wheat-awn"></i>
+                <div>
+                    <small>Cultivos registrados</small>
+                    <strong>@cultivos.TotalRegistros</strong>
+                </div>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-chart-simple"></i>
+                <div>
+                    <small>Rangos en esta página</small>
+                    <strong>@TotalRangosPaginaCultivos</strong>
+                </div>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-layer-group"></i>
+                <div>
+                    <small>Cultivos configurados</small>
+                    <strong>@CultivosConfiguradosPagina</strong>
+                </div>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <div>
+                    <small>Sin rangos en esta página</small>
+                    <strong>@CultivosSinRangosPagina</strong>
+                </div>
+            </article>
+        </section>
+
+        <section class="rn-toolbar">
+            <div class="rn-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="search"
+                       maxlength="150"
+                       placeholder="Buscar cultivo por nombre o descripción"
+                       @bind="buscarCultivo"
+                       @bind:event="oninput" />
+            </div>
+
+            <button class="rn-button primary"
+                    disabled="@procesando"
+                    @onclick="BuscarCultivosAsync">
+                Buscar
+            </button>
+
+            <button class="rn-button ghost"
+                    disabled="@procesando"
+                    @onclick="LimpiarCultivosAsync">
+                Limpiar
+            </button>
+        </section>
+
+        @if (cargandoCultivos)
+        {
+            <LoadingState Mensaje="Cargando cultivos..." />
+        }
+        else if (cultivos.Items.Count == 0)
+        {
+            <section class="rn-empty">
+                <i class="fa-solid fa-wheat-awn"></i>
+                <h2>No se encontraron cultivos</h2>
+                <p>
+                    Registre o reactive un tipo de cultivo antes de configurar
+                    sus rangos nutricionales.
+                </p>
+            </section>
+        }
+        else
+        {
+            <section class="rn-crop-grid">
+                @foreach (RangoCultivoResumenModel cultivo in cultivos.Items)
+                {
+                    <article class="rn-crop-card @(cultivo.CantidadAportes == 0
+                        ? "empty"
+                        : string.Empty)">
+                        <header>
+                            <div class="rn-crop-icon">
+                                <i class="fa-solid fa-seedling"></i>
+                            </div>
+
+                            <div>
+                                <span>Tipo de cultivo</span>
+                                <h2>@cultivo.NombreMostrar</h2>
+                            </div>
+
+                            <b class="rn-count">
+                                @cultivo.CantidadAportes
+                            </b>
+                        </header>
+
+                        <p>@cultivo.DescripcionMostrar</p>
+
+                        <div class="rn-crop-status">
+                            @if (cultivo.CantidadAportes > 0)
+                            {
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span>
+                                    @cultivo.CantidadAportes rango(s)
+                                    configurado(s)
+                                </span>
+                            }
+                            else
+                            {
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>
+                                    Sin elementos configurados
+                                </span>
+                            }
+                        </div>
+
+                        <div class="rn-crop-actions">
+                            <button class="rn-button primary full"
+                                    @onclick="() => AbrirCultivoAsync(cultivo)">
+                                <i class="fa-solid fa-sliders"></i>
+                                Administrar rangos
+                            </button>
+
+                            @if (PuedeEliminar)
+                            {
+                                <button class="rn-button danger"
+                                        title="Eliminar tipo de cultivo"
+                                        aria-label="Eliminar tipo de cultivo"
+                                        disabled="@procesando"
+                                        @onclick="() => EliminarCultivoAsync(cultivo)">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                    <span>Eliminar cultivo</span>
+                                </button>
+                            }
+                        </div>
+                    </article>
+                }
+            </section>
+
+            <Paginador Pagina="@cultivos.PaginaActual"
+                       TotalPaginas="@cultivos.TotalPaginas"
+                       TotalRegistros="@cultivos.TotalRegistros"
+                       TamanoPagina="@cultivos.TamanoPagina"
+                       Procesando="@procesando"
+                       PaginaCambiada="CambiarPaginaCultivosAsync"
+                       TamanoPaginaCambiado="CambiarTamanoCultivosAsync" />
+        }
+    }
+</section>
+
+@if (mostrarFormularioCultivo)
+{
+    <div class="rn-modal-backdrop top"
+         @onclick="CerrarFormularioCultivoAsync">
+        <article class="rn-form-modal"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>Rangos nutricionales</span>
+                    <h2>Crear tipo de cultivo</h2>
+                </div>
+
+                <button class="rn-close"
+                        disabled="@procesando"
+                        aria-label="Cerrar"
+                        @onclick="CerrarFormularioCultivoAsync">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <EditForm Model="formularioCultivo"
+                      OnValidSubmit="GuardarCultivoAsync"
+                      FormName="rango-nutriente-cultivo-form">
+                <DataAnnotationsValidator />
+
+                <div class="rn-form-body">
+                    <div class="rn-form-note">
+                        El cultivo se agregará al catálogo general y quedará
+                        disponible para configurar sus rangos nutricionales.
+                        El nombre se guardará en mayúsculas.
+                    </div>
+
+                    <div class="rn-form-grid">
+                        <label class="full">
+                            <span>Nombre del cultivo *</span>
+                            <InputText class="rn-control"
+                                       maxlength="80"
+                                       @bind-Value="formularioCultivo.NombreTipoCultivo" />
+                            <ValidationMessage
+                                For="() => formularioCultivo.NombreTipoCultivo" />
+                        </label>
+
+                        <label class="full">
+                            <span>Descripción</span>
+                            <InputTextArea class="rn-control"
+                                           rows="3"
+                                           maxlength="150"
+                                           @bind-Value="formularioCultivo.DescripcionTipoCultivo" />
+                            <ValidationMessage
+                                For="() => formularioCultivo.DescripcionTipoCultivo" />
+                        </label>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(errorCultivo))
+                    {
+                        <div class="rn-form-error">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            @errorCultivo
+                        </div>
+                    }
+                </div>
+
+                <footer>
+                    <button type="button"
+                            class="rn-button ghost"
+                            disabled="@procesando"
+                            @onclick="CerrarFormularioCultivoAsync">
+                        Cancelar
+                    </button>
+
+                    <button type="submit"
+                            class="rn-button primary"
+                            disabled="@procesando">
+                        <i class="fa-solid @(procesando
+                            ? "fa-spinner fa-spin"
+                            : "fa-floppy-disk")"></i>
+                        @(procesando ? "Guardando..." : "Guardar cultivo")
+                    </button>
+                </footer>
+            </EditForm>
+        </article>
+    </div>
+}
+
+@if (mostrarCultivosEliminados)
+{
+    <div class="rn-modal-backdrop top"
+         @onclick="CerrarCultivosEliminados">
+        <article class="rn-inactive-modal"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>Papelera administrativa</span>
+                    <h2>Tipos de cultivo eliminados</h2>
+                </div>
+
+                <button class="rn-close"
+                        disabled="@procesando"
+                        aria-label="Cerrar"
+                        @onclick="CerrarCultivosEliminados">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div class="rn-form-body">
+                <div class="rn-form-note">
+                    La reactivación conserva rangos nutricionales y análisis
+                    históricos relacionados con el mismo cultivo.
+                </div>
+
+                <div class="rn-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search"
+                           placeholder="Buscar cultivo eliminado"
+                           @bind="buscarCultivoEliminado"
+                           @bind:event="oninput" />
+                </div>
+
+                @if (cargandoCultivosEliminados)
+                {
+                    <LoadingState
+                        Mensaje="Cargando cultivos eliminados..." />
+                }
+                else if (CultivosEliminadosFiltrados.Count == 0)
+                {
+                    <section class="rn-empty compact">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <h3>No hay cultivos eliminados</h3>
+                    </section>
+                }
+                else
+                {
+                    <div class="rn-inactive-list">
+                        @foreach (RangoEliminadoItemModel item
+                            in CultivosEliminadosFiltrados)
+                        {
+                            <article>
+                                <div class="rn-symbol small">
+                                    <i class="fa-solid fa-seedling"></i>
+                                </div>
+
+                                <div>
+                                    <h3>@item.Titulo</h3>
+                                    <p>
+                                        @(string.IsNullOrWhiteSpace(item.Subtitulo)
+                                            ? item.Detalle
+                                            : item.Subtitulo)
+                                    </p>
+                                </div>
+
+                                <button class="rn-button primary"
+                                        disabled="@procesando"
+                                        @onclick="() => ReactivarCultivoAsync(item)">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                    Reactivar
+                                </button>
+                            </article>
+                        }
+                    </div>
+                }
+            </div>
+        </article>
+    </div>
+}
+
+@if (mostrarRangos && cultivoSeleccionado is not null)
+{
+    <div class="rn-modal-backdrop"
+         @onclick="CerrarRangos">
+        <article class="rn-ranges-modal"
+                 @onclick:stopPropagation="true">
+            <header class="rn-ranges-header">
+                <div>
+                    <span>Configuración agronómica</span>
+                    <h2>@cultivoSeleccionado.NombreMostrar</h2>
+                    <p>
+                        @rangos.TotalRegistros elemento(s) con rango activo.
+                    </p>
+                </div>
+
+                <div class="rn-actions">
+                    @if (PuedeActualizar)
+                    {
+                        <button class="rn-button secondary"
+                                disabled="@procesando"
+                                @onclick="AbrirEliminadosAsync">
+                            <i class="fa-solid fa-trash-arrow-up"></i>
+                            Eliminados
+                        </button>
+                    }
+
+                    @if (PuedeAgregar)
+                    {
+                        <button class="rn-button primary"
+                                disabled="@procesando"
+                                @onclick="AbrirCrear">
+                            <i class="fa-solid fa-plus"></i>
+                            Nuevo rango
+                        </button>
+                    }
+
+                    <button class="rn-close"
+                            aria-label="Cerrar"
+                            disabled="@procesando"
+                            @onclick="CerrarRangos">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </header>
+
+            <section class="rn-ranges-toolbar">
+                <div class="rn-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search"
+                           maxlength="150"
+                           placeholder="Buscar elemento, símbolo o descripción"
+                           @bind="buscarRango"
+                           @bind:event="oninput" />
+                </div>
+
+                <button class="rn-button primary"
+                        disabled="@procesando"
+                        @onclick="BuscarRangosAsync">
+                    Buscar
+                </button>
+
+                <button class="rn-button ghost"
+                        disabled="@procesando"
+                        @onclick="LimpiarRangosAsync">
+                    Limpiar
+                </button>
+            </section>
+
+            <div class="rn-ranges-body">
+                @if (cargandoRangos)
+                {
+                    <LoadingState Mensaje="Cargando rangos nutricionales..." />
+                }
+                else if (rangos.Items.Count == 0)
+                {
+                    <section class="rn-empty compact">
+                        <i class="fa-solid fa-chart-simple"></i>
+                        <h3>El cultivo no tiene rangos activos</h3>
+                        <p>
+                            Agregue los elementos que formarán la referencia
+                            agronómica de este cultivo.
+                        </p>
+                    </section>
+                }
+                else
+                {
+                    <section class="rn-ranges-grid">
+                        @foreach (RangoNutrienteItemModel item in rangos.Items)
+                        {
+                            <article class="rn-range-card">
+                                <header>
+                                    <div class="rn-symbol">
+                                        @item.SimboloElementoQuimico
+                                    </div>
+
+                                    <div>
+                                        <span>Elemento químico</span>
+                                        <h3>@item.NombreElementoQuimico</h3>
+                                    </div>
+
+                                    <b>@item.UnidadBase</b>
+                                </header>
+
+                                <div class="rn-range-scale">
+                                    <div>
+                                        <small>Mínimo</small>
+                                        <strong>
+                                            @item.ValorMinimo.ToString("N2")
+                                        </strong>
+                                    </div>
+
+                                    <i class="fa-solid fa-arrow-right"></i>
+
+                                    <div>
+                                        <small>Máximo</small>
+                                        <strong>
+                                            @item.ValorMaximo.ToString("N2")
+                                        </strong>
+                                    </div>
+                                </div>
+
+                                <div class="rn-width">
+                                    <span>Amplitud del rango</span>
+                                    <strong>
+                                        @item.Amplitud.ToString("N2")
+                                        @item.UnidadBase
+                                    </strong>
+                                </div>
+
+                                <p>
+                                    @(string.IsNullOrWhiteSpace(
+                                        item.DescripcionParametro)
+                                        ? "Sin descripción registrada."
+                                        : item.DescripcionParametro)
+                                </p>
+
+                                <footer>
+                                    <button class="rn-icon view"
+                                            title="Ver detalle"
+                                            @onclick="() => AbrirVer(item)">
+                                        <i class="fa-regular fa-eye"></i>
+                                    </button>
+
+                                    @if (PuedeActualizar)
+                                    {
+                                        <button class="rn-icon edit"
+                                                title="Editar"
+                                                @onclick="() => AbrirEditarAsync(item)">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+                                    }
+
+                                    @if (PuedeEliminar)
+                                    {
+                                        <button class="rn-icon delete"
+                                                title="Desactivar"
+                                                @onclick="() => EliminarAsync(item)">
+                                            <i class="fa-solid fa-ban"></i>
+                                        </button>
+                                    }
+                                </footer>
+                            </article>
+                        }
+                    </section>
+
+                    <Paginador Pagina="@rangos.PaginaActual"
+                               TotalPaginas="@rangos.TotalPaginas"
+                               TotalRegistros="@rangos.TotalRegistros"
+                               TamanoPagina="@rangos.TamanoPagina"
+                               Procesando="@procesando"
+                               PaginaCambiada="CambiarPaginaRangosAsync"
+                               TamanoPaginaCambiado="CambiarTamanoRangosAsync" />
+                }
+            </div>
+        </article>
+    </div>
+}
+
+@if (mostrarFormulario && cultivoSeleccionado is not null)
+{
+    <div class="rn-modal-backdrop top"
+         @onclick="CerrarFormularioAsync">
+        <article class="rn-form-modal"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>@cultivoSeleccionado.NombreMostrar</span>
+                    <h2>@TituloFormulario</h2>
+                </div>
+
+                <button class="rn-close"
+                        disabled="@procesando"
+                        aria-label="Cerrar"
+                        @onclick="CerrarFormularioAsync">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            @if (modoFormulario == "ver")
+            {
+                <div class="rn-form-body">
+                    <section class="rn-view-grid">
+                        <article>
+                            <small>Cultivo</small>
+                            <strong>@cultivoSeleccionado.NombreMostrar</strong>
+                        </article>
+
+                        <article>
+                            <small>Elemento</small>
+                            <strong>@ElementoFormularioTexto</strong>
+                        </article>
+
+                        <article>
+                            <small>Valor mínimo</small>
+                            <strong>
+                                @formulario.ValorMinimo.ToString("N2")
+                                lb/Mz
+                            </strong>
+                        </article>
+
+                        <article>
+                            <small>Valor máximo</small>
+                            <strong>
+                                @formulario.ValorMaximo.ToString("N2")
+                                lb/Mz
+                            </strong>
+                        </article>
+
+                        <article class="full">
+                            <small>Descripción</small>
+                            <span>@formulario.DescripcionParametro</span>
+                        </article>
+                    </section>
+                </div>
+
+                <footer>
+                    <button class="rn-button secondary"
+                            @onclick="CerrarFormularioAsync">
+                        Cerrar
+                    </button>
+                </footer>
+            }
+            else
+            {
+                <EditForm Model="formulario"
+                          OnValidSubmit="GuardarAsync"
+                          FormName="rango-nutriente-form">
+                    <DataAnnotationsValidator />
+
+                    <div class="rn-form-body">
+                        <div class="rn-form-note">
+                            Los valores se capturan en lb/Mz. El máximo debe
+                            ser estrictamente mayor que el mínimo.
+                        </div>
+
+                        <div class="rn-form-grid">
+                            <label class="full">
+                                <span>Cultivo</span>
+                                <input class="rn-control"
+                                       value="@cultivoSeleccionado.NombreMostrar"
+                                       disabled />
+                            </label>
+
+                            <label class="full">
+                                <span>Elemento químico *</span>
+                                <InputSelect class="rn-control"
+                                             @bind-Value="formulario.ElementoQuimicosId">
+                                    <option value="0">Seleccione</option>
+
+                                    @foreach (ElementoRangoDisponibleModel elemento
+                                        in elementosDisponibles)
+                                    {
+                                        <option value="@elemento.ElementoQuimicosId">
+                                            @elemento.Texto
+                                        </option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage
+                                    For="() => formulario.ElementoQuimicosId" />
+                            </label>
+
+                            <label>
+                                <span>Valor mínimo (lb/Mz) *</span>
+                                <InputNumber class="rn-control"
+                                             min="0.0001"
+                                             step="0.01"
+                                             @bind-Value="formulario.ValorMinimo" />
+                                <ValidationMessage
+                                    For="() => formulario.ValorMinimo" />
+                            </label>
+
+                            <label>
+                                <span>Valor máximo (lb/Mz) *</span>
+                                <InputNumber class="rn-control"
+                                             min="0.0001"
+                                             step="0.01"
+                                             @bind-Value="formulario.ValorMaximo" />
+                                <ValidationMessage
+                                    For="() => formulario.ValorMaximo" />
+                            </label>
+
+                            <label class="full">
+                                <span>Descripción *</span>
+                                <InputTextArea class="rn-control"
+                                               rows="3"
+                                               maxlength="150"
+                                               @bind-Value="formulario.DescripcionParametro" />
+                                <ValidationMessage
+                                    For="() => formulario.DescripcionParametro" />
+                            </label>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(errorFormulario))
+                        {
+                            <div class="rn-form-error">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                @errorFormulario
+                            </div>
+                        }
+                    </div>
+
+                    <footer>
+                        <button type="button"
+                                class="rn-button ghost"
+                                disabled="@procesando"
+                                @onclick="CerrarFormularioAsync">
+                            Cancelar
+                        </button>
+
+                        <button type="submit"
+                                class="rn-button primary"
+                                disabled="@procesando">
+                            <i class="fa-solid @(procesando
+                                ? "fa-spinner fa-spin"
+                                : "fa-floppy-disk")"></i>
+                            @(procesando ? "Guardando..." : "Guardar")
+                        </button>
+                    </footer>
+                </EditForm>
+            }
+        </article>
+    </div>
+}
+
+@if (mostrarEliminados && cultivoSeleccionado is not null)
+{
+    <div class="rn-modal-backdrop top"
+         @onclick="CerrarEliminados">
+        <article class="rn-inactive-modal"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>Papelera administrativa</span>
+                    <h2>
+                        Rangos eliminados ·
+                        @cultivoSeleccionado.NombreMostrar
+                    </h2>
+                </div>
+
+                <button class="rn-close"
+                        disabled="@procesando"
+                        aria-label="Cerrar"
+                        @onclick="CerrarEliminados">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div class="rn-form-body">
+                <div class="rn-form-note">
+                    La reactivación conserva el identificador histórico. El
+                    cultivo y el elemento químico deben permanecer activos.
+                </div>
+
+                <div class="rn-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search"
+                           placeholder="Buscar elemento eliminado"
+                           @bind="buscarEliminado"
+                           @bind:event="oninput" />
+                </div>
+
+                @if (cargandoEliminados)
+                {
+                    <LoadingState Mensaje="Cargando rangos eliminados..." />
+                }
+                else if (EliminadosFiltrados.Count == 0)
+                {
+                    <section class="rn-empty compact">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <h3>No hay rangos eliminados para este cultivo</h3>
+                    </section>
+                }
+                else
+                {
+                    <div class="rn-inactive-list">
+                        @foreach (RangoEliminadoItemModel item
+                            in EliminadosFiltrados)
+                        {
+                            <article>
+                                <div class="rn-symbol small">
+                                    @item.Codigo
+                                </div>
+
+                                <div>
+                                    <h3>@item.Titulo</h3>
+                                    <p>@item.Detalle</p>
+                                </div>
+
+                                <button class="rn-button primary"
+                                        disabled="@procesando"
+                                        @onclick="() => ReactivarAsync(item)">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                    Reactivar
+                                </button>
+                            </article>
+                        }
+                    </div>
+                }
+            </div>
+        </article>
+    </div>
+}
+
+@code {
+    private const string CodigoPermiso =
+        "rangoNutrientePage";
+
+    private const string CodigoEliminados =
+        "rango-nutriente";
+
+    private const string CodigoCultivosEliminados =
+        "tipo-cultivo";
+
+    private readonly CancellationTokenSource cancellation =
+        new();
+
+    private RangoCultivoPaginaModel cultivos =
+        new();
+
+    private RangoNutrientePaginaModel rangos =
+        new();
+
+    private readonly List<ElementoRangoDisponibleModel>
+        elementosDisponibles =
+            new();
+
+    private readonly List<RangoEliminadoItemModel>
+        eliminados =
+            new();
+
+    private readonly List<RangoEliminadoItemModel>
+        cultivosEliminados =
+            new();
+
+    private RangoCultivoResumenModel? cultivoSeleccionado;
+
+    private RangoNutrienteItemModel? itemVista;
+
+    private RangoNutrienteFormModel formulario =
+        new();
+
+    private RangoNutrienteFormModel original =
+        new();
+
+    private RangoCultivoFormModel formularioCultivo =
+        new();
+
+    private RangoCultivoFormModel cultivoOriginal =
+        new();
+
+    private string buscarCultivo = string.Empty;
+    private string buscarRango = string.Empty;
+    private string buscarEliminado = string.Empty;
+    private string buscarCultivoEliminado = string.Empty;
+    private string modoFormulario = "crear";
+
+    private string? mensaje;
+    private string? error;
+    private string? errorFormulario;
+    private string? errorCultivo;
+
+    private int tamanoCultivos = 20;
+    private int tamanoRangos = 20;
+
+    private bool cargandoCultivos = true;
+    private bool cargandoRangos;
+    private bool cargandoEliminados;
+    private bool cargandoCultivosEliminados;
+    private bool procesando;
+    private bool mostrarRangos;
+    private bool mostrarFormulario;
+    private bool mostrarEliminados;
+    private bool mostrarFormularioCultivo;
+    private bool mostrarCultivosEliminados;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            CodigoPermiso);
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(
+            CodigoPermiso);
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(
+            CodigoPermiso);
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(
+            CodigoPermiso);
+
+    private int TotalRangosPaginaCultivos =>
+        cultivos.Items.Sum(item =>
+            item.CantidadAportes);
+
+    private int CultivosConfiguradosPagina =>
+        cultivos.Items.Count(item =>
+            item.CantidadAportes > 0);
+
+    private int CultivosSinRangosPagina =>
+        cultivos.Items.Count(item =>
+            item.CantidadAportes == 0);
+
+    private string TituloFormulario =>
+        modoFormulario switch
+        {
+            "editar" => "Editar rango nutricional",
+            "ver" => "Detalle del rango nutricional",
+            _ => "Crear rango nutricional"
+        };
+
+    private string ElementoFormularioTexto =>
+        elementosDisponibles
+            .FirstOrDefault(item =>
+                item.ElementoQuimicosId ==
+                formulario.ElementoQuimicosId)
+            ?.Texto ??
+        itemVista?.ElementoMostrar ??
+        "Sin elemento";
+
+    private List<RangoEliminadoItemModel>
+        CultivosEliminadosFiltrados =>
+            cultivosEliminados
+                .Where(item =>
+                    string.IsNullOrWhiteSpace(buscarCultivoEliminado) ||
+                    item.Titulo.Contains(
+                        buscarCultivoEliminado,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    item.Subtitulo.Contains(
+                        buscarCultivoEliminado,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    item.Detalle.Contains(
+                        buscarCultivoEliminado,
+                        StringComparison.OrdinalIgnoreCase))
+                .OrderBy(item =>
+                    item.Titulo)
+                .ToList();
+
+    private List<RangoEliminadoItemModel>
+        EliminadosFiltrados
+    {
+        get
+        {
+            if (cultivoSeleccionado is null)
+                return new();
+
+            string cultivo =
+                cultivoSeleccionado.NombreMostrar;
+
+            return eliminados
+                .Where(item =>
+                    item.Titulo.Contains(
+                        cultivo,
+                        StringComparison.OrdinalIgnoreCase))
+                .Where(item =>
+                    string.IsNullOrWhiteSpace(buscarEliminado) ||
+                    item.Titulo.Contains(
+                        buscarEliminado,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    item.Codigo.Contains(
+                        buscarEliminado,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    item.Detalle.Contains(
+                        buscarEliminado,
+                        StringComparison.OrdinalIgnoreCase))
+                .OrderBy(item =>
+                    item.Titulo)
+                .ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!PuedeLeer)
+        {
+            cargandoCultivos = false;
+            return;
+        }
+
+        await CargarCultivosAsync(1);
+    }
+
+    private void AbrirCrearCultivo()
+    {
+        LimpiarMensajes();
+
+        formularioCultivo =
+            new RangoCultivoFormModel();
+
+        cultivoOriginal =
+            CopiarCultivo(formularioCultivo);
+
+        mostrarFormularioCultivo =
+            true;
+    }
+
+    private async Task CerrarFormularioCultivoAsync()
+    {
+        if (procesando)
+            return;
+
+        if (HayCambiosCultivo())
+        {
+            bool salir =
+                await JS.InvokeAsync<bool>(
+                    "confirm",
+                    "Hay cambios sin guardar. ¿Desea cerrar el formulario?");
+
+            if (!salir)
+                return;
+        }
+
+        mostrarFormularioCultivo =
+            false;
+
+        formularioCultivo =
+            new RangoCultivoFormModel();
+
+        cultivoOriginal =
+            new RangoCultivoFormModel();
+
+        errorCultivo =
+            null;
+    }
+
+    private async Task GuardarCultivoAsync()
+    {
+        if (procesando)
+            return;
+
+        errorCultivo =
+            null;
+
+        formularioCultivo.NombreTipoCultivo =
+            (formularioCultivo.NombreTipoCultivo ??
+             string.Empty)
+            .ReplaceLineEndings(" ")
+            .Trim()
+            .ToUpperInvariant();
+
+        formularioCultivo.DescripcionTipoCultivo =
+            (formularioCultivo.DescripcionTipoCultivo ??
+             string.Empty)
+            .ReplaceLineEndings(" ")
+            .Trim();
+
+        if (string.IsNullOrWhiteSpace(
+                formularioCultivo.NombreTipoCultivo))
+        {
+            errorCultivo =
+                "Ingrese el nombre del cultivo.";
+            return;
+        }
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                "¿Desea crear este tipo de cultivo?");
+
+        if (!confirmar)
+            return;
+
+        procesando =
+            true;
+
+        LimpiarMensajes();
+
+        try
+        {
+            RangoCatalogoResponseModel<object>? respuesta =
+                await Api.PostAsync<
+                    RangoCultivoFormModel,
+                    RangoCatalogoResponseModel<object>>(
+                    "api/configuracion/tipos-cultivo",
+                    formularioCultivo,
+                    cancellation.Token);
+
+            mostrarFormularioCultivo =
+                false;
+
+            formularioCultivo =
+                new RangoCultivoFormModel();
+
+            cultivoOriginal =
+                new RangoCultivoFormModel();
+
+            await CargarCultivosAsync(1);
+
+            mensaje =
+                respuesta?.Message ??
+                "Tipo de cultivo creado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            errorCultivo =
+                ex.Message;
+        }
+        finally
+        {
+            procesando =
+                false;
+        }
+    }
+
+    private async Task AbrirCultivosEliminadosAsync()
+    {
+        mostrarCultivosEliminados =
+            true;
+
+        buscarCultivoEliminado =
+            string.Empty;
+
+        cargandoCultivosEliminados =
+            true;
+
+        LimpiarMensajes();
+
+        try
+        {
+            RangoCatalogoResponseModel<
+                List<RangoEliminadoItemModel>>? respuesta =
+                    await Api.GetAsync<
+                        RangoCatalogoResponseModel<
+                            List<RangoEliminadoItemModel>>>(
+                        $"api/catalogos-eliminados/" +
+                        $"{CodigoCultivosEliminados}",
+                        AuthState.CrearEncabezadosSesion(),
+                        cancellation.Token);
+
+            cultivosEliminados.Clear();
+
+            if (respuesta?.Data is not null)
+            {
+                cultivosEliminados.AddRange(
+                    respuesta.Data);
+            }
+        }
+        catch (Exception ex)
+        {
+            error =
+                ex.Message;
+        }
+        finally
+        {
+            cargandoCultivosEliminados =
+                false;
+        }
+    }
+
+    private void CerrarCultivosEliminados()
+    {
+        if (procesando)
+            return;
+
+        mostrarCultivosEliminados =
+            false;
+
+        cultivosEliminados.Clear();
+    }
+
+    private async Task ReactivarCultivoAsync(
+        RangoEliminadoItemModel item)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea reactivar el cultivo " +
+                $"\"{item.Titulo}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando =
+            true;
+
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                $"api/catalogos-eliminados/" +
+                $"{CodigoCultivosEliminados}/" +
+                $"{item.Id}/reactivar",
+                AuthState.CrearEncabezadosSesion(),
+                cancellation.Token);
+
+            cultivosEliminados.Remove(item);
+
+            await CargarCultivosAsync(1);
+
+            mensaje =
+                "Tipo de cultivo reactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error =
+                ex.Message;
+        }
+        finally
+        {
+            procesando =
+                false;
+        }
+    }
+
+    private Task BuscarCultivosAsync() =>
+        CargarCultivosAsync(1);
+
+    private async Task LimpiarCultivosAsync()
+    {
+        buscarCultivo = string.Empty;
+        await CargarCultivosAsync(1);
+    }
+
+    private Task ActualizarCultivosAsync() =>
+        CargarCultivosAsync(
+            Math.Max(
+                1,
+                cultivos.PaginaActual));
+
+    private async Task CargarCultivosAsync(int paginaSolicitada)
+    {
+        if (!PuedeLeer)
+            return;
+
+        cargandoCultivos = true;
+        LimpiarMensajes();
+
+        try
+        {
+            string ruta =
+                "api/configuracion/rangos-nutrientes/cultivos" +
+                $"?pagina={Math.Max(1, paginaSolicitada)}" +
+                $"&tamanoPagina={tamanoCultivos}";
+
+            if (!string.IsNullOrWhiteSpace(buscarCultivo))
+            {
+                ruta +=
+                    $"&buscar={Uri.EscapeDataString(buscarCultivo.Trim())}";
+            }
+
+            RangoCultivoPaginaModel? respuesta =
+                await Api.GetAsync<RangoCultivoPaginaModel>(
+                    ruta,
+                    cancellation.Token);
+
+            cultivos =
+                respuesta ??
+                new RangoCultivoPaginaModel();
+
+            if (cultivos.TamanoPagina > 0)
+                tamanoCultivos = cultivos.TamanoPagina;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            cultivos = new RangoCultivoPaginaModel();
+        }
+        finally
+        {
+            cargandoCultivos = false;
+        }
+    }
+
+    private async Task CambiarPaginaCultivosAsync(
+        int nuevaPagina)
+    {
+        if (procesando ||
+            nuevaPagina < 1 ||
+            nuevaPagina >
+                Math.Max(
+                    1,
+                    cultivos.TotalPaginas) ||
+            nuevaPagina ==
+                cultivos.PaginaActual)
+        {
+            return;
+        }
+
+        await CargarCultivosAsync(
+            nuevaPagina);
+    }
+
+    private async Task CambiarTamanoCultivosAsync(
+        int nuevoTamano)
+    {
+        if (procesando)
+            return;
+
+        tamanoCultivos =
+            Math.Clamp(
+                nuevoTamano,
+                5,
+                100);
+
+        await CargarCultivosAsync(1);
+    }
+
+    private async Task EliminarCultivoAsync(
+        RangoCultivoResumenModel cultivo)
+    {
+        if (procesando)
+            return;
+
+        LimpiarMensajes();
+
+        /*
+         * El backend no permite desactivar el cultivo mientras tenga
+         * rangos nutricionales activos. Se informa antes de enviar una
+         * solicitud que necesariamente será rechazada.
+         */
+        if (cultivo.CantidadAportes > 0)
+        {
+            error =
+                $"No se puede eliminar el cultivo " +
+                $"\"{cultivo.NombreMostrar}\" porque tiene " +
+                $"{cultivo.CantidadAportes} rango(s) nutricional(es) " +
+                $"activo(s). Entre en Administrar rangos y desactívelos " +
+                $"primero. Después el sistema verificará si existen " +
+                $"análisis históricos relacionados.";
+
+            return;
+        }
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea eliminar el tipo de cultivo " +
+                $"\"{cultivo.NombreMostrar}\"?\n\n" +
+                "La eliminación es lógica y podrá reactivarlo desde " +
+                "Eliminados. El backend impedirá la operación si el cultivo " +
+                "fue utilizado en análisis de suelo.");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                $"api/configuracion/tipos-cultivo/" +
+                $"{cultivo.TipoCultivoId}/eliminar",
+                cancellationToken:
+                    cancellation.Token);
+
+            mensaje =
+                $"El tipo de cultivo \"{cultivo.NombreMostrar}\" " +
+                "fue desactivado correctamente.";
+
+            await CargarCultivosAsync(
+                cultivos.PaginaActual);
+
+            if (cultivos.Items.Count == 0 &&
+                cultivos.PaginaActual > 1)
+            {
+                await CargarCultivosAsync(
+                    cultivos.PaginaActual - 1);
+            }
+        }
+        catch (Exception ex)
+        {
+            error =
+                $"No fue posible eliminar el cultivo " +
+                $"\"{cultivo.NombreMostrar}\". {ex.Message}";
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task AbrirCultivoAsync(
+        RangoCultivoResumenModel cultivo)
+    {
+        cultivoSeleccionado = cultivo;
+        buscarRango = string.Empty;
+        rangos = new RangoNutrientePaginaModel();
+        mostrarRangos = true;
+
+        await CargarRangosAsync(1);
+    }
+
+    private void CerrarRangos()
+    {
+        if (procesando)
+            return;
+
+        mostrarRangos = false;
+        mostrarFormulario = false;
+        mostrarEliminados = false;
+        cultivoSeleccionado = null;
+        itemVista = null;
+        rangos = new RangoNutrientePaginaModel();
+        elementosDisponibles.Clear();
+        eliminados.Clear();
+    }
+
+    private Task BuscarRangosAsync() =>
+        CargarRangosAsync(1);
+
+    private async Task LimpiarRangosAsync()
+    {
+        buscarRango = string.Empty;
+        await CargarRangosAsync(1);
+    }
+
+    private async Task CargarRangosAsync(
+        int paginaSolicitada)
+    {
+        if (cultivoSeleccionado is null)
+            return;
+
+        cargandoRangos = true;
+        LimpiarMensajes();
+
+        try
+        {
+            string ruta =
+                "api/configuracion/rangos-nutrientes/buscar" +
+                $"?tipoCultivoId={cultivoSeleccionado.TipoCultivoId}" +
+                $"&pagina={Math.Max(1, paginaSolicitada)}" +
+                $"&tamanoPagina={tamanoRangos}";
+
+            if (!string.IsNullOrWhiteSpace(buscarRango))
+            {
+                ruta +=
+                    $"&buscar={Uri.EscapeDataString(buscarRango.Trim())}";
+            }
+
+            RangoNutrientePaginaModel? respuesta =
+                await Api.GetAsync<RangoNutrientePaginaModel>(
+                    ruta,
+                    cancellation.Token);
+
+            rangos =
+                respuesta ??
+                new RangoNutrientePaginaModel();
+
+            if (rangos.TamanoPagina > 0)
+                tamanoRangos = rangos.TamanoPagina;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            rangos = new RangoNutrientePaginaModel();
+        }
+        finally
+        {
+            cargandoRangos = false;
+        }
+    }
+
+    private async Task CambiarPaginaRangosAsync(
+        int nuevaPagina)
+    {
+        if (procesando ||
+            nuevaPagina < 1 ||
+            nuevaPagina >
+                Math.Max(
+                    1,
+                    rangos.TotalPaginas) ||
+            nuevaPagina ==
+                rangos.PaginaActual)
+        {
+            return;
+        }
+
+        await CargarRangosAsync(
+            nuevaPagina);
+    }
+
+    private async Task CambiarTamanoRangosAsync(
+        int nuevoTamano)
+    {
+        if (procesando)
+            return;
+
+        tamanoRangos =
+            Math.Clamp(
+                nuevoTamano,
+                5,
+                100);
+
+        await CargarRangosAsync(1);
+    }
+
+    private async Task CargarElementosDisponiblesAsync(
+        int parametroActualId)
+    {
+        if (cultivoSeleccionado is null)
+            return;
+
+        string ruta =
+            "api/configuracion/rangos-nutrientes/" +
+            "elementos-disponibles" +
+            $"?tipoCultivoId={cultivoSeleccionado.TipoCultivoId}" +
+            $"&parametroActualId={parametroActualId}";
+
+        List<ElementoRangoDisponibleModel>? respuesta =
+            await Api.GetAsync<
+                List<ElementoRangoDisponibleModel>>(
+                ruta,
+                cancellation.Token);
+
+        elementosDisponibles.Clear();
+
+        if (respuesta is not null)
+            elementosDisponibles.AddRange(respuesta);
+    }
+
+    private async Task AbrirCrear()
+    {
+        if (cultivoSeleccionado is null)
+            return;
+
+        LimpiarMensajes();
+
+        try
+        {
+            await CargarElementosDisponiblesAsync(0);
+
+            modoFormulario = "crear";
+            itemVista = null;
+
+            formulario =
+                new RangoNutrienteFormModel
+                {
+                    TipoCultivoId =
+                        cultivoSeleccionado.TipoCultivoId,
+
+                    UnidadBase =
+                        "lb/Mz"
+                };
+
+            original =
+                Copiar(formulario);
+
+            mostrarFormulario = true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private async Task AbrirEditarAsync(
+        RangoNutrienteItemModel item)
+    {
+        LimpiarMensajes();
+
+        try
+        {
+            await CargarElementosDisponiblesAsync(
+                item.ParametroRangoNutrienteCultivoId);
+
+            modoFormulario = "editar";
+            itemVista = item;
+            formulario = CrearFormulario(item);
+            original = Copiar(formulario);
+            mostrarFormulario = true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private void AbrirVer(
+        RangoNutrienteItemModel item)
+    {
+        modoFormulario = "ver";
+        itemVista = item;
+        formulario = CrearFormulario(item);
+
+        elementosDisponibles.Clear();
+
+        elementosDisponibles.Add(
+            new ElementoRangoDisponibleModel
+            {
+                ElementoQuimicosId =
+                    item.ElementoQuimicosId,
+
+                NombreElementoQuimico =
+                    item.NombreElementoQuimico,
+
+                SimboloElementoQuimico =
+                    item.SimboloElementoQuimico
+            });
+
+        mostrarFormulario = true;
+    }
+
+    private async Task CerrarFormularioAsync()
+    {
+        if (procesando)
+            return;
+
+        if (modoFormulario != "ver" &&
+            HayCambios())
+        {
+            bool salir =
+                await JS.InvokeAsync<bool>(
+                    "confirm",
+                    "Hay cambios sin guardar. ¿Desea cerrar el formulario?");
+
+            if (!salir)
+                return;
+        }
+
+        mostrarFormulario = false;
+        itemVista = null;
+        formulario = new RangoNutrienteFormModel();
+        elementosDisponibles.Clear();
+        errorFormulario = null;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (procesando ||
+            cultivoSeleccionado is null)
+        {
+            return;
+        }
+
+        errorFormulario = null;
+
+        formulario.TipoCultivoId =
+            cultivoSeleccionado.TipoCultivoId;
+
+        formulario.UnidadBase =
+            "lb/Mz";
+
+        formulario.DescripcionParametro =
+            (formulario.DescripcionParametro ??
+             string.Empty)
+            .ReplaceLineEndings(" ")
+            .Trim();
+
+        if (formulario.ElementoQuimicosId <= 0)
+        {
+            errorFormulario =
+                "Seleccione un elemento químico.";
+            return;
+        }
+
+        if (formulario.ValorMinimo <= 0)
+        {
+            errorFormulario =
+                "El valor mínimo debe ser mayor que cero.";
+            return;
+        }
+
+        if (formulario.ValorMaximo <=
+            formulario.ValorMinimo)
+        {
+            errorFormulario =
+                "El valor máximo debe ser mayor que el mínimo.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                formulario.DescripcionParametro))
+        {
+            errorFormulario =
+                "Ingrese una descripción.";
+            return;
+        }
+
+        if (modoFormulario == "editar" &&
+            !HayCambios())
+        {
+            errorFormulario =
+                "No hay cambios para guardar.";
+            return;
+        }
+
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                modoFormulario == "editar"
+                    ? "¿Desea actualizar este rango nutricional?"
+                    : "¿Desea crear este rango nutricional?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            RangoMutationResponseModel? respuesta;
+
+            if (modoFormulario == "editar")
+            {
+                respuesta =
+                    await Api.PutAsync<
+                        RangoNutrienteFormModel,
+                        RangoMutationResponseModel>(
+                        "api/configuracion/rangos-nutrientes/" +
+                        formulario
+                            .ParametroRangoNutrienteCultivoId,
+                        formulario,
+                        cancellation.Token);
+            }
+            else
+            {
+                /*
+                 * El backend reactiva automáticamente el registro histórico
+                 * cuando existe la misma combinación cultivo-elemento
+                 * eliminada.
+                 */
+                respuesta =
+                    await Api.PostAsync<
+                        RangoNutrienteFormModel,
+                        RangoMutationResponseModel>(
+                        "api/configuracion/rangos-nutrientes",
+                        formulario,
+                        cancellation.Token);
+            }
+
+            mostrarFormulario = false;
+
+            await CargarRangosAsync(
+                modoFormulario == "crear"
+                    ? 1
+                    : rangos.PaginaActual);
+
+            await ActualizarConteoCultivoSeleccionadoAsync();
+
+            mensaje =
+                respuesta?.Mensaje ??
+                "Rango nutricional guardado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            errorFormulario = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task EliminarAsync(
+        RangoNutrienteItemModel item)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea desactivar el rango de " +
+                $"\"{item.ElementoMostrar}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                "api/configuracion/rangos-nutrientes/" +
+                $"{item.ParametroRangoNutrienteCultivoId}/eliminar",
+                cancellationToken:
+                    cancellation.Token);
+
+            await CargarRangosAsync(
+                rangos.PaginaActual);
+
+            if (rangos.Items.Count == 0 &&
+                rangos.PaginaActual > 1)
+            {
+                await CargarRangosAsync(
+                    rangos.PaginaActual - 1);
+            }
+
+            await ActualizarConteoCultivoSeleccionadoAsync();
+
+            mensaje =
+                "Rango nutricional desactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task ActualizarConteoCultivoSeleccionadoAsync()
+    {
+        if (cultivoSeleccionado is null)
+            return;
+
+        cultivoSeleccionado.CantidadAportes =
+            rangos.TotalRegistros;
+
+        RangoCultivoResumenModel? cultivoPagina =
+            cultivos.Items.FirstOrDefault(item =>
+                item.TipoCultivoId ==
+                cultivoSeleccionado.TipoCultivoId);
+
+        if (cultivoPagina is not null)
+        {
+            cultivoPagina.CantidadAportes =
+                rangos.TotalRegistros;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AbrirEliminadosAsync()
+    {
+        mostrarEliminados = true;
+        buscarEliminado = string.Empty;
+        cargandoEliminados = true;
+        LimpiarMensajes();
+
+        try
+        {
+            RangoCatalogoResponseModel<
+                List<RangoEliminadoItemModel>>? respuesta =
+                    await Api.GetAsync<
+                        RangoCatalogoResponseModel<
+                            List<RangoEliminadoItemModel>>>(
+                        $"api/catalogos-eliminados/{CodigoEliminados}",
+                        AuthState.CrearEncabezadosSesion(),
+                        cancellation.Token);
+
+            eliminados.Clear();
+
+            if (respuesta?.Data is not null)
+                eliminados.AddRange(respuesta.Data);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargandoEliminados = false;
+        }
+    }
+
+    private void CerrarEliminados()
+    {
+        if (procesando)
+            return;
+
+        mostrarEliminados = false;
+        eliminados.Clear();
+    }
+
+    private async Task ReactivarAsync(
+        RangoEliminadoItemModel item)
+    {
+        bool confirmar =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desea reactivar \"{item.Titulo}\"?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutSinContenidoAsync(
+                $"api/catalogos-eliminados/{CodigoEliminados}/" +
+                $"{item.Id}/reactivar",
+                AuthState.CrearEncabezadosSesion(),
+                cancellation.Token);
+
+            eliminados.Remove(item);
+
+            await CargarRangosAsync(1);
+            await ActualizarConteoCultivoSeleccionadoAsync();
+
+            mensaje =
+                "Rango nutricional reactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private bool HayCambios() =>
+        formulario.ElementoQuimicosId !=
+            original.ElementoQuimicosId ||
+        formulario.ValorMinimo !=
+            original.ValorMinimo ||
+        formulario.ValorMaximo !=
+            original.ValorMaximo ||
+        !string.Equals(
+            formulario.DescripcionParametro.Trim(),
+            original.DescripcionParametro.Trim(),
+            StringComparison.Ordinal);
+
+    private static RangoNutrienteFormModel CrearFormulario(
+        RangoNutrienteItemModel item) =>
+        new()
+        {
+            ParametroRangoNutrienteCultivoId =
+                item.ParametroRangoNutrienteCultivoId,
+
+            TipoCultivoId =
+                item.TipoCultivoId,
+
+            ElementoQuimicosId =
+                item.ElementoQuimicosId,
+
+            ValorMinimo =
+                item.ValorMinimo,
+
+            ValorMaximo =
+                item.ValorMaximo,
+
+            UnidadBase =
+                "lb/Mz",
+
+            DescripcionParametro =
+                item.DescripcionParametro
+        };
+
+    private bool HayCambiosCultivo() =>
+        !string.Equals(
+            formularioCultivo.NombreTipoCultivo.Trim(),
+            cultivoOriginal.NombreTipoCultivo.Trim(),
+            StringComparison.OrdinalIgnoreCase) ||
+        !string.Equals(
+            formularioCultivo.DescripcionTipoCultivo.Trim(),
+            cultivoOriginal.DescripcionTipoCultivo.Trim(),
+            StringComparison.Ordinal);
+
+    private static RangoCultivoFormModel CopiarCultivo(
+        RangoCultivoFormModel valor) =>
+        new()
+        {
+            NombreTipoCultivo =
+                valor.NombreTipoCultivo,
+
+            DescripcionTipoCultivo =
+                valor.DescripcionTipoCultivo
+        };
+
+    private static RangoNutrienteFormModel Copiar(
+        RangoNutrienteFormModel valor) =>
+        new()
+        {
+            ParametroRangoNutrienteCultivoId =
+                valor.ParametroRangoNutrienteCultivoId,
+
+            TipoCultivoId =
+                valor.TipoCultivoId,
+
+            ElementoQuimicosId =
+                valor.ElementoQuimicosId,
+
+            ValorMinimo =
+                valor.ValorMinimo,
+
+            ValorMaximo =
+                valor.ValorMaximo,
+
+            UnidadBase =
+                valor.UnidadBase,
+
+            DescripcionParametro =
+                valor.DescripcionParametro
+        };
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+        errorFormulario = null;
+        errorCultivo = null;
+    }
+
+    public void Dispose()
+    {
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+}

@@ -228,6 +228,38 @@ else
                                 <span>Tipos de análisis</span>
                             </NavLink>
                         }
+
+                        @if (PuedeVerFuentesNutrientes)
+                        {
+                            <NavLink href="/parametros-agronomicos/fuentes-nutrientes">
+                                <i class="fa-solid fa-flask-vial"></i>
+                                <span>Fuentes de nutrientes</span>
+                            </NavLink>
+                        }
+
+                        @if (PuedeVerExtraccionNutrientes)
+                        {
+                            <NavLink href="/parametros-agronomicos/extraccion-nutrientes">
+                                <i class="fa-solid fa-arrow-up-right-dots"></i>
+                                <span>Extracción de nutrientes</span>
+                            </NavLink>
+                        }
+
+                        @if (PuedeVerRangosNutrientes)
+                        {
+                            <NavLink href="/parametros-agronomicos/rangos-nutricionales">
+                                <i class="fa-solid fa-chart-simple"></i>
+                                <span>Rangos nutricionales</span>
+                            </NavLink>
+                        }
+
+                        @if (PuedeVerUnidadesConversiones)
+                        {
+                            <NavLink href="/parametros-agronomicos/unidades-conversiones">
+                                <i class="fa-solid fa-right-left"></i>
+                                <span>Unidades y conversiones</span>
+                            </NavLink>
+                        }
                     }
 
                     @if (PuedeVerAlbumBotanico)
@@ -438,6 +470,15 @@ else
     private const string PermisoTiposAnalisis =
         "tipoAnalisisSueloPage";
 
+    private const string PermisoFuentesNutrientes =
+        "fuenteNutrientePage";
+
+    private const string PermisoExtraccionNutrientes =
+        "extraccionNutrientePage";
+
+    private const string PermisoRangosNutrientes =
+        "rangoNutrientePage";
+
     private bool menuAbierto;
     private bool monitorInactividadActivo;
     private bool cerrandoPorFaltaPermiso;
@@ -494,10 +535,39 @@ else
         AuthState.TienePermisoLectura(
             PermisoTiposAnalisis);
 
+    private bool PuedeVerFuentesNutrientes =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoFuentesNutrientes);
+
+    private bool PuedeVerExtraccionNutrientes =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoExtraccionNutrientes);
+
+    private bool PuedeVerRangosNutrientes =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoRangosNutrientes);
+
+    /*
+     * Las conversiones dependen directamente de los elementos químicos.
+     * Se reutiliza temporalmente el mismo permiso para no introducir una
+     * interfaz inexistente en la matriz actual.
+     */
+    private bool PuedeVerUnidadesConversiones =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoElementosQuimicos);
+
     private bool PuedeVerParametrosAgronomicos =>
         PuedeVerElementosQuimicos ||
         PuedeVerTiposCultivo ||
-        PuedeVerTiposAnalisis;
+        PuedeVerTiposAnalisis ||
+        PuedeVerFuentesNutrientes ||
+        PuedeVerExtraccionNutrientes ||
+        PuedeVerRangosNutrientes ||
+        PuedeVerUnidadesConversiones;
 
     private bool EsPortalPropietarioExclusivo =>
         TienePortalPropietario &&
@@ -525,6 +595,12 @@ else
             PermisoTiposCultivo) ||
         AuthState.TienePermisoLectura(
             PermisoTiposAnalisis) ||
+        AuthState.TienePermisoLectura(
+            PermisoFuentesNutrientes) ||
+        AuthState.TienePermisoLectura(
+            PermisoExtraccionNutrientes) ||
+        AuthState.TienePermisoLectura(
+            PermisoRangosNutrientes) ||
         AuthState.TienePermisoLectura(
             PermisosWeb.ParametrizacionAcceso) ||
         AuthState.TienePermisoLectura(

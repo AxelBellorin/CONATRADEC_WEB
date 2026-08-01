@@ -199,6 +199,14 @@ build_metadata.AdditionalFiles.CssScope = b-i4ic6n7z2p
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFbGVtZW50b3NRdWltaWNvcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-9f6wx2i3ps
 
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/ExtraccionNutrientes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFeHRyYWNjaW9uTnV0cmllbnRlcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-71kcfaursm
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/FuentesNutrientes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xGdWVudGVzTnV0cmllbnRlcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-12hmmzhun8
+
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/Home.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
 build_metadata.AdditionalFiles.CssScope = b-fwauv8ku64
@@ -206,6 +214,10 @@ build_metadata.AdditionalFiles.CssScope = b-fwauv8ku64
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/LlavesDescarga.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xMbGF2ZXNEZXNjYXJnYS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-aghhvm3z78
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/RangosNutricionales.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xSYW5nb3NOdXRyaWNpb25hbGVzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = b-yw1jf4gzcy
 
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/SeguimientoAlertas.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTZWd1aW1pZW50b0FsZXJ0YXMucmF6b3I=
@@ -222,6 +234,10 @@ build_metadata.AdditionalFiles.CssScope = b-zgb3h1erjr
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/TiposCultivo.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xUaXBvc0N1bHRpdm8ucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = b-lpi1jl8s9q
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/UnidadesConversiones.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xVbmlkYWRlc0NvbnZlcnNpb25lcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-68850rmr3t
 
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Shared/Paginador.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcUGFnaW5hZG9yLnJhem9y

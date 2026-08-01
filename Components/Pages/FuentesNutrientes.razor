@@ -1,0 +1,1656 @@
+@page "/parametros-agronomicos/fuentes-nutrientes"
+@page "/fuentes-nutrientes"
+@using System.Text.Json
+@implements IDisposable
+@inject ApiClientService ApiClient
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Fuentes de nutrientes | CONATRADEC</PageTitle>
+
+@if (!PuedeLeer)
+{
+    <section class="fn-access-denied">
+        <i class="fa-solid fa-lock"></i>
+        <h1>Acceso no autorizado</h1>
+        <p>No tiene permiso para consultar las fuentes de nutrientes.</p>
+    </section>
+}
+else
+{
+    <section class="fn-page">
+        <header class="fn-hero">
+            <div>
+                <span class="fn-eyebrow">Parámetros agronómicos</span>
+                <h1>Fuentes de nutrientes</h1>
+                <p>
+                    Administra composición, precio, fertilización mixta y
+                    parámetros de enmienda calcárea desde un solo módulo.
+                </p>
+            </div>
+
+            <div class="fn-hero-actions">
+                <button class="fn-button secondary"
+                        disabled="@cargando"
+                        @onclick="ActualizarAsync">
+                    <i class="fa-solid fa-rotate"></i>
+                    Actualizar
+                </button>
+
+                @if (PuedeCrear)
+                {
+                    <button class="fn-button primary"
+                            disabled="@cargando"
+                            @onclick="AbrirCrear">
+                        <i class="fa-solid fa-plus"></i>
+                        Nueva fuente
+                    </button>
+                }
+            </div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <div class="fn-message @(mensajeEsError ? "error" : "success")">
+                <i class="fa-solid @(mensajeEsError
+                    ? "fa-circle-exclamation"
+                    : "fa-circle-check")"></i>
+                <span>@mensaje</span>
+                <button aria-label="Cerrar mensaje"
+                        @onclick="LimpiarMensaje">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        }
+
+        <section class="fn-summary">
+            <article>
+                <i class="fa-solid fa-layer-group"></i>
+                <div>
+                    <small>
+                        @(mostrandoInactivas
+                            ? "Fuentes inactivas"
+                            : "Fuentes encontradas")
+                    </small>
+                    <strong>@TotalVista</strong>
+                </div>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-seedling"></i>
+                <div>
+                    <small>Balance nutricional</small>
+                    <strong>@ConteoBalanceVista</strong>
+                </div>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-recycle"></i>
+                <div>
+                    <small>Fertilización mixta</small>
+                    <strong>@ConteoMixtaVista</strong>
+                </div>
+            </article>
+
+            <article>
+                <i class="fa-solid fa-mountain-sun"></i>
+                <div>
+                    <small>Enmienda calcárea</small>
+                    <strong>@ConteoEnmiendaVista</strong>
+                </div>
+            </article>
+        </section>
+
+        <section class="fn-toolbar">
+            <div class="fn-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="search"
+                       maxlength="100"
+                       placeholder="Buscar por nombre o descripción"
+                       @bind="busqueda"
+                       @bind:event="oninput" />
+            </div>
+
+            <label>
+                <span>Categoría</span>
+                <select @bind="categoria">
+                    <option value="TODAS">Todas</option>
+                    <option value="BALANCE_NUTRICIONAL">
+                        Balance nutricional
+                    </option>
+                    <option value="FERTILIZACION_MIXTA">
+                        Fertilización mixta
+                    </option>
+                    <option value="ENMIENDA_CALCAREA">
+                        Enmienda calcárea
+                    </option>
+                </select>
+            </label>
+
+            <button class="fn-button primary"
+                    disabled="@cargando"
+                    @onclick="BuscarAsync">
+                <i class="fa-solid fa-filter"></i>
+                Aplicar
+            </button>
+
+            <button class="fn-button ghost"
+                    disabled="@cargando"
+                    @onclick="LimpiarFiltrosAsync">
+                Limpiar
+            </button>
+
+            <button class="fn-button warning"
+                    disabled="@cargando"
+                    @onclick="AlternarInactivasAsync">
+                <i class="fa-solid @(mostrandoInactivas
+                    ? "fa-leaf"
+                    : "fa-box-archive")"></i>
+                @(mostrandoInactivas
+                    ? "Ver activas"
+                    : "Ver inactivas")
+            </button>
+        </section>
+
+        <section class="fn-list-header">
+            <div>
+                <h2>
+                    @(mostrandoInactivas
+                        ? "Fuentes desactivadas"
+                        : "Catálogo activo")
+                </h2>
+
+                <span>
+                    @TextoPaginacion
+                </span>
+            </div>
+
+            @if (!mostrandoInactivas &&
+                 categoria != "ENMIENDA_CALCAREA")
+            {
+                <button class="fn-button secondary"
+                        disabled="@cargandoMatriz"
+                        @onclick="AlternarMatrizAsync">
+                    <i class="fa-solid fa-table-cells"></i>
+                    @(mostrarMatriz
+                        ? "Ocultar matriz"
+                        : "Ver matriz de composición")
+                </button>
+            }
+        </section>
+
+        @if (mostrarMatriz &&
+             !mostrandoInactivas &&
+             categoria != "ENMIENDA_CALCAREA")
+        {
+            <section class="fn-matrix-panel">
+                <header>
+                    <div>
+                        <span>Matriz dinámica</span>
+                        <h3>Composición química de las fuentes</h3>
+                    </div>
+
+                    @if (cargandoMatriz)
+                    {
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                    }
+                </header>
+
+                @if (!cargandoMatriz &&
+                     composicion.Count == 0)
+                {
+                    <div class="fn-empty compact">
+                        <i class="fa-solid fa-table-cells"></i>
+                        <strong>Sin composición para mostrar</strong>
+                        <span>
+                            No hay fuentes con aportes químicos para los
+                            filtros seleccionados.
+                        </span>
+                    </div>
+                }
+                else if (!cargandoMatriz)
+                {
+                    <div class="fn-matrix-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fuente</th>
+                                    @foreach (var elemento in ElementosMatriz)
+                                    {
+                                        <th title="@elemento.NombreElementoQuimico">
+                                            @elemento.SimboloElementoQuimico
+                                        </th>
+                                    }
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var fuente in composicion)
+                                {
+                                    <tr>
+                                        <th>@fuente.NombreNutriente</th>
+                                        @foreach (var elemento in ElementosMatriz)
+                                        {
+                                            decimal? aporte =
+                                                ObtenerAporte(
+                                                    fuente,
+                                                    elemento.ElementoQuimicosId);
+
+                                            <td class="@(aporte.HasValue
+                                                ? "has-value"
+                                                : string.Empty)">
+                                                @(aporte.HasValue
+                                                    ? $"{aporte.Value:0.##}%"
+                                                    : "—")
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        }
+
+        @if (cargando)
+        {
+            <section class="fn-loading">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <span>Cargando fuentes de nutrientes...</span>
+            </section>
+        }
+        else if (ItemsVista.Count == 0)
+        {
+            <section class="fn-empty">
+                <i class="fa-solid fa-seedling"></i>
+                <strong>No se encontraron fuentes</strong>
+                <span>
+                    Revise los filtros o registre una nueva fuente.
+                </span>
+            </section>
+        }
+        else
+        {
+            <section class="fn-grid">
+                @foreach (var fuente in ItemsVista)
+                {
+                    <article class="fn-card @(!fuente.Activo
+                        ? "inactive"
+                        : string.Empty)">
+                        <header>
+                            <div class="fn-source-icon">
+                                <i class="fa-solid @ObtenerIcono(fuente)"></i>
+                            </div>
+
+                            <div class="fn-source-title">
+                                <h3>@fuente.NombreNutriente</h3>
+                                <span>
+                                    @fuente.ElementosQuimicos.Count
+                                    elemento(s)
+                                </span>
+                            </div>
+
+                            <span class="fn-state @(fuente.Activo
+                                ? "active"
+                                : "inactive")">
+                                @(fuente.Activo ? "Activa" : "Inactiva")
+                            </span>
+                        </header>
+
+                        <p class="fn-description">
+                            @(string.IsNullOrWhiteSpace(
+                                fuente.DescripcionNutriente)
+                                ? "Sin descripción registrada."
+                                : fuente.DescripcionNutriente)
+                        </p>
+
+                        <div class="fn-price">
+                            <span>Precio por quintal</span>
+                            <strong>
+                                C$ @fuente.PrecioNutriente.ToString("N2")
+                            </strong>
+                        </div>
+
+                        <div class="fn-tags">
+                            @if (!fuente.HabilitadaEnmiendaCalcarea &&
+                                 !fuente.HabilitadaFertilizacionMixta)
+                            {
+                                <span class="balance">
+                                    <i class="fa-solid fa-scale-balanced"></i>
+                                    Balance
+                                </span>
+                            }
+
+                            @if (fuente.HabilitadaFertilizacionMixta)
+                            {
+                                <span class="mixed">
+                                    <i class="fa-solid fa-recycle"></i>
+                                    Mixta
+                                </span>
+                            }
+
+                            @if (fuente.HabilitadaEnmiendaCalcarea)
+                            {
+                                <span class="lime">
+                                    <i class="fa-solid fa-mountain-sun"></i>
+                                    Enmienda · PRNT
+                                    @(fuente.Prnt?.ToString("0.##") ?? "—")
+                                </span>
+                            }
+                        </div>
+
+                        <div class="fn-elements">
+                            @if (fuente.ElementosQuimicos.Count == 0)
+                            {
+                                <span class="empty">
+                                    Sin aportes químicos configurados
+                                </span>
+                            }
+                            else
+                            {
+                                @foreach (var elemento in
+                                    fuente.ElementosQuimicos.Take(5))
+                                {
+                                    <span title="@elemento.NombreElementoQuimico">
+                                        <b>@elemento.SimboloElementoQuimico</b>
+                                        @elemento.CantidadAporte.ToString("0.##")%
+                                    </span>
+                                }
+
+                                @if (fuente.ElementosQuimicos.Count > 5)
+                                {
+                                    <span>
+                                        +@(fuente.ElementosQuimicos.Count - 5)
+                                    </span>
+                                }
+                            }
+                        </div>
+
+                        <footer>
+                            <button class="fn-icon-button view"
+                                    title="Ver detalle"
+                                    @onclick="() => AbrirDetalle(fuente)">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+
+                            @if (fuente.Activo && PuedeEditar)
+                            {
+                                <button class="fn-icon-button edit"
+                                        title="Editar"
+                                        @onclick="() => AbrirEditarAsync(fuente)">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                            }
+
+                            @if (fuente.Activo && PuedeEliminar)
+                            {
+                                <button class="fn-icon-button delete"
+                                        title="Desactivar"
+                                        @onclick="() => DesactivarAsync(fuente)">
+                                    <i class="fa-solid fa-ban"></i>
+                                </button>
+                            }
+
+                            @if (!fuente.Activo && PuedeEditar)
+                            {
+                                <button class="fn-button primary compact"
+                                        @onclick="() => ReactivarAsync(fuente)">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                    Reactivar
+                                </button>
+                            }
+                        </footer>
+                    </article>
+                }
+            </section>
+        }
+
+        @if (!mostrandoInactivas &&
+             !cargando &&
+             pagina.TotalRegistros > 0)
+        {
+            <Paginador Pagina="@pagina.PaginaActual"
+                       TotalPaginas="@pagina.TotalPaginas"
+                       TotalRegistros="@pagina.TotalRegistros"
+                       TamanoPagina="@pagina.TamanoPagina"
+                       Procesando="@cargando"
+                       PaginaCambiada="CambiarPaginaAsync"
+                       TamanoPaginaCambiado="CambiarTamanoPaginaAsync" />
+        }
+    </section>
+}
+
+@if (mostrarFormulario)
+{
+    <div class="fn-modal-backdrop"
+         @onclick="CerrarFormulario">
+        <section class="fn-modal"
+                 role="dialog"
+                 aria-modal="true"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>
+                        @(formulario.FuenteNutrientesId.HasValue
+                            ? "Editar fuente"
+                            : "Nueva fuente")
+                    </span>
+                    <h2>
+                        @(formulario.FuenteNutrientesId.HasValue
+                            ? formulario.NombreNutriente
+                            : "Registrar fuente de nutrientes")
+                    </h2>
+                </div>
+
+                <button aria-label="Cerrar"
+                        disabled="@guardando"
+                        @onclick="CerrarFormulario">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div class="fn-modal-body">
+                <section class="fn-form-section">
+                    <div class="fn-section-title">
+                        <i class="fa-solid fa-file-lines"></i>
+                        <div>
+                            <strong>Información general</strong>
+                            <span>Nombre, descripción y precio comercial.</span>
+                        </div>
+                    </div>
+
+                    <div class="fn-form-grid">
+                        <label>
+                            <span>Nombre *</span>
+                            <input maxlength="120"
+                                   placeholder="Ej. Urea 46%"
+                                   @bind="formulario.NombreNutriente" />
+                        </label>
+
+                        <label>
+                            <span>Precio por quintal (C$) *</span>
+                            <input type="number"
+                                   min="0.01"
+                                   step="0.01"
+                                   @bind="formulario.PrecioNutriente" />
+                        </label>
+
+                        <label class="full">
+                            <span>Descripción</span>
+                            <textarea rows="3"
+                                      maxlength="500"
+                                      @bind="formulario.DescripcionNutriente">
+                            </textarea>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="fn-form-section">
+                    <div class="fn-section-title">
+                        <i class="fa-solid fa-atom"></i>
+                        <div>
+                            <strong>Composición química</strong>
+                            <span>
+                                Seleccione los elementos y registre el porcentaje
+                                aportado por la fuente.
+                            </span>
+                        </div>
+
+                        <b class="fn-total @(TotalAportesFormulario > 100
+                            ? "invalid"
+                            : string.Empty)">
+                            Total @TotalAportesFormulario.ToString("0.##")%
+                        </b>
+                    </div>
+
+                    <div class="fn-element-matrix">
+                        @foreach (var elemento in formulario.Elementos)
+                        {
+                            <article class="@(elemento.Seleccionado
+                                ? "selected"
+                                : string.Empty)">
+                                <label class="fn-check">
+                                    <input type="checkbox"
+                                           @bind="elemento.Seleccionado" />
+                                    <span>
+                                        <b>@elemento.Simbolo</b>
+                                        @elemento.Nombre
+                                    </span>
+                                </label>
+
+                                <label>
+                                    <span>Aporte %</span>
+                                    <input type="number"
+                                           min="0"
+                                           max="100"
+                                           step="0.01"
+                                           disabled="@(!elemento.Seleccionado)"
+                                           @bind="elemento.CantidadAporte" />
+                                </label>
+                            </article>
+                        }
+                    </div>
+                </section>
+
+                <section class="fn-form-section">
+                    <div class="fn-section-title">
+                        <i class="fa-solid fa-sliders"></i>
+                        <div>
+                            <strong>Usos de la fuente</strong>
+                            <span>
+                                Una fuente puede participar en fertilización
+                                mixta y también funcionar como enmienda.
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="fn-use-grid">
+                        <article class="@(formulario.HabilitadaFertilizacionMixta
+                            ? "enabled"
+                            : string.Empty)">
+                            <label class="fn-switch-row">
+                                <input type="checkbox"
+                                       @bind="formulario.HabilitadaFertilizacionMixta" />
+                                <span>
+                                    <b>Fertilización mixta</b>
+                                    <small>
+                                        Disponible como fuente orgánica o
+                                        complementaria.
+                                    </small>
+                                </span>
+                            </label>
+                        </article>
+
+                        <article class="@(formulario.HabilitadaEnmiendaCalcarea
+                            ? "enabled"
+                            : string.Empty)">
+                            <label class="fn-switch-row">
+                                <input type="checkbox"
+                                       @bind="formulario.HabilitadaEnmiendaCalcarea" />
+                                <span>
+                                    <b>Enmienda calcárea</b>
+                                    <small>
+                                        Habilita la fuente dentro del cálculo de
+                                        corrección de acidez.
+                                    </small>
+                                </span>
+                            </label>
+
+                            @if (formulario.HabilitadaEnmiendaCalcarea)
+                            {
+                                <div class="fn-amendment-fields">
+                                    <label>
+                                        <span>PRNT *</span>
+                                        <input type="number"
+                                               min="0.01"
+                                               max="100"
+                                               step="0.01"
+                                               @bind="formulario.Prnt" />
+                                    </label>
+
+                                    <label>
+                                        <span>Descripción del parámetro</span>
+                                        <textarea rows="2"
+                                                  maxlength="300"
+                                                  @bind="formulario.DescripcionParametro">
+                                        </textarea>
+                                    </label>
+                                </div>
+                            }
+                        </article>
+                    </div>
+                </section>
+            </div>
+
+            <footer>
+                <button class="fn-button ghost"
+                        disabled="@guardando"
+                        @onclick="CerrarFormulario">
+                    Cancelar
+                </button>
+
+                <button class="fn-button primary"
+                        disabled="@guardando"
+                        @onclick="GuardarAsync">
+                    <i class="fa-solid @(guardando
+                        ? "fa-spinner fa-spin"
+                        : "fa-floppy-disk")"></i>
+                    @(guardando ? "Guardando..." : "Guardar cambios")
+                </button>
+            </footer>
+        </section>
+    </div>
+}
+
+@if (mostrarDetalle && detalle is not null)
+{
+    <div class="fn-modal-backdrop"
+         @onclick="CerrarDetalle">
+        <section class="fn-modal fn-detail-modal"
+                 role="dialog"
+                 aria-modal="true"
+                 @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>Detalle de la fuente</span>
+                    <h2>@detalle.NombreNutriente</h2>
+                </div>
+
+                <button aria-label="Cerrar"
+                        @onclick="CerrarDetalle">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div class="fn-modal-body">
+                <section class="fn-detail-summary">
+                    <article>
+                        <small>Precio por quintal</small>
+                        <strong>C$ @detalle.PrecioNutriente.ToString("N2")</strong>
+                    </article>
+
+                    <article>
+                        <small>Estado</small>
+                        <strong>@(detalle.Activo ? "Activa" : "Inactiva")</strong>
+                    </article>
+
+                    <article>
+                        <small>Elementos</small>
+                        <strong>@detalle.ElementosQuimicos.Count</strong>
+                    </article>
+                </section>
+
+                <section class="fn-form-section">
+                    <div class="fn-section-title">
+                        <i class="fa-solid fa-align-left"></i>
+                        <div>
+                            <strong>Descripción</strong>
+                        </div>
+                    </div>
+
+                    <p>
+                        @(string.IsNullOrWhiteSpace(detalle.DescripcionNutriente)
+                            ? "Sin descripción registrada."
+                            : detalle.DescripcionNutriente)
+                    </p>
+                </section>
+
+                <section class="fn-form-section">
+                    <div class="fn-section-title">
+                        <i class="fa-solid fa-atom"></i>
+                        <div>
+                            <strong>Composición</strong>
+                        </div>
+                    </div>
+
+                    <div class="fn-detail-elements">
+                        @if (detalle.ElementosQuimicos.Count == 0)
+                        {
+                            <span>Sin aportes químicos configurados.</span>
+                        }
+                        else
+                        {
+                            @foreach (var elemento in detalle.ElementosQuimicos)
+                            {
+                                <article>
+                                    <b>@elemento.SimboloElementoQuimico</b>
+                                    <span>@elemento.NombreElementoQuimico</span>
+                                    <strong>
+                                        @elemento.CantidadAporte.ToString("0.##")%
+                                    </strong>
+                                </article>
+                            }
+                        }
+                    </div>
+                </section>
+
+                <section class="fn-form-section">
+                    <div class="fn-section-title">
+                        <i class="fa-solid fa-sliders"></i>
+                        <div>
+                            <strong>Clasificación</strong>
+                        </div>
+                    </div>
+
+                    <div class="fn-tags large">
+                        @if (!detalle.HabilitadaEnmiendaCalcarea &&
+                             !detalle.HabilitadaFertilizacionMixta)
+                        {
+                            <span class="balance">Balance nutricional</span>
+                        }
+
+                        @if (detalle.HabilitadaFertilizacionMixta)
+                        {
+                            <span class="mixed">Fertilización mixta</span>
+                        }
+
+                        @if (detalle.HabilitadaEnmiendaCalcarea)
+                        {
+                            <span class="lime">
+                                Enmienda calcárea · PRNT
+                                @(detalle.Prnt?.ToString("0.##") ?? "—")
+                            </span>
+                        }
+                    </div>
+
+                    @if (detalle.HabilitadaEnmiendaCalcarea &&
+                         !string.IsNullOrWhiteSpace(
+                             detalle.DescripcionParametro))
+                    {
+                        <p class="fn-amendment-description">
+                            @detalle.DescripcionParametro
+                        </p>
+                    }
+                </section>
+            </div>
+
+            <footer>
+                <button class="fn-button secondary"
+                        @onclick="CerrarDetalle">
+                    Cerrar
+                </button>
+
+                @if (detalle.Activo && PuedeEditar)
+                {
+                    <button class="fn-button primary"
+                            @onclick="EditarDesdeDetalleAsync">
+                        <i class="fa-solid fa-pen"></i>
+                        Editar
+                    </button>
+                }
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    private const string PermisoFuente =
+        "fuenteNutrientePage";
+
+    private readonly CancellationTokenSource cancellation =
+        new();
+
+    private FuenteNutrientePaginaModel pagina =
+        new();
+
+    private List<FuenteNutrienteAdminItemModel> inactivas =
+        new();
+
+    private List<FuenteNutrienteAdminItemModel> composicion =
+        new();
+
+    private List<ElementoQuimicoFuenteOptionModel> elementosCatalogo =
+        new();
+
+    private FuenteNutrienteFormModel formulario =
+        new();
+
+    private FuenteNutrienteAdminItemModel? detalle;
+
+    private string busqueda =
+        string.Empty;
+
+    private string categoria =
+        "TODAS";
+
+    private int tamanoPagina =
+        12;
+
+    private bool cargando;
+    private bool cargandoMatriz;
+    private bool guardando;
+    private bool mostrandoInactivas;
+    private bool mostrarMatriz;
+    private bool mostrarFormulario;
+    private bool mostrarDetalle;
+    private bool mensajeEsError;
+
+    private string mensaje =
+        string.Empty;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoFuente);
+
+    private bool PuedeCrear =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(
+            PermisoFuente);
+
+    private bool PuedeEditar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(
+            PermisoFuente);
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(
+            PermisoFuente);
+
+    private IReadOnlyList<FuenteNutrienteAdminItemModel>
+        ItemsVista =>
+            mostrandoInactivas
+                ? FiltrarInactivas()
+                : pagina.Items;
+
+    private int TotalVista =>
+        mostrandoInactivas
+            ? ItemsVista.Count
+            : pagina.TotalRegistros;
+
+    private int ConteoBalanceVista =>
+        ItemsVista.Count(item =>
+            !item.HabilitadaEnmiendaCalcarea &&
+            !item.HabilitadaFertilizacionMixta);
+
+    private int ConteoMixtaVista =>
+        ItemsVista.Count(item =>
+            item.HabilitadaFertilizacionMixta);
+
+    private int ConteoEnmiendaVista =>
+        ItemsVista.Count(item =>
+            item.HabilitadaEnmiendaCalcarea);
+
+    private decimal TotalAportesFormulario =>
+        formulario.Elementos
+            .Where(item =>
+                item.Seleccionado)
+            .Sum(item =>
+                item.CantidadAporte);
+
+    private string TextoPaginacion =>
+        mostrandoInactivas
+            ? $"{ItemsVista.Count} registro(s)"
+            : $"{pagina.TotalRegistros} registro(s) · " +
+              $"página {pagina.PaginaActual} de {pagina.TotalPaginas}";
+
+    private IReadOnlyList<ElementoFuenteAdminModel>
+        ElementosMatriz =>
+            composicion
+                .SelectMany(item =>
+                    item.ElementosQuimicos)
+                .GroupBy(item =>
+                    item.ElementoQuimicosId)
+                .Select(group =>
+                    group.First())
+                .OrderBy(item =>
+                    item.NombreElementoQuimico)
+                .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!PuedeLeer)
+            return;
+
+        await CargarCatalogosAsync();
+        await CargarActivasAsync(1);
+    }
+
+    private async Task CargarCatalogosAsync()
+    {
+        try
+        {
+            elementosCatalogo =
+                await ApiClient.GetAsync<
+                    List<ElementoQuimicoFuenteOptionModel>>(
+                    "api/elemento-quimico/listar",
+                    cancellation.Token) ??
+                new();
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(
+                $"No fue posible cargar los elementos químicos. {ex.Message}",
+                true);
+        }
+    }
+
+    private async Task CargarActivasAsync(int paginaSolicitada)
+    {
+        cargando = true;
+        mostrarMatriz = false;
+        composicion.Clear();
+
+        try
+        {
+            string ruta =
+                "api/fuente-nutriente/buscar" +
+                $"?buscar={Uri.EscapeDataString(busqueda.Trim())}" +
+                $"&categoria={Uri.EscapeDataString(categoria)}" +
+                $"&pagina={Math.Max(1, paginaSolicitada)}" +
+                $"&tamanoPagina={tamanoPagina}";
+
+            pagina =
+                await ApiClient.GetAsync<
+                    FuenteNutrientePaginaModel>(
+                    ruta,
+                    cancellation.Token) ??
+                new FuenteNutrientePaginaModel();
+
+            if (pagina.TamanoPagina > 0)
+            {
+                tamanoPagina =
+                    pagina.TamanoPagina;
+            }
+        }
+        catch (Exception ex)
+        {
+            pagina =
+                new FuenteNutrientePaginaModel();
+
+            MostrarMensaje(
+                $"No fue posible cargar las fuentes. {ex.Message}",
+                true);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarInactivasAsync()
+    {
+        cargando = true;
+        mostrarMatriz = false;
+        composicion.Clear();
+
+        try
+        {
+            inactivas =
+                await ApiClient.GetAsync<
+                    List<FuenteNutrienteAdminItemModel>>(
+                    "api/fuente-nutriente/listar-inactivas",
+                    cancellation.Token) ??
+                new();
+        }
+        catch (Exception ex)
+        {
+            inactivas.Clear();
+
+            MostrarMensaje(
+                $"No fue posible cargar las fuentes inactivas. {ex.Message}",
+                true);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private IReadOnlyList<FuenteNutrienteAdminItemModel>
+        FiltrarInactivas()
+    {
+        IEnumerable<FuenteNutrienteAdminItemModel> query =
+            inactivas;
+
+        string texto =
+            busqueda.Trim();
+
+        if (!string.IsNullOrWhiteSpace(texto))
+        {
+            query =
+                query.Where(item =>
+                    item.NombreNutriente.Contains(
+                        texto,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    item.DescripcionNutriente.Contains(
+                        texto,
+                        StringComparison.OrdinalIgnoreCase));
+        }
+
+        query =
+            categoria switch
+            {
+                "BALANCE_NUTRICIONAL" =>
+                    query.Where(item =>
+                        !item.HabilitadaEnmiendaCalcarea &&
+                        !item.HabilitadaFertilizacionMixta),
+
+                "FERTILIZACION_MIXTA" =>
+                    query.Where(item =>
+                        item.HabilitadaFertilizacionMixta),
+
+                "ENMIENDA_CALCAREA" =>
+                    query.Where(item =>
+                        item.HabilitadaEnmiendaCalcarea),
+
+                _ =>
+                    query
+            };
+
+        return query
+            .OrderBy(item =>
+                item.NombreNutriente)
+            .ToList();
+    }
+
+    private async Task BuscarAsync()
+    {
+        LimpiarMensaje();
+
+        if (mostrandoInactivas)
+        {
+            await CargarInactivasAsync();
+            return;
+        }
+
+        await CargarActivasAsync(1);
+    }
+
+    private async Task LimpiarFiltrosAsync()
+    {
+        busqueda =
+            string.Empty;
+
+        categoria =
+            "TODAS";
+
+        tamanoPagina =
+            12;
+
+        LimpiarMensaje();
+
+        if (mostrandoInactivas)
+        {
+            await CargarInactivasAsync();
+        }
+        else
+        {
+            await CargarActivasAsync(1);
+        }
+    }
+
+    private async Task AlternarInactivasAsync()
+    {
+        mostrandoInactivas =
+            !mostrandoInactivas;
+
+        LimpiarMensaje();
+
+        if (mostrandoInactivas)
+        {
+            await CargarInactivasAsync();
+        }
+        else
+        {
+            await CargarActivasAsync(1);
+        }
+    }
+
+    private async Task ActualizarAsync()
+    {
+        LimpiarMensaje();
+
+        if (mostrandoInactivas)
+        {
+            await CargarInactivasAsync();
+        }
+        else
+        {
+            await CargarActivasAsync(
+                pagina.PaginaActual);
+        }
+    }
+
+    private async Task AlternarMatrizAsync()
+    {
+        mostrarMatriz =
+            !mostrarMatriz;
+
+        if (!mostrarMatriz)
+            return;
+
+        await CargarMatrizAsync();
+    }
+
+    private async Task CargarMatrizAsync()
+    {
+        cargandoMatriz = true;
+
+        try
+        {
+            string ruta =
+                "api/fuente-nutriente/composicion" +
+                $"?buscar={Uri.EscapeDataString(busqueda.Trim())}" +
+                $"&categoria={Uri.EscapeDataString(categoria)}";
+
+            composicion =
+                await ApiClient.GetAsync<
+                    List<FuenteNutrienteAdminItemModel>>(
+                    ruta,
+                    cancellation.Token) ??
+                new();
+        }
+        catch (Exception ex)
+        {
+            composicion.Clear();
+
+            MostrarMensaje(
+                $"No fue posible cargar la matriz. {ex.Message}",
+                true);
+        }
+        finally
+        {
+            cargandoMatriz = false;
+        }
+    }
+
+    private void AbrirCrear()
+    {
+        LimpiarMensaje();
+
+        formulario =
+            CrearFormularioBase();
+
+        mostrarFormulario =
+            true;
+    }
+
+    private FuenteNutrienteFormModel CrearFormularioBase()
+    {
+        return new FuenteNutrienteFormModel
+        {
+            Elementos =
+                elementosCatalogo
+                    .Where(item =>
+                        item.Activo)
+                    .OrderBy(item =>
+                        item.NombreElementoQuimico)
+                    .Select(item =>
+                        new ElementoFuenteFormModel
+                        {
+                            ElementoQuimicosId =
+                                item.ElementoQuimicosId,
+
+                            Simbolo =
+                                item.SimboloElementoQuimico,
+
+                            Nombre =
+                                item.NombreElementoQuimico
+                        })
+                    .ToList()
+        };
+    }
+
+    private async Task AbrirEditarAsync(
+        FuenteNutrienteAdminItemModel fuente)
+    {
+        LimpiarMensaje();
+
+        try
+        {
+            FuenteNutrienteAdminItemModel? actual =
+                await ApiClient.GetAsync<
+                    FuenteNutrienteAdminItemModel>(
+                    $"api/fuente-nutriente/obtener/" +
+                    $"{fuente.FuenteNutrientesId}",
+                    cancellation.Token);
+
+            if (actual is null)
+            {
+                MostrarMensaje(
+                    "La API no devolvió el detalle de la fuente.",
+                    true);
+                return;
+            }
+
+            formulario =
+                CrearFormularioBase();
+
+            formulario.FuenteNutrientesId =
+                actual.FuenteNutrientesId;
+
+            formulario.NombreNutriente =
+                actual.NombreNutriente;
+
+            formulario.DescripcionNutriente =
+                actual.DescripcionNutriente;
+
+            formulario.PrecioNutriente =
+                actual.PrecioNutriente;
+
+            formulario.HabilitadaEnmiendaCalcarea =
+                actual.HabilitadaEnmiendaCalcarea;
+
+            formulario.HabilitadaFertilizacionMixta =
+                actual.HabilitadaFertilizacionMixta;
+
+            formulario.EnmiendaOriginal =
+                actual.HabilitadaEnmiendaCalcarea;
+
+            formulario.FertilizacionMixtaOriginal =
+                actual.HabilitadaFertilizacionMixta;
+
+            formulario.Prnt =
+                actual.Prnt ??
+                80m;
+
+            formulario.DescripcionParametro =
+                actual.DescripcionParametro ??
+                "Fuente utilizada para cálculo de enmienda calcárea";
+
+            Dictionary<int, ElementoFuenteAdminModel> aportes =
+                actual.ElementosQuimicos
+                    .ToDictionary(item =>
+                        item.ElementoQuimicosId);
+
+            foreach (var elemento in formulario.Elementos)
+            {
+                if (!aportes.TryGetValue(
+                        elemento.ElementoQuimicosId,
+                        out ElementoFuenteAdminModel? aporte))
+                {
+                    continue;
+                }
+
+                elemento.Seleccionado =
+                    true;
+
+                elemento.CantidadAporte =
+                    aporte.CantidadAporte;
+            }
+
+            mostrarFormulario =
+                true;
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(
+                $"No fue posible abrir la fuente. {ex.Message}",
+                true);
+        }
+    }
+
+    private async Task GuardarAsync()
+    {
+        string? validacion =
+            ValidarFormulario();
+
+        if (!string.IsNullOrWhiteSpace(validacion))
+        {
+            MostrarMensaje(
+                validacion,
+                true);
+            return;
+        }
+
+        guardando =
+            true;
+
+        try
+        {
+            FuenteNutrienteGuardarRequestModel request =
+                new()
+                {
+                    NombreNutriente =
+                        formulario.NombreNutriente.Trim(),
+
+                    DescripcionNutriente =
+                        formulario.DescripcionNutriente.Trim(),
+
+                    PrecioNutriente =
+                        formulario.PrecioNutriente,
+
+                    ElementosQuimicos =
+                        formulario.Elementos
+                            .Where(item =>
+                                item.Seleccionado)
+                            .Select(item =>
+                                new ElementoFuenteGuardarRequestModel
+                                {
+                                    ElementoQuimicosId =
+                                        item.ElementoQuimicosId,
+
+                                    CantidadAporte =
+                                        item.CantidadAporte
+                                })
+                            .ToList()
+                };
+
+            FuenteNutrienteMutationResponseModel? response;
+
+            if (formulario.FuenteNutrientesId.HasValue)
+            {
+                response =
+                    await ApiClient.PutAsync<
+                        FuenteNutrienteGuardarRequestModel,
+                        FuenteNutrienteMutationResponseModel>(
+                        "api/fuente-nutriente/" +
+                        "editar-con-elementos/" +
+                        formulario.FuenteNutrientesId.Value,
+                        request,
+                        cancellation.Token);
+            }
+            else
+            {
+                response =
+                    await ApiClient.PostAsync<
+                        FuenteNutrienteGuardarRequestModel,
+                        FuenteNutrienteMutationResponseModel>(
+                        "api/fuente-nutriente/" +
+                        "crear-con-elementos",
+                        request,
+                        cancellation.Token);
+            }
+
+            int fuenteId =
+                formulario.FuenteNutrientesId ??
+                response?.Data?.FuenteNutrientesId ??
+                0;
+
+            if (fuenteId <= 0)
+            {
+                throw new InvalidOperationException(
+                    "La API no devolvió el identificador de la fuente.");
+            }
+
+            await SincronizarClasificacionesAsync(
+                fuenteId);
+
+            mostrarFormulario =
+                false;
+
+            MostrarMensaje(
+                response?.Mensaje ??
+                "Fuente guardada correctamente.",
+                false);
+
+            await CargarActivasAsync(1);
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(
+                $"No fue posible guardar la fuente. {ex.Message}",
+                true);
+        }
+        finally
+        {
+            guardando =
+                false;
+        }
+    }
+
+    private async Task SincronizarClasificacionesAsync(
+        int fuenteId)
+    {
+        if (formulario.HabilitadaEnmiendaCalcarea)
+        {
+            await ApiClient.PostAsync<
+                HabilitarEnmiendaCalcareaRequestModel,
+                JsonElement>(
+                $"api/fuente-nutriente/{fuenteId}/" +
+                "habilitar-enmienda-calcarea",
+                new HabilitarEnmiendaCalcareaRequestModel
+                {
+                    Prnt =
+                        formulario.Prnt,
+
+                    DescripcionParametro =
+                        formulario.DescripcionParametro.Trim()
+                },
+                cancellation.Token);
+        }
+        else if (formulario.EnmiendaOriginal)
+        {
+            await ApiClient.PutSinContenidoAsync(
+                "api/fuente-nutriente/" +
+                $"deshabilitar-enmienda-calcarea/{fuenteId}",
+                cancellationToken:
+                    cancellation.Token);
+        }
+
+        if (formulario.HabilitadaFertilizacionMixta !=
+            formulario.FertilizacionMixtaOriginal)
+        {
+            if (formulario.HabilitadaFertilizacionMixta)
+            {
+                await ApiClient.PostSinContenidoAsync(
+                    "api/fuente-nutriente/" +
+                    $"habilitar-fertilizacion-mixta/{fuenteId}",
+                    cancellation.Token);
+            }
+            else
+            {
+                await ApiClient.PutSinContenidoAsync(
+                    "api/fuente-nutriente/" +
+                    $"deshabilitar-fertilizacion-mixta/{fuenteId}",
+                    cancellationToken:
+                        cancellation.Token);
+            }
+        }
+    }
+
+    private string? ValidarFormulario()
+    {
+        if (string.IsNullOrWhiteSpace(
+                formulario.NombreNutriente))
+        {
+            return "El nombre de la fuente es obligatorio.";
+        }
+
+        if (formulario.PrecioNutriente <= 0)
+        {
+            return "El precio por quintal debe ser mayor a cero.";
+        }
+
+        List<ElementoFuenteFormModel> seleccionados =
+            formulario.Elementos
+                .Where(item =>
+                    item.Seleccionado)
+                .ToList();
+
+        if (seleccionados.Any(item =>
+                item.CantidadAporte <= 0 ||
+                item.CantidadAporte > 100))
+        {
+            return "Cada aporte seleccionado debe ser mayor a 0 y menor " +
+                   "o igual a 100%.";
+        }
+
+        if (seleccionados.Sum(item =>
+                item.CantidadAporte) > 100)
+        {
+            return "La suma de los aportes químicos no puede superar 100%.";
+        }
+
+        if (formulario.HabilitadaEnmiendaCalcarea &&
+            (formulario.Prnt <= 0 ||
+             formulario.Prnt > 100))
+        {
+            return "El PRNT debe ser mayor a 0 y menor o igual a 100.";
+        }
+
+        return null;
+    }
+
+    private async Task DesactivarAsync(
+        FuenteNutrienteAdminItemModel fuente)
+    {
+        bool confirmado =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Desactivar la fuente {fuente.NombreNutriente}? " +
+                "Los análisis históricos no serán eliminados.");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            await ApiClient.EliminarAsync(
+                $"api/fuente-nutriente/eliminar/" +
+                $"{fuente.FuenteNutrientesId}",
+                cancellation.Token);
+
+            MostrarMensaje(
+                "Fuente desactivada correctamente.",
+                false);
+
+            await CargarActivasAsync(
+                pagina.PaginaActual);
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(
+                $"No fue posible desactivar la fuente. {ex.Message}",
+                true);
+        }
+    }
+
+    private async Task ReactivarAsync(
+        FuenteNutrienteAdminItemModel fuente)
+    {
+        bool confirmado =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"¿Reactivar la fuente {fuente.NombreNutriente}?");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            await ApiClient.PutSinContenidoAsync(
+                $"api/fuente-nutriente/reactivar/" +
+                $"{fuente.FuenteNutrientesId}",
+                cancellationToken:
+                    cancellation.Token);
+
+            MostrarMensaje(
+                "Fuente reactivada correctamente.",
+                false);
+
+            await CargarInactivasAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(
+                $"No fue posible reactivar la fuente. {ex.Message}",
+                true);
+        }
+    }
+
+    private void AbrirDetalle(
+        FuenteNutrienteAdminItemModel fuente)
+    {
+        detalle =
+            fuente;
+
+        mostrarDetalle =
+            true;
+    }
+
+    private async Task EditarDesdeDetalleAsync()
+    {
+        FuenteNutrienteAdminItemModel? fuente =
+            detalle;
+
+        CerrarDetalle();
+
+        if (fuente is not null)
+        {
+            await AbrirEditarAsync(
+                fuente);
+        }
+    }
+
+    private void CerrarFormulario()
+    {
+        if (guardando)
+            return;
+
+        mostrarFormulario =
+            false;
+    }
+
+    private void CerrarDetalle()
+    {
+        mostrarDetalle =
+            false;
+
+        detalle =
+            null;
+    }
+
+    private async Task CambiarPaginaAsync(
+        int nuevaPagina)
+    {
+        if (cargando ||
+            nuevaPagina == pagina.PaginaActual ||
+            nuevaPagina < 1 ||
+            nuevaPagina > pagina.TotalPaginas)
+        {
+            return;
+        }
+
+        await CargarActivasAsync(
+            nuevaPagina);
+    }
+
+    private async Task CambiarTamanoPaginaAsync(
+        int nuevoTamano)
+    {
+        if (cargando)
+            return;
+
+        tamanoPagina =
+            Math.Clamp(
+                nuevoTamano,
+                5,
+                100);
+
+        await CargarActivasAsync(1);
+    }
+
+    private static decimal? ObtenerAporte(
+        FuenteNutrienteAdminItemModel fuente,
+        int elementoId)
+    {
+        return fuente.ElementosQuimicos
+            .FirstOrDefault(item =>
+                item.ElementoQuimicosId ==
+                elementoId)
+            ?.CantidadAporte;
+    }
+
+    private static string ObtenerIcono(
+        FuenteNutrienteAdminItemModel fuente)
+    {
+        if (fuente.HabilitadaEnmiendaCalcarea)
+            return "fa-mountain-sun";
+
+        if (fuente.HabilitadaFertilizacionMixta)
+            return "fa-recycle";
+
+        return "fa-flask-vial";
+    }
+
+    private void MostrarMensaje(
+        string texto,
+        bool esError)
+    {
+        mensaje =
+            texto;
+
+        mensajeEsError =
+            esError;
+    }
+
+    private void LimpiarMensaje()
+    {
+        mensaje =
+            string.Empty;
+
+        mensajeEsError =
+            false;
+    }
+
+    public void Dispose()
+    {
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+}
