@@ -1,0 +1,1634 @@
+@page "/mapa-relaciones-analisis"
+@implements IAsyncDisposable
+@using CONATRADEC.AdminWeb.Models
+@inject AuthStateService AuthState
+@inject AuditoriaAnalisisService AuditoriaService
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Mapa de relaciones | CONATRADEC</PageTitle>
+
+<div class="page-header relationship-page-header">
+    <div>
+        <p class="eyebrow">Supervisión agrícola</p>
+        <h1>Mapa de relaciones del análisis</h1>
+        <p>
+            Visualiza cómo se conectan el propietario, terreno, análisis,
+            cálculos complementarios, reporte y trazabilidad.
+        </p>
+    </div>
+
+    <div class="page-header-actions">
+        <button class="btn-secondary"
+                @onclick="VolverAlControl">
+            <i class="fa-solid fa-arrow-left"></i>
+            Volver a Control de análisis
+        </button>
+    </div>
+</div>
+
+@if (!autorizado)
+{
+    <section class="panel relationship-access-denied">
+        <i class="fa-solid fa-lock"></i>
+        <h2>Acceso no autorizado</h2>
+        <p>
+            Su rol necesita permiso de lectura en
+            <strong>Control de análisis de suelo</strong> y en
+            <strong>Mapa de relaciones de análisis</strong>.
+        </p>
+    </section>
+}
+else if (cargando)
+{
+    <LoadingState Mensaje="Construyendo el mapa de relaciones..." />
+}
+else if (!string.IsNullOrWhiteSpace(error))
+{
+    <section class="panel relationship-error-state">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <h2>No fue posible abrir el mapa</h2>
+        <p>@error</p>
+        <button class="btn-secondary"
+                @onclick="VolverAlControl">
+            Regresar
+        </button>
+    </section>
+}
+else if (detalle is not null &&
+         payload is not null)
+{
+    <section class="relationship-summary-bar">
+        <div>
+            <span>Análisis</span>
+            <strong>@detalle.Resumen.Identificador</strong>
+        </div>
+
+        <div>
+            <span>Terreno</span>
+            <strong>@detalle.Resumen.Terreno.CodigoTerreno</strong>
+        </div>
+
+        <div>
+            <span>Propietario</span>
+            <strong>@Valor(detalle.Resumen.Terreno.Propietario)</strong>
+        </div>
+
+        <div>
+            <span>Origen</span>
+            <strong>
+                @(detalle.ProcedenciaOffline is null
+                    ? "En línea"
+                    : "Sincronizado offline")
+            </strong>
+        </div>
+
+        <div>
+            <span>Estado</span>
+            <strong class="@ClaseEstado(payload.EstadoGeneral)">
+                @NombreEstado(payload.EstadoGeneral)
+            </strong>
+        </div>
+    </section>
+
+    <section class="relationship-map-workspace"
+             id="relationshipMapWorkspace">
+        <div class="relationship-map-main panel">
+            <header class="relationship-map-toolbar">
+                <div>
+                    <strong>@payload.Titulo</strong>
+                    <span>@payload.Subtitulo</span>
+                </div>
+
+                <div class="relationship-map-actions">
+                    <button type="button"
+                            title="Centrar y ajustar el mapa"
+                            @onclick="CentrarMapaAsync">
+                        <i class="fa-solid fa-crosshairs"></i>
+                        Centrar
+                    </button>
+
+                    <button type="button"
+                            title="Mostrar todas las relaciones internas"
+                            @onclick="ExpandirTodoAsync">
+                        <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                        Expandir todo
+                    </button>
+
+                    <button type="button"
+                            title="Ocultar las relaciones internas"
+                            @onclick="ContraerTodoAsync">
+                        <i class="fa-solid fa-down-left-and-up-right-to-center"></i>
+                        Contraer todo
+                    </button>
+
+                    <button type="button"
+                            title="Cambiar orientación"
+                            @onclick="CambiarOrientacionAsync">
+                        <i class="fa-solid fa-right-left"></i>
+                        @(orientacionHorizontal
+                            ? "Vertical"
+                            : "Horizontal")
+                    </button>
+
+                    <button type="button"
+                            title="Abrir a pantalla completa"
+                            @onclick="PantallaCompletaAsync">
+                        <i class="fa-solid fa-expand"></i>
+                        Pantalla completa
+                    </button>
+                </div>
+            </header>
+
+            <div id="@ElementoMapa"
+                 class="relationship-map-canvas"
+                 aria-label="Mapa de relaciones del análisis">
+            </div>
+
+            <footer class="relationship-map-legend">
+                <span><i class="correct"></i> Correcto</span>
+                <span><i class="information"></i> Información</span>
+                <span><i class="offline"></i> Sincronización offline</span>
+                <span><i class="neutral"></i> Sin registro opcional</span>
+                <span><i class="warning"></i> Requiere revisión</span>
+                <span><i class="inactive"></i> Inactivo</span>
+            </footer>
+        </div>
+
+        <aside id="@ElementoDetalle"
+               class="relationship-node-detail panel">
+            <div class="relationship-detail-empty">
+                <i class="fa-solid fa-diagram-project"></i>
+                <h2>Seleccione un nodo</h2>
+                <p>
+                    Presione cualquier elemento del mapa para consultar
+                    su información y estado.
+                </p>
+            </div>
+        </aside>
+    </section>
+}
+
+@code {
+    private const string PermisoMapaRelaciones =
+        "MapaRelacionesAnalisisWeb";
+
+    private const string ElementoMapa =
+        "mapaRelacionesAnalisis";
+
+    private const string ElementoDetalle =
+        "detalleMapaRelacionesAnalisis";
+
+    [SupplyParameterFromQuery(Name = "id")]
+    public int AnalisisSueloId { get; set; }
+
+    private AuditoriaAnalisisDetalle? detalle;
+    private MapaRelacionesDetalleTecnico? detalleTecnico;
+    private MapaRelacionesAnalisisPayload? payload;
+
+    private bool autorizado;
+    private bool cargando = true;
+    private bool mapaPendiente;
+    private bool mapaCreado;
+    private bool orientacionHorizontal = true;
+    private string? error;
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InicializarAsync();
+            return;
+        }
+
+        if (mapaPendiente &&
+            payload is not null)
+        {
+            mapaPendiente = false;
+
+            try
+            {
+                await JS.InvokeVoidAsync(
+                    "conatradecMapaRelacionesAnalisis.crear",
+                    ElementoMapa,
+                    ElementoDetalle,
+                    payload,
+                    orientacionHorizontal);
+
+                mapaCreado = true;
+            }
+            catch (JSException ex)
+            {
+                mapaCreado = false;
+                error =
+                    "No fue posible inicializar el gráfico interactivo. " +
+                    ex.Message;
+
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task InicializarAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        autorizado =
+            AuthState.EsAdministrador ||
+            (
+                AuthState.TienePermisoLectura(
+                    PermisosWeb.AuditoriaAnalisis) &&
+                AuthState.TienePermisoLectura(
+                    PermisoMapaRelaciones)
+            );
+
+        if (!autorizado)
+        {
+            cargando = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (AnalisisSueloId <= 0)
+        {
+            cargando = false;
+            error =
+                "No se indicó el análisis que debe visualizarse. " +
+                "Abra el mapa desde Control de análisis.";
+
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        try
+        {
+            Task<AuditoriaAnalisisDetalle?>
+                tareaExpediente =
+                    AuditoriaService.ObtenerDetalleAsync(
+                        AnalisisSueloId);
+
+            Task<AuditoriaApiRespuesta<
+                MapaRelacionesDetalleTecnico>?>
+                tareaDetalleTecnico =
+                    Api.GetAsync<
+                        AuditoriaApiRespuesta<
+                            MapaRelacionesDetalleTecnico>>(
+                        $"api/mapa-relaciones-analisis/" +
+                        $"{AnalisisSueloId}",
+                        AuthState.CrearEncabezadosSesion());
+
+            await Task.WhenAll(
+                tareaExpediente,
+                tareaDetalleTecnico);
+
+            detalle =
+                await tareaExpediente ??
+                throw new InvalidOperationException(
+                    "La API no devolvió el expediente del análisis.");
+
+            AuditoriaApiRespuesta<
+                MapaRelacionesDetalleTecnico>?
+                respuestaTecnica =
+                    await tareaDetalleTecnico;
+
+            detalleTecnico =
+                respuestaTecnica?.Data ??
+                throw new InvalidOperationException(
+                    respuestaTecnica?.Message ??
+                    "La API no devolvió las relaciones internas.");
+
+            payload =
+                ConstruirPayload(
+                    detalle,
+                    detalleTecnico);
+
+            mapaPendiente = true;
+        }
+        catch (Exception ex)
+        {
+            detalle = null;
+            detalleTecnico = null;
+            payload = null;
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static MapaRelacionesAnalisisPayload
+        ConstruirPayload(
+            AuditoriaAnalisisDetalle expediente,
+            MapaRelacionesDetalleTecnico tecnico)
+    {
+        string estadoGeneral =
+            expediente.Inconsistencias.Count > 0
+                ? "ADVERTENCIA"
+                : expediente.Resumen.Activo
+                    ? "CORRECTO"
+                    : "INACTIVO";
+
+        var resultado =
+            new MapaRelacionesAnalisisPayload
+            {
+                Titulo =
+                    expediente.Resumen.Identificador,
+                Subtitulo =
+                    $"{expediente.Resumen.Terreno.CodigoTerreno} · " +
+                    $"{Valor(expediente.Resumen.Laboratorio)}",
+                EstadoGeneral =
+                    estadoGeneral
+            };
+
+        AgregarNodo(
+            resultado,
+            "propietario",
+            "PROPIETARIO",
+            "CONTEXTO",
+            Valor(
+                expediente.Resumen.Terreno.Propietario,
+                "Propietario no registrado"),
+            "Titular relacionado con el terreno",
+            "INFORMACION",
+            new()
+            {
+                ["Propietario"] =
+                    Valor(
+                        expediente.Resumen.Terreno.Propietario),
+                ["Terreno"] =
+                    Valor(
+                        expediente.Resumen.Terreno.CodigoTerreno)
+            });
+
+        AgregarNodo(
+            resultado,
+            "terreno",
+            "TERRENO",
+            "CONTEXTO",
+            Valor(
+                expediente.Resumen.Terreno.CodigoTerreno,
+                "Terreno sin código"),
+            $"{expediente.Resumen.Terreno.ExtensionManzanas:N2} Mz",
+            expediente.Resumen.Terreno.Activo
+                ? "CORRECTO"
+                : "INACTIVO",
+            new()
+            {
+                ["Código"] =
+                    Valor(
+                        expediente.Resumen.Terreno.CodigoTerreno),
+                ["Dirección"] =
+                    Valor(
+                        expediente.Resumen.Terreno.Direccion),
+                ["Extensión"] =
+                    $"{expediente.Resumen.Terreno.ExtensionManzanas:N2} Mz",
+                ["Estado"] =
+                    expediente.Resumen.Terreno.Activo
+                        ? "Activo"
+                        : "Inactivo"
+            });
+
+        AgregarNodo(
+            resultado,
+            "usuario",
+            "USUARIO",
+            "TRAZABILIDAD",
+            Valor(
+                expediente.Resumen.UsuarioNombre,
+                "Usuario no identificado"),
+            "Técnico responsable",
+            "INFORMACION",
+            new()
+            {
+                ["Técnico"] =
+                    Valor(
+                        expediente.Resumen.UsuarioNombre),
+                ["Usuario ID"] =
+                    expediente.Resumen.UsuarioId
+                        ?.ToString() ??
+                    "Sin dato"
+            });
+
+        AgregarNodo(
+            resultado,
+            "analisis",
+            "ANALISIS",
+            "ANALISIS",
+            expediente.Resumen.Identificador,
+            $"{expediente.Resumen.FechaLaboratorio:dd/MM/yyyy}",
+            estadoGeneral,
+            new()
+            {
+                ["Identificador"] =
+                    expediente.Resumen.Identificador,
+                ["Laboratorio"] =
+                    Valor(
+                        expediente.Resumen.Laboratorio),
+                ["Fecha de laboratorio"] =
+                    expediente.Resumen.FechaLaboratorio
+                        .ToString("dd/MM/yyyy"),
+                ["Fecha de registro"] =
+                    FechaLocal(
+                        expediente.Resumen.FechaRegistro),
+                ["Tipo de análisis"] =
+                    Valor(
+                        expediente.Resumen.TipoAnalisis),
+                ["Cultivo"] =
+                    Valor(
+                        expediente.Resumen.TipoCultivo),
+                ["pH"] =
+                    expediente.Resumen.Ph
+                        .ToString("N2"),
+                ["Materia orgánica"] =
+                    Numero(
+                        expediente.Resumen.MateriaOrganica),
+                ["Acidez total"] =
+                    Numero(
+                        expediente.Resumen.AcidezTotal),
+                ["Estado"] =
+                    expediente.Resumen.Activo
+                        ? "Activo"
+                        : "Inactivo"
+            });
+
+        bool tieneElementos =
+            expediente.ElementosCalculados.Count > 0;
+
+        AgregarNodo(
+            resultado,
+            "requerimiento",
+            "REQUERIMIENTO",
+            "CALCULOS",
+            "Requerimiento anual",
+            $"{expediente.ElementosCalculados.Count} elementos",
+            tieneElementos
+                ? "CORRECTO"
+                : "ADVERTENCIA",
+            new()
+            {
+                ["Resultados calculados"] =
+                    expediente.ElementosCalculados.Count
+                        .ToString(),
+                ["Elementos de laboratorio"] =
+                    expediente.ElementosIngresados.Count
+                        .ToString(),
+                ["Fecha de cálculo"] =
+                    FechaLocal(
+                        expediente.Resumen.FechaCalculo),
+                ["Acción"] =
+                    tieneElementos
+                        ? "Expanda para consultar los elementos químicos."
+                        : "No existen elementos calculados."
+            },
+            expandible:
+                tieneElementos);
+
+        AgregarElementosRequerimiento(
+            resultado,
+            expediente);
+
+        MapaRelacionesFormula? formula =
+            tecnico.Formula;
+
+        bool formulaExpandible =
+            formula is not null &&
+            formula.Fuentes.Count > 0;
+
+        AgregarNodo(
+            resultado,
+            "formula",
+            "FORMULA",
+            "CALCULOS",
+            "Balance de fórmula",
+            formula is null
+                ? "Sin registro"
+                : Valor(
+                    formula.NombreFormula,
+                    "Fórmula guardada"),
+            EstadoModulo(
+                formula?.Activo,
+                formulaExpandible),
+            formula is null
+                ? new()
+                {
+                    ["Estado"] =
+                        "Cálculo opcional sin registro"
+                }
+                : new()
+                {
+                    ["Nombre"] =
+                        Valor(
+                            formula.NombreFormula),
+                    ["Mezcla total"] =
+                        $"{formula.MezclaTotalQq:N4} qq",
+                    ["Total libras"] =
+                        $"{formula.TotalLibras:N4} lb",
+                    ["Precio total"] =
+                        formula.PrecioTotalFormula
+                            .ToString("N4"),
+                    ["Fuentes"] =
+                        formula.Fuentes.Count
+                            .ToString(),
+                    ["Complementa mixta"] =
+                        formula.EsComplementoMixta
+                            ? "Sí"
+                            : "No",
+                    ["Estado"] =
+                        formula.Activo
+                            ? "Activo"
+                            : "Inactivo",
+                    ["Acción"] =
+                        formulaExpandible
+                            ? "Expanda para consultar fuentes y aportes."
+                            : "No existen fuentes relacionadas."
+                },
+            expandible:
+                formulaExpandible);
+
+        AgregarFuentesFormula(
+            resultado,
+            formula);
+
+        AuditoriaEnmienda? enmienda =
+            expediente.Modulos.EnmiendaCalcarea;
+
+        AgregarNodo(
+            resultado,
+            "enmienda",
+            "ENMIENDA",
+            "CALCULOS",
+            "Enmienda calcárea",
+            enmienda is null
+                ? "Sin registro"
+                : $"{enmienda.NecesidadEncaladoLbMz:N2} lb/Mz",
+            EstadoModulo(
+                enmienda?.Activo,
+                enmienda is not null),
+            enmienda is null
+                ? new()
+                {
+                    ["Estado"] =
+                        "Cálculo opcional sin registro"
+                }
+                : new()
+                {
+                    ["Necesidad de encalado"] =
+                        $"{enmienda.NecesidadEncaladoLbMz:N2} lb/Mz",
+                    ["CICE"] =
+                        enmienda.Cice.ToString("N2"),
+                    ["Saturación actual"] =
+                        $"{enmienda.SaturacionActual:N2}%",
+                    ["Saturación deseada"] =
+                        $"{enmienda.SaturacionDeseada:N2}%",
+                    ["Aplicaciones"] =
+                        enmienda.TotalAplicaciones
+                            .ToString(),
+                    ["Estado"] =
+                        enmienda.Activo
+                            ? "Activo"
+                            : "Inactivo"
+                });
+
+        MapaRelacionesMixta? mixta =
+            tecnico.FertilizacionMixta;
+
+        bool mixtaExpandible =
+            mixta is not null &&
+            (
+                mixta.Fuentes.Count > 0 ||
+                mixta.Resultados.Count > 0
+            );
+
+        AgregarNodo(
+            resultado,
+            "mixta",
+            "MIXTA",
+            "CALCULOS",
+            "Fertilización mixta",
+            mixta is null
+                ? "Sin registro"
+                : $"{mixta.Fuentes.Count} fuentes · " +
+                  $"{mixta.Resultados.Count} elementos",
+            EstadoModulo(
+                mixta?.Activo,
+                mixtaExpandible),
+            mixta is null
+                ? new()
+                {
+                    ["Estado"] =
+                        "Cálculo opcional sin registro"
+                }
+                : new()
+                {
+                    ["Fuentes"] =
+                        mixta.Fuentes.Count
+                            .ToString(),
+                    ["Resultados por elemento"] =
+                        mixta.Resultados.Count
+                            .ToString(),
+                    ["Complemento del balance"] =
+                        mixta.EsComplementoBalance
+                            ? "Sí"
+                            : "No",
+                    ["Fecha"] =
+                        FechaLocal(
+                            mixta.FechaCalculo),
+                    ["Estado"] =
+                        mixta.Activo
+                            ? "Activo"
+                            : "Inactivo",
+                    ["Acción"] =
+                        mixtaExpandible
+                            ? "Expanda para consultar fuentes, aportes y resultados."
+                            : "No existen relaciones internas."
+                },
+            expandible:
+                mixtaExpandible);
+
+        AgregarFertilizacionMixta(
+            resultado,
+            mixta);
+
+        AgregarNodo(
+            resultado,
+            "reporte",
+            "REPORTE",
+            "RESULTADOS",
+            "Reporte técnico",
+            "PDF generado desde el cálculo",
+            expediente.Resumen.Activo
+                ? "INFORMACION"
+                : "INACTIVO",
+            new()
+            {
+                ["Cálculo relacionado"] =
+                    expediente.Resumen
+                        .AnalisisSueloCalculoId
+                        .ToString(),
+                ["Disponibilidad"] =
+                    "Se genera bajo demanda",
+                ["Estado del análisis"] =
+                    expediente.Resumen.Activo
+                        ? "Activo"
+                        : "Inactivo"
+            });
+
+        if (expediente.ProcedenciaOffline is null)
+        {
+            AgregarNodo(
+                resultado,
+                "origen",
+                "ORIGEN",
+                "TRAZABILIDAD",
+                "Creado en línea",
+                "Registro recibido directamente",
+                "INFORMACION",
+                new()
+                {
+                    ["Procedencia"] =
+                        "En línea",
+                    ["Fecha de registro"] =
+                        FechaLocal(
+                            expediente.Resumen.FechaRegistro)
+                });
+        }
+        else
+        {
+            AuditoriaProcedenciaOffline offline =
+                expediente.ProcedenciaOffline;
+
+            AgregarNodo(
+                resultado,
+                "origen",
+                "SINCRONIZACION",
+                "TRAZABILIDAD",
+                "Sincronización offline",
+                Valor(
+                    offline.Estado,
+                    "Operación registrada"),
+                "OFFLINE",
+                new()
+                {
+                    ["Operación"] =
+                        Valor(
+                            offline.TipoOperacion),
+                    ["Estado"] =
+                        Valor(
+                            offline.Estado),
+                    ["Versión del motor"] =
+                        Valor(
+                            offline.VersionMotor),
+                    ["Calculado localmente"] =
+                        FechaLocal(
+                            offline.FechaCalculoLocalUtc),
+                    ["Recibido por servidor"] =
+                        FechaLocal(
+                            offline.FechaRecepcionUtc),
+                    ["Completado"] =
+                        FechaLocal(
+                            offline.FechaCompletadoUtc),
+                    ["Hash"] =
+                        Valor(
+                            offline.HashPaquete)
+                });
+        }
+
+        AgregarNodo(
+            resultado,
+            "historial",
+            "HISTORIAL",
+            "TRAZABILIDAD",
+            "Historial de cambios",
+            $"{expediente.Historial.Count} eventos",
+            "INFORMACION",
+            new()
+            {
+                ["Eventos registrados"] =
+                    expediente.Historial.Count
+                        .ToString(),
+                ["Último evento"] =
+                    expediente.Historial.Count == 0
+                        ? "Sin eventos"
+                        : FechaLocal(
+                            expediente.Historial
+                                .Max(x => x.FechaHoraUtc))
+            });
+
+        if (expediente.Inconsistencias.Count > 0)
+        {
+            AgregarNodo(
+                resultado,
+                "inconsistencias",
+                "ALERTA",
+                "TRAZABILIDAD",
+                "Inconsistencias",
+                $"{expediente.Inconsistencias.Count} detectadas",
+                "ADVERTENCIA",
+                expediente.Inconsistencias
+                    .Select(
+                        (texto, indice) =>
+                            new KeyValuePair<string, string>(
+                                $"Alerta {indice + 1}",
+                                texto))
+                    .ToDictionary(
+                        x => x.Key,
+                        x => x.Value));
+        }
+
+        AgregarRelacion(
+            resultado,
+            "propietario-terreno",
+            "propietario",
+            "terreno",
+            "POSEE");
+
+        AgregarRelacion(
+            resultado,
+            "terreno-analisis",
+            "terreno",
+            "analisis",
+            "CONTIENE");
+
+        AgregarRelacion(
+            resultado,
+            "usuario-analisis",
+            "usuario",
+            "analisis",
+            "REGISTRA");
+
+        AgregarRelacion(
+            resultado,
+            "origen-analisis",
+            "origen",
+            "analisis",
+            expediente.ProcedenciaOffline is null
+                ? "CREA"
+                : "SINCRONIZA");
+
+        AgregarRelacion(
+            resultado,
+            "analisis-requerimiento",
+            "analisis",
+            "requerimiento",
+            "GENERA");
+
+        AgregarRelacion(
+            resultado,
+            "requerimiento-formula",
+            "requerimiento",
+            "formula",
+            "ALIMENTA");
+
+        AgregarRelacion(
+            resultado,
+            "requerimiento-enmienda",
+            "requerimiento",
+            "enmienda",
+            "ALIMENTA");
+
+        AgregarRelacion(
+            resultado,
+            "requerimiento-mixta",
+            "requerimiento",
+            "mixta",
+            "ALIMENTA");
+
+        if (formula?.EsComplementoMixta == true ||
+            mixta?.EsComplementoBalance == true)
+        {
+            AgregarRelacion(
+                resultado,
+                "mixta-formula-complemento",
+                "mixta",
+                "formula",
+                "COMPLEMENTA",
+                "DESTACADA");
+        }
+
+        AgregarRelacion(
+            resultado,
+            "requerimiento-reporte",
+            "requerimiento",
+            "reporte",
+            "DOCUMENTA");
+
+        AgregarRelacion(
+            resultado,
+            "formula-reporte",
+            "formula",
+            "reporte",
+            "DOCUMENTA");
+
+        AgregarRelacion(
+            resultado,
+            "mixta-reporte",
+            "mixta",
+            "reporte",
+            "DOCUMENTA");
+
+        AgregarRelacion(
+            resultado,
+            "analisis-historial",
+            "analisis",
+            "historial",
+            "AUDITA");
+
+        if (expediente.Inconsistencias.Count > 0)
+        {
+            AgregarRelacion(
+                resultado,
+                "inconsistencias-analisis",
+                "inconsistencias",
+                "analisis",
+                "ADVIERTE",
+                "ADVERTENCIA");
+        }
+
+        return resultado;
+    }
+
+    private static void AgregarElementosRequerimiento(
+        MapaRelacionesAnalisisPayload resultado,
+        AuditoriaAnalisisDetalle expediente)
+    {
+        foreach (AuditoriaElementoCalculado elemento in
+                 expediente.ElementosCalculados
+                     .OrderByDescending(x =>
+                         x.RequerimientoCalculado ?? 0)
+                     .ThenBy(x =>
+                         x.Nombre))
+        {
+            string id =
+                $"req-elemento-{elemento.ElementoQuimicosId}";
+
+            AgregarNodo(
+                resultado,
+                id,
+                "ELEMENTO_REQUERIMIENTO",
+                "REQUERIMIENTO",
+                $"{elemento.Simbolo} · {elemento.Nombre}",
+                $"{Numero(elemento.RequerimientoCalculado)} lb/Mz · " +
+                $"{Valor(elemento.Clasificacion)}",
+                elemento.Activo
+                    ? EstadoClasificacion(
+                        elemento.Clasificacion)
+                    : "INACTIVO",
+                new()
+                {
+                    ["Elemento"] =
+                        $"{elemento.Simbolo} · {elemento.Nombre}",
+                    ["Cantidad ingresada"] =
+                        elemento.CantidadIngresada
+                            .ToString("N4"),
+                    ["Cantidad convertida"] =
+                        $"{Numero(elemento.CantidadConvertidaLbMz)} lb/Mz",
+                    ["Requerimiento anual"] =
+                        $"{Numero(elemento.RequerimientoCalculado)} lb/Mz",
+                    ["Clasificación"] =
+                        Valor(
+                            elemento.Clasificacion),
+                    ["Incluido en complementarios"] =
+                        elemento.IncluirCalculosComplementarios
+                            ? "Sí"
+                            : "No",
+                    ["Observación"] =
+                        Valor(
+                            elemento.Observacion),
+                    ["Estado"] =
+                        elemento.Activo
+                            ? "Activo"
+                            : "Inactivo"
+                },
+                padreId:
+                    "requerimiento",
+                ocultoInicial:
+                    true);
+
+            AgregarRelacion(
+                resultado,
+                $"requerimiento-{id}",
+                "requerimiento",
+                id,
+                "CALCULA",
+                ocultaInicial:
+                    true);
+        }
+    }
+
+    private static void AgregarFuentesFormula(
+        MapaRelacionesAnalisisPayload resultado,
+        MapaRelacionesFormula? formula)
+    {
+        if (formula is null)
+            return;
+
+        foreach (MapaRelacionesFormulaFuente fuente in
+                 formula.Fuentes
+                     .OrderBy(x =>
+                         x.NombreFuente))
+        {
+            string fuenteId =
+                $"formula-fuente-{fuente.FuenteNutrientesId}";
+
+            string objetivos =
+                fuente.ElementosObjetivo.Count == 0
+                    ? "Sin elemento principal"
+                    : string.Join(
+                        ", ",
+                        fuente.ElementosObjetivo
+                            .Select(x =>
+                                x.Simbolo)
+                            .Where(x =>
+                                !string.IsNullOrWhiteSpace(x)));
+
+            AgregarNodo(
+                resultado,
+                fuenteId,
+                "FUENTE_FORMULA",
+                "BALANCE",
+                Valor(
+                    fuente.NombreFuente,
+                    "Fuente sin nombre"),
+                $"{fuente.Qq:N4} qq · {fuente.Libras:N4} lb",
+                fuente.Activo
+                    ? fuente.Aportes.Count > 0
+                        ? "CORRECTO"
+                        : "ADVERTENCIA"
+                    : "INACTIVO",
+                new()
+                {
+                    ["Fuente"] =
+                        Valor(
+                            fuente.NombreFuente),
+                    ["Cantidad guardada"] =
+                        $"{fuente.Qq:N4} qq",
+                    ["Libras"] =
+                        $"{fuente.Libras:N4} lb",
+                    ["Requerimiento relacionado"] =
+                        $"{fuente.RequerimientoLibras:N4} lb",
+                    ["Precio por quintal"] =
+                        fuente.PrecioPorQuintal
+                            .ToString("N4"),
+                    ["Subtotal almacenado"] =
+                        fuente.SubtotalFuente
+                            .ToString("N4"),
+                    ["Onzas anuales"] =
+                        fuente.OnzasAnuales
+                            .ToString("N4"),
+                    ["Onzas por aplicación"] =
+                        fuente.OnzasPorAplicacion
+                            .ToString("N4"),
+                    ["Elemento(s) principal(es)"] =
+                        objetivos,
+                    ["Aportes relacionados"] =
+                        fuente.Aportes.Count
+                            .ToString(),
+                    ["Estado"] =
+                        fuente.Activo
+                            ? "Activo"
+                            : "Inactivo"
+                },
+                padreId:
+                    "formula",
+                expandible:
+                    fuente.Aportes.Count > 0,
+                ocultoInicial:
+                    true);
+
+            AgregarRelacion(
+                resultado,
+                $"formula-{fuenteId}",
+                "formula",
+                fuenteId,
+                "USA",
+                ocultaInicial:
+                    true);
+
+            foreach (MapaRelacionesFormulaAporte aporte in
+                     fuente.Aportes
+                         .OrderBy(x =>
+                             x.Nombre))
+            {
+                string aporteId =
+                    $"{fuenteId}-aporte-{aporte.ElementoQuimicosId}";
+
+                AgregarNodo(
+                    resultado,
+                    aporteId,
+                    "APORTE_FORMULA",
+                    "BALANCE",
+                    $"{aporte.Simbolo} · {aporte.Nombre}",
+                    $"{aporte.Valor:N4} lb/Mz aportadas",
+                    aporte.Activo
+                        ? "INFORMACION"
+                        : "INACTIVO",
+                    new()
+                    {
+                        ["Fuente"] =
+                            Valor(
+                                fuente.NombreFuente),
+                        ["Elemento aportado"] =
+                            $"{aporte.Simbolo} · {aporte.Nombre}",
+                        ["Aporte guardado"] =
+                            $"{aporte.Valor:N4} lb/Mz",
+                        ["Estado"] =
+                            aporte.Activo
+                                ? "Activo"
+                                : "Inactivo"
+                    },
+                    padreId:
+                        fuenteId,
+                    ocultoInicial:
+                        true);
+
+                AgregarRelacion(
+                    resultado,
+                    $"{fuenteId}-{aporteId}",
+                    fuenteId,
+                    aporteId,
+                    "APORTA",
+                    ocultaInicial:
+                        true);
+
+                string requisitoId =
+                    $"req-elemento-{aporte.ElementoQuimicosId}";
+
+                if (resultado.Nodos.Any(x =>
+                        x.Id == requisitoId))
+                {
+                    AgregarRelacion(
+                        resultado,
+                        $"{aporteId}-{requisitoId}",
+                        aporteId,
+                        requisitoId,
+                        "CUBRE",
+                        "DESTACADA",
+                        ocultaInicial:
+                            true);
+                }
+            }
+        }
+    }
+
+    private static void AgregarFertilizacionMixta(
+        MapaRelacionesAnalisisPayload resultado,
+        MapaRelacionesMixta? mixta)
+    {
+        if (mixta is null)
+            return;
+
+        bool tieneFuentes =
+            mixta.Fuentes.Count > 0;
+
+        bool tieneResultados =
+            mixta.Resultados.Count > 0;
+
+        if (tieneFuentes)
+        {
+            AgregarNodo(
+                resultado,
+                "mixta-grupo-fuentes",
+                "GRUPO",
+                "FERTILIZACION_MIXTA",
+                "Fuentes orgánicas",
+                $"{mixta.Fuentes.Count} fuentes",
+                "INFORMACION",
+                new()
+                {
+                    ["Fuentes relacionadas"] =
+                        mixta.Fuentes.Count
+                            .ToString(),
+                    ["Acción"] =
+                        "Expanda para visualizar cada fuente."
+                },
+                padreId:
+                    "mixta",
+                expandible:
+                    true,
+                ocultoInicial:
+                    true);
+
+            AgregarRelacion(
+                resultado,
+                "mixta-grupo-fuentes-relacion",
+                "mixta",
+                "mixta-grupo-fuentes",
+                "USA",
+                ocultaInicial:
+                    true);
+        }
+
+        if (tieneResultados)
+        {
+            AgregarNodo(
+                resultado,
+                "mixta-grupo-resultados",
+                "GRUPO",
+                "FERTILIZACION_MIXTA",
+                "Resultados por elemento",
+                $"{mixta.Resultados.Count} elementos",
+                "INFORMACION",
+                new()
+                {
+                    ["Elementos relacionados"] =
+                        mixta.Resultados.Count
+                            .ToString(),
+                    ["Acción"] =
+                        "Expanda para visualizar déficit y sobrante."
+                },
+                padreId:
+                    "mixta",
+                expandible:
+                    true,
+                ocultoInicial:
+                    true);
+
+            AgregarRelacion(
+                resultado,
+                "mixta-grupo-resultados-relacion",
+                "mixta",
+                "mixta-grupo-resultados",
+                "GENERA",
+                ocultaInicial:
+                    true);
+        }
+
+        foreach (MapaRelacionesMixtaFuente fuente in
+                 mixta.Fuentes
+                     .OrderBy(x =>
+                         x.NombreFuente))
+        {
+            string fuenteId =
+                $"mixta-fuente-{fuente.FuenteNutrientesId}";
+
+            AgregarNodo(
+                resultado,
+                fuenteId,
+                "FUENTE_MIXTA",
+                "FERTILIZACION_MIXTA",
+                Valor(
+                    fuente.NombreFuente,
+                    "Fuente sin nombre"),
+                $"{fuente.CantidadQq:N4} qq",
+                fuente.Activo
+                    ? fuente.Aportes.Count > 0
+                        ? "CORRECTO"
+                        : "ADVERTENCIA"
+                    : "INACTIVO",
+                new()
+                {
+                    ["Fuente"] =
+                        Valor(
+                            fuente.NombreFuente),
+                    ["Cantidad utilizada"] =
+                        $"{fuente.CantidadQq:N4} qq",
+                    ["Aportes relacionados"] =
+                        fuente.Aportes.Count
+                            .ToString(),
+                    ["Estado"] =
+                        fuente.Activo
+                            ? "Activo"
+                            : "Inactivo",
+                    ["Nota"] =
+                        "Los aportes por fuente se reconstruyen con la composición registrada."
+                },
+                padreId:
+                    "mixta-grupo-fuentes",
+                expandible:
+                    fuente.Aportes.Count > 0,
+                ocultoInicial:
+                    true);
+
+            AgregarRelacion(
+                resultado,
+                $"mixta-grupo-{fuenteId}",
+                "mixta-grupo-fuentes",
+                fuenteId,
+                "CONTIENE",
+                ocultaInicial:
+                    true);
+
+            foreach (MapaRelacionesMixtaAporteFuente aporte in
+                     fuente.Aportes
+                         .OrderBy(x =>
+                             x.Nombre))
+            {
+                string aporteId =
+                    $"{fuenteId}-aporte-{aporte.ElementoQuimicosId}";
+
+                AgregarNodo(
+                    resultado,
+                    aporteId,
+                    "APORTE_MIXTA",
+                    "FERTILIZACION_MIXTA",
+                    $"{aporte.Simbolo} · {aporte.Nombre}",
+                    $"{aporte.AporteTotal:N4} lb/Mz",
+                    "INFORMACION",
+                    new()
+                    {
+                        ["Fuente"] =
+                            Valor(
+                                fuente.NombreFuente),
+                        ["Elemento aportado"] =
+                            $"{aporte.Simbolo} · {aporte.Nombre}",
+                        ["Cantidad de fuente"] =
+                            $"{aporte.CantidadQq:N4} qq",
+                        ["Aporte por unidad"] =
+                            aporte.AportePorUnidad
+                                .ToString("N4"),
+                        ["Aporte total reconstruido"] =
+                            $"{aporte.AporteTotal:N4} lb/Mz",
+                        ["Origen"] =
+                            "Composición vigente de la fuente"
+                    },
+                    padreId:
+                        fuenteId,
+                    ocultoInicial:
+                        true);
+
+                AgregarRelacion(
+                    resultado,
+                    $"{fuenteId}-{aporteId}",
+                    fuenteId,
+                    aporteId,
+                    "APORTA",
+                    ocultaInicial:
+                        true);
+
+                string resultadoId =
+                    $"mixta-resultado-{aporte.ElementoQuimicosId}";
+
+                if (mixta.Resultados.Any(x =>
+                        x.ElementoQuimicosId ==
+                        aporte.ElementoQuimicosId))
+                {
+                    AgregarRelacion(
+                        resultado,
+                        $"{aporteId}-{resultadoId}",
+                        aporteId,
+                        resultadoId,
+                        "SUMA EN",
+                        "DESTACADA",
+                        ocultaInicial:
+                            true);
+                }
+            }
+        }
+
+        foreach (MapaRelacionesMixtaResultado item in
+                 mixta.Resultados
+                     .OrderByDescending(x =>
+                         x.Deficit)
+                     .ThenBy(x =>
+                         x.Nombre))
+        {
+            string resultadoId =
+                $"mixta-resultado-{item.ElementoQuimicosId}";
+
+            bool reconstruccionCoincide =
+                Math.Abs(
+                    item.DiferenciaReconstruccion) <= 0.01m;
+
+            string estado =
+                !item.Activo
+                    ? "INACTIVO"
+                    : item.Deficit > 0 ||
+                      item.Sobrante > 0 ||
+                      !reconstruccionCoincide
+                        ? "ADVERTENCIA"
+                        : "CORRECTO";
+
+            AgregarNodo(
+                resultado,
+                resultadoId,
+                "RESULTADO_MIXTA",
+                "FERTILIZACION_MIXTA",
+                $"{item.Simbolo} · {item.Nombre}",
+                item.Deficit > 0
+                    ? $"Déficit {item.Deficit:N4} lb/Mz"
+                    : item.Sobrante > 0
+                        ? $"Sobrante {item.Sobrante:N4} lb/Mz"
+                        : "Requerimiento cubierto",
+                estado,
+                new()
+                {
+                    ["Elemento"] =
+                        $"{item.Simbolo} · {item.Nombre}",
+                    ["Requerimiento original"] =
+                        $"{item.RequerimientoOriginal:N4} lb/Mz",
+                    ["Aporte orgánico guardado"] =
+                        $"{item.AporteOrganico:N4} lb/Mz",
+                    ["Aporte reconstruido por fuentes"] =
+                        $"{item.AporteReconstruido:N4} lb/Mz",
+                    ["Diferencia de reconstrucción"] =
+                        $"{item.DiferenciaReconstruccion:N4} lb/Mz",
+                    ["Coincidencia"] =
+                        reconstruccionCoincide
+                            ? "Sí"
+                            : "Revisar composición histórica",
+                    ["Diferencia"] =
+                        $"{item.Diferencia:N4} lb/Mz",
+                    ["Déficit"] =
+                        $"{item.Deficit:N4} lb/Mz",
+                    ["Sobrante"] =
+                        $"{item.Sobrante:N4} lb/Mz",
+                    ["Estado"] =
+                        item.Activo
+                            ? "Activo"
+                            : "Inactivo"
+                },
+                padreId:
+                    "mixta-grupo-resultados",
+                ocultoInicial:
+                    true);
+
+            AgregarRelacion(
+                resultado,
+                $"mixta-resultados-{resultadoId}",
+                "mixta-grupo-resultados",
+                resultadoId,
+                "RESUME",
+                ocultaInicial:
+                    true);
+
+            string requisitoId =
+                $"req-elemento-{item.ElementoQuimicosId}";
+
+            if (resultado.Nodos.Any(x =>
+                    x.Id == requisitoId))
+            {
+                AgregarRelacion(
+                    resultado,
+                    $"{resultadoId}-{requisitoId}",
+                    resultadoId,
+                    requisitoId,
+                    "ATIENDE",
+                    "DESTACADA",
+                    ocultaInicial:
+                        true);
+            }
+        }
+    }
+
+    private static void AgregarNodo(
+        MapaRelacionesAnalisisPayload payloadMapa,
+        string id,
+        string tipo,
+        string grupo,
+        string titulo,
+        string subtitulo,
+        string estado,
+        Dictionary<string, string> detallesNodo,
+        string? padreId = null,
+        bool expandible = false,
+        bool ocultoInicial = false)
+    {
+        payloadMapa.Nodos.Add(
+            new MapaRelacionesAnalisisNodo
+            {
+                Id = id,
+                Tipo = tipo,
+                Grupo = grupo,
+                Titulo = titulo,
+                Subtitulo = subtitulo,
+                Estado = estado,
+                PadreId = padreId,
+                Expandible = expandible,
+                OcultoInicial = ocultoInicial,
+                Detalles = detallesNodo
+            });
+    }
+
+    private static void AgregarRelacion(
+        MapaRelacionesAnalisisPayload payloadMapa,
+        string id,
+        string origen,
+        string destino,
+        string etiqueta,
+        string estado = "NORMAL",
+        bool ocultaInicial = false)
+    {
+        payloadMapa.Relaciones.Add(
+            new MapaRelacionesAnalisisArista
+            {
+                Id = id,
+                Origen = origen,
+                Destino = destino,
+                Etiqueta = etiqueta,
+                Estado = estado,
+                OcultaInicial = ocultaInicial
+            });
+    }
+
+    private static string EstadoModulo(
+        bool? activo,
+        bool completo)
+    {
+        if (!activo.HasValue)
+            return "NEUTRAL";
+
+        if (!activo.Value)
+            return "INACTIVO";
+
+        return completo
+            ? "CORRECTO"
+            : "ADVERTENCIA";
+    }
+
+    private static string EstadoClasificacion(
+        string? clasificacion)
+    {
+        string valor =
+            clasificacion?
+                .Trim()
+                .ToUpperInvariant() ??
+            string.Empty;
+
+        return valor switch
+        {
+            "BAJO" => "ADVERTENCIA",
+            "ALTO" => "ADVERTENCIA",
+            "MEDIO" => "CORRECTO",
+            _ => "INFORMACION"
+        };
+    }
+
+    private async Task CentrarMapaAsync()
+    {
+        if (!mapaCreado)
+            return;
+
+        await JS.InvokeVoidAsync(
+            "conatradecMapaRelacionesAnalisis.centrar",
+            ElementoMapa);
+    }
+
+    private async Task ExpandirTodoAsync()
+    {
+        if (!mapaCreado)
+            return;
+
+        await JS.InvokeVoidAsync(
+            "conatradecMapaRelacionesAnalisis.expandirTodo",
+            ElementoMapa);
+    }
+
+    private async Task ContraerTodoAsync()
+    {
+        if (!mapaCreado)
+            return;
+
+        await JS.InvokeVoidAsync(
+            "conatradecMapaRelacionesAnalisis.contraerTodo",
+            ElementoMapa);
+    }
+
+    private async Task CambiarOrientacionAsync()
+    {
+        if (!mapaCreado)
+            return;
+
+        orientacionHorizontal =
+            !orientacionHorizontal;
+
+        await JS.InvokeVoidAsync(
+            "conatradecMapaRelacionesAnalisis.cambiarOrientacion",
+            ElementoMapa,
+            orientacionHorizontal);
+    }
+
+    private async Task PantallaCompletaAsync()
+    {
+        if (!mapaCreado)
+            return;
+
+        await JS.InvokeVoidAsync(
+            "conatradecMapaRelacionesAnalisis.pantallaCompleta",
+            "relationshipMapWorkspace",
+            ElementoMapa);
+    }
+
+    private void VolverAlControl()
+    {
+        Navigation.NavigateTo(
+            "/control-analisis");
+    }
+
+    private static string ClaseEstado(
+        string estado) =>
+        estado.ToUpperInvariant() switch
+        {
+            "CORRECTO" =>
+                "relationship-state-correct",
+            "ADVERTENCIA" =>
+                "relationship-state-warning",
+            "INACTIVO" =>
+                "relationship-state-inactive",
+            _ =>
+                "relationship-state-information"
+        };
+
+    private static string NombreEstado(
+        string estado) =>
+        estado.ToUpperInvariant() switch
+        {
+            "CORRECTO" =>
+                "Correcto",
+            "ADVERTENCIA" =>
+                "Requiere revisión",
+            "INACTIVO" =>
+                "Inactivo",
+            _ =>
+                "Informativo"
+        };
+
+    private static string Valor(
+        string? valor,
+        string alternativo = "Sin dato") =>
+        string.IsNullOrWhiteSpace(valor)
+            ? alternativo
+            : valor.Trim();
+
+    private static string Numero(
+        decimal? valor) =>
+        valor.HasValue
+            ? valor.Value.ToString("N4")
+            : "Sin dato";
+
+    private static string FechaLocal(
+        DateTime fecha) =>
+        fecha.ToLocalTime()
+            .ToString("dd/MM/yyyy hh:mm:ss tt");
+
+    private static string FechaLocal(
+        DateTime? fecha) =>
+        fecha.HasValue
+            ? FechaLocal(fecha.Value)
+            : "Sin dato";
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!mapaCreado)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecMapaRelacionesAnalisis.destruir",
+                ElementoMapa);
+        }
+        catch
+        {
+        }
+
+        mapaCreado = false;
+    }
+}

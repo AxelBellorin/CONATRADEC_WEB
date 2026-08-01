@@ -33,9 +33,10 @@
             <strong>Todos los resultados finales se expresan en lb/Mz</strong>
             <span>
                 Las unidades configuradas representan la forma en que el
-                laboratorio reporta los datos. El sistema realiza las
-                conversiones necesarias y normaliza los elementos químicos a
-                libras por manzana antes de calcular o generar reportes.
+                laboratorio reporta los datos. El nitrógeno se calcula con la
+                masa de suelo, materia orgánica y mineralización definidas en
+                el Excel oficial; todos los elementos se normalizan a libras
+                por manzana antes de calcular o generar reportes.
             </span>
         </div>
     </aside>
@@ -832,7 +833,13 @@
             ? formulas
                 .Where(item => item.Codigo == "LINEAL")
                 .ToList()
-            : formulas;
+            : formulas
+                .Where(item =>
+                    !string.Equals(
+                        item.Codigo,
+                        "NITROGENO_MO_LEGADO",
+                        StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
     private IReadOnlyList<UnidadConversionConfiguradaAdminModel>
         UnidadesDisponiblesPrueba
