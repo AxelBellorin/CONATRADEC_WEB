@@ -1,370 +1,627 @@
 @page "/configuracion"
-@inject IConfiguration Configuration
 @inject AuthStateService AuthState
 
 <PageTitle>Configuración | CONATRADEC</PageTitle>
 
 <div class="page-header">
     <div>
-        <p class="eyebrow">Administración</p>
-        <h1>Configuración y contenido</h1>
+        <p class="eyebrow">Centro administrativo</p>
+        <h1>Configuración</h1>
         <p>
-            Accede a los catálogos, contenidos y herramientas habilitados
-            para tu rol.
+            Catálogos, seguridad, contenido, parámetros y mantenimiento
+            organizados en un solo lugar.
         </p>
     </div>
+
 </div>
 
-@if (PuedeVerUbicaciones)
+@if (!TieneOpcionesAdministrativas)
 {
-    <section class="config-section">
-        <div class="config-section-title">
-            <div>
-                <p class="eyebrow">Ubicación y cobertura</p>
-                <h2>Catálogos geográficos</h2>
-            </div>
-            <span>
-                Jerarquía utilizada por usuarios, propietarios y terrenos.
-            </span>
-        </div>
+    <section class="panel empty-state compact-empty">
+        <i class="fa-solid fa-lock"></i>
+        <h2>No hay herramientas habilitadas</h2>
+        <p>
+            Tu rol permite entrar al portal, pero no tiene permisos de
+            administración adicionales.
+        </p>
+    </section>
+}
+else
+{
+    @if (PuedeVerConfiguracionAgricola)
+    {
+        <section class="config-section">
+            <div class="config-section-title">
+                <div>
+                    <p class="eyebrow">Operación agrícola</p>
+                    <h2>Reglas y comportamiento</h2>
+                </div>
 
-        <div class="config-card-grid">
-            <a class="panel config-action-card"
-               href="/configuracion/ubicaciones">
-                <span class="config-action-icon">
-                    <i class="fa-solid fa-earth-americas"></i>
-                </span>
                 <span>
-                    <strong>Ubicaciones geográficas</strong>
-                    <small>
-                        Países, departamentos, municipios, inactivos y
-                        reactivación.
-                    </small>
+                    Condiciones utilizadas por alertas, clima y labores.
                 </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </a>
-        </div>
-    </section>
-}
-
-@if (Puede(PermisosWeb.FotosTerreno))
-{
-    <section class="config-section">
-        <div class="config-section-title">
-            <div>
-                <p class="eyebrow">Fincas y evidencia fotográfica</p>
-                <h2>Galerías de terrenos</h2>
             </div>
-            <span>
-                Fotografías reales de las fincas registradas en el sistema.
-            </span>
-        </div>
 
-        <div class="config-card-grid">
-            <a class="panel config-action-card"
-               href="/terrenos/fotografias">
-                <span class="config-action-icon">
-                    <i class="fa-solid fa-images"></i>
-                </span>
+            <div class="config-card-grid">
+                @if (Puede(PermisosWeb.ConfiguracionAlertas))
+                {
+                    <a class="panel config-action-card"
+                       href="/configuracion-alertas">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-sliders"></i>
+                        </span>
+
+                        <span>
+                            <strong>Umbrales agrícolas</strong>
+                            <small>
+                                Límites de pH, acidez, materia orgánica y
+                                criterios utilizados por las alertas.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede("ReglasAgricolasClimaPage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/configuracion/reglas-clima">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-cloud-sun"></i>
+                        </span>
+
+                        <span>
+                            <strong>Reglas de labores</strong>
+                            <small>
+                                Recomendaciones y restricciones agrícolas
+                                basadas en las condiciones climáticas.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+
+    @if (PuedeVerAdministracionTerrenos)
+    {
+        <section class="config-section">
+            <div class="config-section-title">
+                <div>
+                    <p class="eyebrow">Fincas y propietarios</p>
+                    <h2>Acceso y evidencia</h2>
+                </div>
+
                 <span>
-                    <strong>Fotografías de terrenos</strong>
-                    <small>
-                        Carga, portadas, descripción, fechas, inactivos y
-                        revisión de archivos faltantes.
-                    </small>
+                    Herramientas administrativas complementarias de terrenos.
                 </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </a>
-        </div>
-    </section>
-}
-
-@if (PuedeVerParametrosAgronomicos)
-{
-    <section class="config-section">
-        <div class="config-section-title">
-            <div>
-                <p class="eyebrow">Cálculos y catálogos</p>
-                <h2>Parámetros agronómicos</h2>
             </div>
-            <span>
-                Estos registros alimentan los análisis realizados desde
-                móvil, Windows y el backend.
-            </span>
-        </div>
 
-        <div class="config-card-grid">
-            @if (Puede("elementoQuimicoPage"))
-            {
-                <a class="panel config-action-card"
-                   href="/parametros-agronomicos/elementos-quimicos">
-                    <span class="config-action-icon">
-                        <i class="fa-solid fa-flask"></i>
-                    </span>
-                    <span>
-                        <strong>Elementos químicos</strong>
-                        <small>
-                            Símbolo, nombre, peso equivalente, eliminados y
-                            reactivación.
-                        </small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-            }
+            <div class="config-card-grid">
+                @if (Puede(PermisosWeb.FotosTerreno))
+                {
+                    <a class="panel config-action-card"
+                       href="/terrenos/fotografias">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-images"></i>
+                        </span>
 
-            @if (Puede("tipoCultivoPage"))
-            {
-                <a class="panel config-action-card"
-                   href="/parametros-agronomicos/tipos-cultivo">
-                    <span class="config-action-icon">
-                        <i class="fa-solid fa-wheat-awn"></i>
-                    </span>
-                    <span>
-                        <strong>Tipos de cultivo</strong>
-                        <small>
-                            Cultivos disponibles, relaciones y recuperación.
-                        </small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-            }
+                        <span>
+                            <strong>Fotografías de terrenos</strong>
+                            <small>
+                                Galerías, portadas, descripción, fechas,
+                                archivos faltantes e inactivos.
+                            </small>
+                        </span>
 
-            @if (Puede("tipoAnalisisSueloPage"))
-            {
-                <a class="panel config-action-card"
-                   href="/parametros-agronomicos/tipos-analisis-suelo">
-                    <span class="config-action-icon">
-                        <i class="fa-solid fa-vials"></i>
-                    </span>
-                    <span>
-                        <strong>Tipos de análisis</strong>
-                        <small>
-                            Tipos internos protegidos y modalidades
-                            personalizadas.
-                        </small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-            }
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
 
-            @if (Puede("fuenteNutrientePage"))
-            {
-                <a class="panel config-action-card"
-                   href="/parametros-agronomicos/fuentes-nutrientes">
-                    <span class="config-action-icon">
-                        <i class="fa-solid fa-flask-vial"></i>
-                    </span>
-                    <span>
-                        <strong>Fuentes de nutrientes</strong>
-                        <small>
-                            Composición, precio, fertilización mixta y
-                            enmienda calcárea.
-                        </small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-            }
+                @if (PuedeVerParametrizacionAcceso)
+                {
+                    <a class="panel config-action-card"
+                       href="/parametrizacion-acceso">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-people-roof"></i>
+                        </span>
 
-            @if (Puede("extraccionNutrientePage"))
-            {
-                <a class="panel config-action-card"
-                   href="/parametros-agronomicos/extraccion-nutrientes">
-                    <span class="config-action-icon">
-                        <i class="fa-solid fa-arrow-up-right-dots"></i>
-                    </span>
-                    <span>
-                        <strong>Extracción de nutrientes</strong>
-                        <small>
-                            Exportación de elementos por quintal de café oro.
-                        </small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-            }
+                        <span>
+                            <strong>Acceso a terrenos</strong>
+                            <small>
+                                Vinculación de propietarios, usuarios,
+                                cobertura y asignaciones autorizadas.
+                            </small>
+                        </span>
 
-            @if (Puede("rangoNutrientePage"))
-            {
-                <a class="panel config-action-card"
-                   href="/parametros-agronomicos/rangos-nutricionales">
-                    <span class="config-action-icon">
-                        <i class="fa-solid fa-chart-simple"></i>
-                    </span>
-                    <span>
-                        <strong>Rangos nutricionales</strong>
-                        <small>
-                            Límites técnicos por cultivo y elemento químico.
-                        </small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-            }
-
-            @if (Puede("unidadesConversionesPage"))
-            {
-                <a class="panel config-action-card"
-                   href="/parametros-agronomicos/unidades-conversiones">
-                    <span class="config-action-icon">
-                        <i class="fa-solid fa-right-left"></i>
-                    </span>
-                    <span>
-                        <strong>Unidades y conversiones</strong>
-                        <small>
-                            Fórmulas y normalización final hacia lb/Mz.
-                        </small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-            }
-        </div>
-    </section>
-}
-
-@if (PuedeVerContenido)
-{
-    <section class="config-section">
-        <div class="config-section-title">
-            <div>
-                <p class="eyebrow">Contenido y comunicación</p>
-                <h2>Contenido institucional</h2>
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
             </div>
-            <span>
-                Información consumida desde móvil, Windows y el portal.
-            </span>
-        </div>
+        </section>
+    }
 
-        <div class="config-card-grid">
-            @if (PuedeAdministrarNoticias)
-            {
-                <a class="panel config-action-card"
-                   href="/contenido/publicaciones">
-                    <span class="config-action-icon">
-                        <i class="fa-solid fa-newspaper"></i>
-                    </span>
-                    <span>
-                        <strong>Noticias y publicaciones</strong>
-                        <small>
-                            Borradores, programación, eventos, portadas y
-                            estados.
-                        </small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-            }
+    @if (PuedeVerParametrosAgronomicos)
+    {
+        <section class="config-section">
+            <div class="config-section-title">
+                <div>
+                    <p class="eyebrow">Cálculos y catálogos</p>
+                    <h2>Parámetros agronómicos</h2>
+                </div>
 
-            @if (Puede("categoriaPublicacionPage"))
-            {
-                <a class="panel config-action-card"
-                   href="/contenido/tipos-publicacion">
-                    <span class="config-action-icon">
-                        <i class="fa-solid fa-tags"></i>
-                    </span>
-                    <span>
-                        <strong>Tipos de publicación</strong>
-                        <small>
-                            Categorías, colores, orden, estado y relaciones.
-                        </small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-            }
-
-            @if (Puede("albumFotosPage"))
-            {
-                <a class="panel config-action-card"
-                   href="/contenido/album-botanico">
-                    <span class="config-action-icon">
-                        <i class="fa-solid fa-seedling"></i>
-                    </span>
-                    <span>
-                        <strong>Álbum botánico</strong>
-                        <small>
-                            Categorías, fichas técnicas, portadas y galerías.
-                        </small>
-                    </span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                </a>
-            }
-        </div>
-    </section>
-}
-
-@if (Puede("reportesPage"))
-{
-    <section class="config-section">
-        <div class="config-section-title">
-            <div>
-                <p class="eyebrow">Informes y exportación</p>
-                <h2>Centro de reportes</h2>
-            </div>
-            <span>
-                Indicadores ejecutivos y archivos protegidos por permisos.
-            </span>
-        </div>
-
-        <div class="config-card-grid">
-            <a class="panel config-action-card"
-               href="/reportes">
-                <span class="config-action-icon">
-                    <i class="fa-solid fa-file-lines"></i>
-                </span>
                 <span>
-                    <strong>Reportes administrativos</strong>
-                    <small>
-                        Resumen de alertas y exportaciones PDF o Excel con
-                        autenticación.
-                    </small>
+                    Registros utilizados por los análisis, balances y reportes.
                 </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </a>
-        </div>
-    </section>
+            </div>
+
+            <div class="config-card-grid">
+                @if (Puede("elementoQuimicoPage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/parametros-agronomicos/elementos-quimicos">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-flask"></i>
+                        </span>
+
+                        <span>
+                            <strong>Elementos químicos</strong>
+                            <small>
+                                Símbolo, nombre, peso equivalente, inactivos
+                                y reactivación.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede("tipoCultivoPage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/parametros-agronomicos/tipos-cultivo">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-wheat-awn"></i>
+                        </span>
+
+                        <span>
+                            <strong>Tipos de cultivo</strong>
+                            <small>
+                                Cultivos disponibles, relaciones, estado
+                                y recuperación.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede("tipoAnalisisSueloPage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/parametros-agronomicos/tipos-analisis-suelo">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-vials"></i>
+                        </span>
+
+                        <span>
+                            <strong>Tipos de análisis</strong>
+                            <small>
+                                Modalidades de laboratorio y tipos internos
+                                utilizados por el cálculo.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede("fuenteNutrientePage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/parametros-agronomicos/fuentes-nutrientes">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-flask-vial"></i>
+                        </span>
+
+                        <span>
+                            <strong>Fuentes de nutrientes</strong>
+                            <small>
+                                Composición, precio, fertilización mixta
+                                y enmienda calcárea.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede("extraccionNutrientePage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/parametros-agronomicos/extraccion-nutrientes">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-arrow-up-right-dots"></i>
+                        </span>
+
+                        <span>
+                            <strong>Extracción de nutrientes</strong>
+                            <small>
+                                Exportación de elementos por quintal
+                                de café oro.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede("rangoNutrientePage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/parametros-agronomicos/rangos-nutricionales">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-chart-simple"></i>
+                        </span>
+
+                        <span>
+                            <strong>Rangos nutricionales</strong>
+                            <small>
+                                Límites técnicos por cultivo y elemento
+                                químico.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede("unidadesConversionesPage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/parametros-agronomicos/unidades-conversiones">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-right-left"></i>
+                        </span>
+
+                        <span>
+                            <strong>Unidades y conversiones</strong>
+                            <small>
+                                Fórmulas, equivalencias y normalización final
+                                hacia libra por manzana.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+
+    @if (PuedeVerUbicaciones)
+    {
+        <section class="config-section">
+            <div class="config-section-title">
+                <div>
+                    <p class="eyebrow">Cobertura territorial</p>
+                    <h2>Catálogos geográficos</h2>
+                </div>
+
+                <span>
+                    Jerarquía utilizada por usuarios, propietarios y terrenos.
+                </span>
+            </div>
+
+            <div class="config-card-grid">
+                <a class="panel config-action-card"
+                   href="/configuracion/ubicaciones">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-earth-americas"></i>
+                    </span>
+
+                    <span>
+                        <strong>Ubicaciones geográficas</strong>
+                        <small>
+                            Países, departamentos, municipios, inactivos
+                            y reactivación.
+                        </small>
+                    </span>
+
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            </div>
+        </section>
+    }
+
+    @if (PuedeVerContenido)
+    {
+        <section class="config-section">
+            <div class="config-section-title">
+                <div>
+                    <p class="eyebrow">Contenido y comunicación</p>
+                    <h2>Contenido institucional</h2>
+                </div>
+
+                <span>
+                    Información consumida desde móvil, Windows y el portal.
+                </span>
+            </div>
+
+            <div class="config-card-grid">
+                @if (PuedeAdministrarNoticias)
+                {
+                    <a class="panel config-action-card"
+                       href="/contenido/publicaciones">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-newspaper"></i>
+                        </span>
+
+                        <span>
+                            <strong>Noticias y publicaciones</strong>
+                            <small>
+                                Borradores, programación, eventos, portadas
+                                y estados.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede("categoriaPublicacionPage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/contenido/tipos-publicacion">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-tags"></i>
+                        </span>
+
+                        <span>
+                            <strong>Tipos de publicación</strong>
+                            <small>
+                                Categorías, colores, orden, estado
+                                y relaciones.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede("albumFotosPage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/contenido/album-botanico">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-seedling"></i>
+                        </span>
+
+                        <span>
+                            <strong>Álbum botánico</strong>
+                            <small>
+                                Categorías, fichas técnicas, portadas
+                                y galerías.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+
+    @if (PuedeVerSeguridad)
+    {
+        <section class="config-section">
+            <div class="config-section-title">
+                <div>
+                    <p class="eyebrow">Seguridad</p>
+                    <h2>Usuarios y permisos</h2>
+                </div>
+
+                <span>
+                    Identidades, roles y acceso a cada módulo del sistema.
+                </span>
+            </div>
+
+            <div class="config-card-grid">
+                @if (PuedeVerUsuarios)
+                {
+                    <a class="panel config-action-card"
+                       href="/usuarios">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-users"></i>
+                        </span>
+
+                        <span>
+                            <strong>Usuarios</strong>
+                            <small>
+                                Cuentas, estado, procedencia, roles
+                                y seguridad de acceso.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede(PermisosWeb.Roles))
+                {
+                    <a class="panel config-action-card"
+                       href="/roles">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </span>
+
+                        <span>
+                            <strong>Roles</strong>
+                            <small>
+                                Perfiles administrativos y agrupación
+                                de responsabilidades.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede(PermisosWeb.Matriz))
+                {
+                    <a class="panel config-action-card"
+                       href="/matriz-permisos">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-table-cells"></i>
+                        </span>
+
+                        <span>
+                            <strong>Matriz de permisos</strong>
+                            <small>
+                                Lectura, creación, actualización y eliminación
+                                por rol.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+
+    @if (PuedeVerMonitoreo)
+    {
+        <section class="config-section">
+            <div class="config-section-title">
+                <div>
+                    <p class="eyebrow">Monitoreo y auditoría</p>
+                    <h2>Actividad del sistema</h2>
+                </div>
+
+                <span>
+                    Presencia de equipos y trazabilidad administrativa.
+                </span>
+            </div>
+
+            <div class="config-card-grid">
+                @if (Puede("dispositivosConectadosPage"))
+                {
+                    <a class="panel config-action-card"
+                       href="/dispositivos-conectados">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-laptop"></i>
+                        </span>
+
+                        <span>
+                            <strong>Dispositivos conectados</strong>
+                            <small>
+                                Android, Windows y Web, latidos, sesiones,
+                                ubicación y página actual.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (PuedeVerBitacora)
+                {
+                    <a class="panel config-action-card"
+                       href="/bitacora">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </span>
+
+                        <span>
+                            <strong>Bitácora</strong>
+                            <small>
+                                Acciones, módulos afectados, usuarios,
+                                fechas y resultados.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+
+    @if (PuedeVerDistribucion)
+    {
+        <section class="config-section">
+            <div class="config-section-title">
+                <div>
+                    <p class="eyebrow">Distribución</p>
+                    <h2>Actualizaciones y descargas</h2>
+                </div>
+
+                <span>
+                    Publicación controlada de instaladores y acceso mediante llaves.
+                </span>
+            </div>
+
+            <div class="config-card-grid">
+                @if (Puede(PermisosWeb.Actualizaciones))
+                {
+                    <a class="panel config-action-card"
+                       href="/actualizaciones">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </span>
+
+                        <span>
+                            <strong>Actualizaciones</strong>
+                            <small>
+                                Versiones, instaladores, plataforma,
+                                publicación y vigencia.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (Puede(PermisosWeb.LlavesDescarga))
+                {
+                    <a class="panel config-action-card"
+                       href="/actualizaciones/llaves">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-key"></i>
+                        </span>
+
+                        <span>
+                            <strong>Llaves de descarga</strong>
+                            <small>
+                                Emisión, vencimiento, utilización
+                                y revocación de accesos.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+        </section>
+    }
 }
-
-<section class="config-section">
-    <div class="config-section-title">
-        <div>
-            <p class="eyebrow">Sistema</p>
-            <h2>Información técnica</h2>
-        </div>
-    </div>
-
-    <section class="panel settings-panel">
-        <div class="setting-row">
-            <div class="setting-icon">
-                <i class="fa-solid fa-server"></i>
-            </div>
-            <div>
-                <strong>Dirección de la API</strong>
-                <span>@Configuration["ApiSettings:BaseUrl"]</span>
-            </div>
-        </div>
-
-        <div class="setting-row">
-            <div class="setting-icon">
-                <i class="fa-solid fa-code"></i>
-            </div>
-            <div>
-                <strong>Plataforma</strong>
-                <span>ASP.NET Core 9 · Blazor Web App</span>
-            </div>
-        </div>
-
-        <div class="setting-row">
-            <div class="setting-icon">
-                <i class="fa-solid fa-map"></i>
-            </div>
-            <div>
-                <strong>Motor de mapas</strong>
-                <span>Leaflet + OpenStreetMap</span>
-            </div>
-        </div>
-    </section>
-</section>
 
 @code {
     private bool Puede(string codigo) =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(codigo);
+
+    private bool PuedeVerUsuarios =>
+        Puede("UsuarioPage") ||
+        Puede("userPage");
+
+    private bool PuedeVerBitacora =>
+        Puede("BitacoraPage") ||
+        Puede("bitacoraPage");
 
     private bool PuedeVerUbicaciones =>
         Puede("paisPage") ||
@@ -382,15 +639,51 @@
 
     private bool PuedeAdministrarNoticias =>
         AuthState.EsAdministrador ||
-        AuthState.TienePermisoAgregar(
-            "noticiasPage") ||
-        AuthState.TienePermisoActualizar(
-            "noticiasPage") ||
-        AuthState.TienePermisoEliminar(
-            "noticiasPage");
+        AuthState.TienePermisoAgregar("noticiasPage") ||
+        AuthState.TienePermisoActualizar("noticiasPage") ||
+        AuthState.TienePermisoEliminar("noticiasPage");
 
     private bool PuedeVerContenido =>
         PuedeAdministrarNoticias ||
         Puede("categoriaPublicacionPage") ||
         Puede("albumFotosPage");
+
+    private bool PuedeVerConfiguracionAgricola =>
+        Puede(PermisosWeb.ConfiguracionAlertas) ||
+        Puede("ReglasAgricolasClimaPage");
+
+    private bool PuedeVerParametrizacionAcceso =>
+        Puede(PermisosWeb.ParametrizacionAcceso) ||
+        Puede(PermisosWeb.Propietarios) ||
+        Puede(PermisosWeb.UsuarioPropietario) ||
+        Puede(PermisosWeb.AsignacionTerreno) ||
+        Puede(PermisosWeb.CoberturaTerritorial);
+
+    private bool PuedeVerAdministracionTerrenos =>
+        Puede(PermisosWeb.FotosTerreno) ||
+        PuedeVerParametrizacionAcceso;
+
+    private bool PuedeVerSeguridad =>
+        PuedeVerUsuarios ||
+        Puede(PermisosWeb.Roles) ||
+        Puede(PermisosWeb.Matriz);
+
+    private bool PuedeVerMonitoreo =>
+        Puede("dispositivosConectadosPage") ||
+        PuedeVerBitacora;
+
+    private bool PuedeVerDistribucion =>
+        Puede(PermisosWeb.Actualizaciones) ||
+        Puede(PermisosWeb.LlavesDescarga);
+
+    private bool TieneOpcionesAdministrativas =>
+        PuedeVerConfiguracionAgricola ||
+        PuedeVerAdministracionTerrenos ||
+        PuedeVerParametrosAgronomicos ||
+        PuedeVerUbicaciones ||
+        PuedeVerContenido ||
+        PuedeVerSeguridad ||
+        PuedeVerMonitoreo ||
+        PuedeVerDistribucion ||
+        AuthState.EsAdministrador;
 }

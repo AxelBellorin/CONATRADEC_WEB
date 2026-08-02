@@ -1,31 +1,48 @@
 using CONATRADEC.AdminWeb.Models;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 
 namespace CONATRADEC.AdminWeb.Services;
 
-public sealed class AuthStateService
+public sealed class AuthStateService : IAsyncDisposable
 {
     private static readonly TimeSpan TiempoMaximoRestauracion =
         TimeSpan.FromSeconds(5);
+
+    private const int IntervaloLatidoMilisegundos =
+        45_000;
 
     private readonly ApiClientService apiClient;
     private readonly BrowserSessionService browserSession;
     private readonly WebActivityService actividad;
     private readonly NavigationManager navigation;
+    private readonly IJSRuntime jsRuntime;
+
+    private readonly SemaphoreSlim bloqueoLatido =
+        new(initialCount: 1, maxCount: 1);
 
     private bool inicializando;
+    private bool disposed;
     private int invalidandoSesion;
+
+    private ContextoPresenciaNavegadorWeb?
+        contextoPresencia;
+
+    private DotNetObjectReference<AuthStateService>?
+        referenciaLatidos;
 
     public AuthStateService(
         ApiClientService apiClient,
         BrowserSessionService browserSession,
         WebActivityService actividad,
-        NavigationManager navigation)
+        NavigationManager navigation,
+        IJSRuntime jsRuntime)
     {
         this.apiClient = apiClient;
         this.browserSession = browserSession;
         this.actividad = actividad;
         this.navigation = navigation;
+        this.jsRuntime = jsRuntime;
 
         this.apiClient.SesionInvalidada +=
             AlRecibirSesionInvalidada;
@@ -101,6 +118,14 @@ public sealed class AuthStateService
 
             apiClient.ConfigurarToken(
                 restaurado!.Token);
+
+            /*
+             * Al restaurar no se muestra un permiso nuevo. Si la ubicación ya
+             * fue autorizada, el navegador la devolverá silenciosamente.
+             */
+            await IniciarLatidosNavegadorAsync(
+                restaurado,
+                solicitarUbicacion: false);
         }
         catch
         {
@@ -187,6 +212,21 @@ public sealed class AuthStateService
             await browserSession.GuardarAsync(
                 usuario);
 
+            /*
+             * Un inicio de sesión correcto crea un único identificador
+             * compartido por todas las pestañas del navegador.
+             */
+            await jsRuntime.InvokeAsync<string>(
+                "conatradecBrowser.beginAuthenticatedSession");
+
+            /*
+             * La solicitud de ubicación se hace después de una acción directa
+             * del usuario: presionar Iniciar sesión.
+             */
+            await IniciarLatidosNavegadorAsync(
+                usuario,
+                solicitarUbicacion: true);
+
             Inicializado = true;
             NotificarCambio();
 
@@ -210,7 +250,8 @@ public sealed class AuthStateService
         catch (Exception ex)
         {
             return ResultadoOperacion.Fallido(
-                $"Ocurrió un error inesperado al iniciar sesión. {ex.Message}");
+                "Ocurrió un error inesperado al iniciar sesión. " +
+                ex.Message);
         }
     }
 
@@ -287,6 +328,10 @@ public sealed class AuthStateService
 
     public async Task CerrarSesionAsync()
     {
+        await DetenerLatidosNavegadorAsync(
+            reportarDesconexion: true,
+            motivo: "Cierre de sesión desde el portal web.");
+
         try
         {
             if (IsAuthenticated)
@@ -314,6 +359,313 @@ public sealed class AuthStateService
     public Task InvalidarSesionDesdeApiAsync() =>
         InvalidarSesionDesdeServidorAsync();
 
+    /// <summary>
+    /// JavaScript invoca este método únicamente mientras la pestaña está
+    /// realmente abierta.
+    /// </summary>
+    [JSInvokable]
+    public async Task ReportarLatidoDesdeNavegadorAsync()
+    {
+        if (disposed ||
+            !IsAuthenticated ||
+            Usuario is null)
+        {
+            return;
+        }
+
+        if (!await bloqueoLatido.WaitAsync(0))
+            return;
+
+        try
+        {
+            /*
+             * Se vuelve a consultar el contexto para obtener la página,
+             * conexión y ubicación más recientes.
+             */
+            ContextoPresenciaNavegadorWeb? actualizado =
+                await jsRuntime.InvokeAsync<
+                    ContextoPresenciaNavegadorWeb>(
+                    "conatradecBrowser.getPresenceContext",
+                    false);
+
+            if (ContextoValido(actualizado))
+                contextoPresencia = actualizado;
+
+            if (!ContextoValido(contextoPresencia))
+                return;
+
+            ReportarDispositivoConexionWebRequest request =
+                CrearSolicitudLatido(
+                    Usuario,
+                    contextoPresencia!);
+
+            await apiClient.PostAsync<
+                ReportarDispositivoConexionWebRequest,
+                ReportarDispositivoConexionWebResponse>(
+                "conectividad/dispositivos/reportar",
+                request);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // ApiClientService notificará la invalidación.
+        }
+        catch (HttpRequestException)
+        {
+            // El siguiente latido vuelve a intentarlo.
+        }
+        catch (TaskCanceledException)
+        {
+            // El siguiente latido vuelve a intentarlo.
+        }
+        catch (JSDisconnectedException)
+        {
+            // La pestaña o el circuito se está cerrando.
+        }
+        catch
+        {
+            // La presencia no debe interrumpir la navegación.
+        }
+        finally
+        {
+            bloqueoLatido.Release();
+        }
+    }
+
+    private async Task IniciarLatidosNavegadorAsync(
+        UsuarioSesion usuario,
+        bool solicitarUbicacion)
+    {
+        if (disposed ||
+            !EsSesionValida(usuario))
+        {
+            return;
+        }
+
+        await DetenerLatidosNavegadorAsync(
+            reportarDesconexion: false,
+            motivo: string.Empty);
+
+        try
+        {
+            contextoPresencia =
+                await jsRuntime.InvokeAsync<
+                    ContextoPresenciaNavegadorWeb>(
+                    "conatradecBrowser.getPresenceContext",
+                    solicitarUbicacion);
+
+            if (!ContextoValido(contextoPresencia))
+            {
+                contextoPresencia = null;
+                return;
+            }
+
+            referenciaLatidos =
+                DotNetObjectReference.Create(this);
+
+            await jsRuntime.InvokeVoidAsync(
+                "conatradecBrowser.startHeartbeat",
+                referenciaLatidos,
+                IntervaloLatidoMilisegundos);
+        }
+        catch (JSDisconnectedException)
+        {
+            contextoPresencia = null;
+            LiberarReferenciaLatidos();
+        }
+        catch
+        {
+            contextoPresencia = null;
+            LiberarReferenciaLatidos();
+        }
+    }
+
+    private async Task DetenerLatidosNavegadorAsync(
+        bool reportarDesconexion,
+        string motivo)
+    {
+        try
+        {
+            await jsRuntime.InvokeVoidAsync(
+                "conatradecBrowser.stopHeartbeat");
+        }
+        catch
+        {
+            // La pestaña puede estar desconectándose.
+        }
+
+        if (reportarDesconexion &&
+            IsAuthenticated &&
+            ContextoValido(contextoPresencia))
+        {
+            await ReportarDesconexionSeguraAsync(
+                contextoPresencia!,
+                motivo);
+        }
+
+        contextoPresencia = null;
+        LiberarReferenciaLatidos();
+    }
+
+    private async Task ReportarDesconexionSeguraAsync(
+        ContextoPresenciaNavegadorWeb contexto,
+        string motivo)
+    {
+        await bloqueoLatido.WaitAsync();
+
+        try
+        {
+            var request =
+                new DesconectarDispositivoConexionWebRequest
+                {
+                    InstalacionId =
+                        contexto.InstalacionId,
+
+                    SesionId =
+                        contexto.SesionId,
+
+                    Motivo =
+                        Limitar(
+                            motivo,
+                            150)
+                };
+
+            await apiClient.PostAsync<
+                DesconectarDispositivoConexionWebRequest,
+                DesconectarDispositivoConexionWebResponse>(
+                "conectividad/dispositivos/desconectar",
+                request);
+        }
+        catch
+        {
+            /*
+             * Si no se logra reportar el cierre, la tolerancia del backend
+             * lo marcará desconectado automáticamente.
+             */
+        }
+        finally
+        {
+            bloqueoLatido.Release();
+        }
+    }
+
+    private ReportarDispositivoConexionWebRequest
+        CrearSolicitudLatido(
+            UsuarioSesion usuario,
+            ContextoPresenciaNavegadorWeb contexto)
+    {
+        string pagina =
+            navigation.ToBaseRelativePath(
+                navigation.Uri);
+
+        if (string.IsNullOrWhiteSpace(pagina))
+            pagina = "/";
+
+        if (!pagina.StartsWith('/'))
+            pagina = "/" + pagina;
+
+        return new ReportarDispositivoConexionWebRequest
+        {
+            InstalacionId =
+                contexto.InstalacionId,
+
+            SesionId =
+                contexto.SesionId,
+
+            UsuarioId =
+                usuario.UsuarioId,
+
+            Plataforma =
+                Limitar(
+                    contexto.Plataforma,
+                    30,
+                    "Web"),
+
+            TipoDispositivo =
+                Limitar(
+                    contexto.TipoDispositivo,
+                    30),
+
+            Fabricante =
+                Limitar(
+                    contexto.Fabricante,
+                    100),
+
+            Modelo =
+                Limitar(
+                    contexto.Modelo,
+                    150),
+
+            NombreDispositivo =
+                Limitar(
+                    contexto.NombreDispositivo,
+                    150),
+
+            SistemaOperativo =
+                Limitar(
+                    contexto.SistemaOperativo,
+                    100),
+
+            VersionSistema =
+                Limitar(
+                    contexto.VersionSistema,
+                    50),
+
+            VersionApp =
+                Limitar(
+                    contexto.VersionApp,
+                    50,
+                    "Portal Web"),
+
+            BuildApp =
+                Limitar(
+                    contexto.BuildApp,
+                    50,
+                    "1.0"),
+
+            Idioma =
+                Limitar(
+                    contexto.Idioma,
+                    20),
+
+            TipoConexion =
+                Limitar(
+                    contexto.TipoConexion,
+                    100),
+
+            PaginaActual =
+                Limitar(
+                    pagina,
+                    500),
+
+            Latitud =
+                contexto.Latitud,
+
+            Longitud =
+                contexto.Longitud,
+
+            PrecisionMetros =
+                contexto.PrecisionMetros,
+
+            FechaUbicacionUtc =
+                contexto.FechaUbicacionUtc,
+
+            OrigenUbicacion =
+                Limitar(
+                    contexto.OrigenUbicacion,
+                    30,
+                    "NAVEGADOR"),
+
+            EstadoPermisoUbicacion =
+                Limitar(
+                    contexto.EstadoPermisoUbicacion,
+                    30,
+                    "NO_SOLICITADA"),
+
+            UbicacionSimulada =
+                contexto.UbicacionSimulada
+        };
+    }
+
     private void AlRecibirSesionInvalidada(
         object? sender,
         EventArgs e)
@@ -332,6 +684,10 @@ public sealed class AuthStateService
 
         try
         {
+            await DetenerLatidosNavegadorAsync(
+                reportarDesconexion: false,
+                motivo: string.Empty);
+
             LimpiarEstadoEnMemoria();
             Inicializado = true;
             NotificarCambio();
@@ -365,12 +721,28 @@ public sealed class AuthStateService
         apiClient.ConfigurarToken(null);
     }
 
+    private void LiberarReferenciaLatidos()
+    {
+        referenciaLatidos?.Dispose();
+        referenciaLatidos = null;
+    }
+
     private void NotificarCambio()
     {
         EstadoCambiado?.Invoke(
             this,
             EventArgs.Empty);
     }
+
+    private static bool ContextoValido(
+        ContextoPresenciaNavegadorWeb? contexto) =>
+        contexto is not null &&
+        Guid.TryParse(
+            contexto.InstalacionId,
+            out _) &&
+        Guid.TryParse(
+            contexto.SesionId,
+            out _);
 
     private static bool EsSesionValida(
         UsuarioSesion? usuario) =>
@@ -385,4 +757,36 @@ public sealed class AuthStateService
     private static string LimpiarMensaje(
         string mensaje) =>
         mensaje.Trim().Trim('"');
+
+    private static string Limitar(
+        string? valor,
+        int maximo,
+        string predeterminado = "")
+    {
+        string texto =
+            string.IsNullOrWhiteSpace(valor)
+                ? predeterminado
+                : valor.Trim();
+
+        return texto.Length <= maximo
+            ? texto
+            : texto[..maximo];
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (disposed)
+            return;
+
+        disposed = true;
+
+        apiClient.SesionInvalidada -=
+            AlRecibirSesionInvalidada;
+
+        await DetenerLatidosNavegadorAsync(
+            reportarDesconexion: false,
+            motivo: string.Empty);
+
+        bloqueoLatido.Dispose();
+    }
 }

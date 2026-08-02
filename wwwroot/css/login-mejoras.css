@@ -1,0 +1,125 @@
+.login-card-header {
+    position: relative;
+}
+
+.login-local-context {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    max-width: 100%;
+    margin-top: 11px;
+    padding: 7px 10px;
+    border: 1px solid rgba(59, 101, 91, 0.12);
+    border-radius: 999px;
+    background: var(--green-100);
+    color: var(--green-700);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.login-local-context span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.login-local-context i {
+    flex: 0 0 auto;
+}
+
+.login-password-wrapper .form-control {
+    padding-right: 48px;
+}
+
+.login-password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 7px;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--gray-600);
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition:
+        background 140ms ease,
+        color 140ms ease;
+}
+
+.login-password-toggle:hover,
+.login-password-toggle:focus-visible {
+    background: var(--green-100);
+    color: var(--green-700);
+    outline: none;
+}
+
+.login-password-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.login-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin: -2px 0 18px;
+}
+
+.login-remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--gray-800);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+}
+
+.login-remember input {
+    width: 17px;
+    height: 17px;
+    margin: 0;
+    accent-color: var(--green-700);
+    cursor: pointer;
+}
+
+.login-remember input:disabled {
+    cursor: not-allowed;
+}
+
+.login-password-safety {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--gray-600);
+    font-size: 10px;
+    text-align: right;
+}
+
+.login-password-safety i {
+    color: var(--green-700);
+}
+
+.login-submit {
+    min-height: 47px;
+}
+
+@media (max-width: 480px) {
+    .login-options {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 9px;
+    }
+
+    .login-password-safety {
+        text-align: left;
+    }
+}

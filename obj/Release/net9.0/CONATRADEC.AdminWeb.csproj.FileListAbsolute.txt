@@ -166,5 +166,7 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\comp
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\q2geoc1tl9-{0}-32e2uu3xp0-32e2uu3xp0.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\3ikggyh3km-{0}-br27gxeqvx-br27gxeqvx.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Pages\FotosTerrenoAdmin.razor.rz.scp.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\722bys1tf3-{0}-yrwlobhww2-yrwlobhww2.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\bh50ruxdel-{0}-yrwlobhww2-yrwlobhww2.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\8gtoyyrkql-{0}-np2m5cpats-np2m5cpats.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\hvxe16mvn1-{0}-hqsy2tgmh9-hqsy2tgmh9.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\722bys1tf3-{0}-o9jcy88vbi-o9jcy88vbi.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\bh50ruxdel-{0}-o9jcy88vbi-o9jcy88vbi.gz

@@ -1,6 +1,7 @@
 @page "/login"
 @inject AuthStateService AuthState
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>Iniciar sesión | CONATRADEC</PageTitle>
 
@@ -74,7 +75,7 @@
                     Portal administrativo
                 </p>
 
-                <h2>Bienvenido</h2>
+                <h2>@saludo</h2>
 
                 <p>
                     Utiliza las mismas credenciales
@@ -106,6 +107,7 @@
                         <i class="fa-regular fa-user"></i>
 
                         <InputText id="usuario"
+                                   name="username"
                                    class="form-control"
                                    autocomplete="username"
                                    disabled="@procesando"
@@ -122,20 +124,46 @@
                         Contraseña
                     </label>
 
-                    <div class="input-with-icon">
+                    <div class="input-with-icon login-password-wrapper">
                         <i class="fa-solid fa-lock"></i>
 
                         <InputText id="clave"
-                                   type="password"
+                                   name="password"
+                                   type="@TipoCampoClave"
                                    class="form-control"
                                    autocomplete="current-password"
                                    disabled="@procesando"
                                    @bind-Value="modelo.Clave"
                                    placeholder="Escribe tu contraseña" />
+
+                        <button type="button"
+                                class="login-password-toggle"
+                                disabled="@procesando"
+                                aria-label="@TextoBotonClave"
+                                aria-pressed="@mostrarClave"
+                                title="@TextoBotonClave"
+                                @onclick="AlternarVisualizacionClave">
+                            <i class="fa-solid @IconoClave"></i>
+                        </button>
                     </div>
 
                     <ValidationMessage
                         For="() => modelo.Clave" />
+                </div>
+
+                <div class="login-options">
+                    <label class="login-remember">
+                        <InputCheckbox
+                            disabled="@procesando"
+                            @bind-Value="recordarCredenciales" />
+
+                        <span>Recordar credenciales</span>
+                    </label>
+
+                    <span class="login-password-safety">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        Protegidas por el navegador
+                    </span>
                 </div>
 
                 <button type="submit"
@@ -170,11 +198,90 @@
     private readonly LoginRequest modelo = new();
 
     private bool procesando;
+    private bool mostrarClave;
+    private bool recordarCredenciales;
+    private string saludo = "Bienvenido";
     private string? error;
+
+    private string TipoCampoClave =>
+        mostrarClave
+            ? "text"
+            : "password";
+
+    private string IconoClave =>
+        mostrarClave
+            ? "fa-eye-slash"
+            : "fa-eye";
+
+    private string TextoBotonClave =>
+        mostrarClave
+            ? "Ocultar contraseña"
+            : "Mostrar contraseña";
 
     private string ClasePagina =>
         $"login-page{(procesando ? " is-processing" : string.Empty)}" +
         $"{(!string.IsNullOrWhiteSpace(error) ? " has-error" : string.Empty)}";
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            HoraLocalNavegadorWeb? contexto =
+                await JS.InvokeAsync<HoraLocalNavegadorWeb>(
+                    "conatradecBrowser.getLocalTimeInfo");
+
+            if (contexto is not null)
+            {
+                saludo = string.IsNullOrWhiteSpace(
+                    contexto.Saludo)
+                        ? "Bienvenido"
+                        : contexto.Saludo;
+            }
+
+            CredencialNavegadorWeb? credencial =
+                await JS.InvokeAsync<CredencialNavegadorWeb>(
+                    "conatradecBrowser.getSavedCredentials");
+
+            if (credencial is not null &&
+                credencial.Encontrada)
+            {
+                if (!string.IsNullOrWhiteSpace(
+                        credencial.Usuario))
+                {
+                    modelo.UsuarioOEmail =
+                        credencial.Usuario.Trim();
+                }
+
+                if (!string.IsNullOrEmpty(
+                        credencial.Clave))
+                {
+                    modelo.Clave =
+                        credencial.Clave;
+
+                    recordarCredenciales = true;
+                }
+            }
+        }
+        catch
+        {
+            /*
+             * El formulario continúa funcionando aunque el navegador no
+             * permita consultar su administrador de contraseñas.
+             */
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void AlternarVisualizacionClave()
+    {
+        if (!procesando)
+            mostrarClave = !mostrarClave;
+    }
 
     private async Task IniciarSesionAsync()
     {
@@ -196,6 +303,8 @@
                 return;
             }
 
+            await GuardarCredencialesAsync();
+
             Navigation.NavigateTo(
                 "/",
                 forceLoad: false,
@@ -204,11 +313,38 @@
         catch (Exception ex)
         {
             error =
-                $"No fue posible completar el inicio de sesión. {ex.Message}";
+                "No fue posible completar el inicio de sesión. " +
+                ex.Message;
         }
         finally
         {
             procesando = false;
+        }
+    }
+
+    private async Task GuardarCredencialesAsync()
+    {
+        try
+        {
+            if (recordarCredenciales)
+            {
+                await JS.InvokeAsync<bool>(
+                    "conatradecBrowser.saveCredentials",
+                    modelo.UsuarioOEmail,
+                    modelo.Clave);
+            }
+            else
+            {
+                await JS.InvokeVoidAsync(
+                    "conatradecBrowser.clearSavedCredentials");
+            }
+        }
+        catch
+        {
+            /*
+             * El inicio de sesión ya fue correcto. Un problema del
+             * administrador de contraseñas no debe impedir la navegación.
+             */
         }
     }
 }
