@@ -1,0 +1,1110 @@
+@page "/terrenos/fotografias"
+@page "/contenido/fotos-terrenos"
+@using CONATRADEC.AdminWeb.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+@using System.Globalization
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Fotografías de terrenos | CONATRADEC</PageTitle>
+
+<section class="ft-page">
+    <header class="ft-hero">
+        <div>
+            <span class="ft-eyebrow">Propietarios y cobertura</span>
+            <h1>Fotografías de terrenos</h1>
+            <p>
+                Administra la galería de cada finca, sus portadas, metadatos
+                y archivos que requieren revisión.
+            </p>
+        </div>
+
+        <div class="ft-header-actions">
+            <button class="ft-button secondary"
+                    disabled="@procesando"
+                    @onclick="ActualizarAsync">
+                <i class="fa-solid fa-rotate"></i>
+                Actualizar
+            </button>
+
+            @if (PuedeAgregar)
+            {
+                <button class="ft-button primary"
+                        disabled="@procesando"
+                        @onclick="AbrirCarga">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    Subir fotografías
+                </button>
+            }
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(mensaje))
+    {
+        <div class="ft-alert success">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>@mensaje</span>
+            <button @onclick="LimpiarMensajes" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="ft-alert error">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>@error</span>
+            <button @onclick="LimpiarMensajes" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    }
+
+    @if (!PuedeLeer)
+    {
+        <section class="ft-empty">
+            <i class="fa-solid fa-lock"></i>
+            <h2>Sin permiso de lectura</h2>
+            <p>
+                Su rol no puede consultar la administración de fotografías.
+            </p>
+        </section>
+    }
+    else
+    {
+        <section class="ft-summary-grid">
+            <article>
+                <span>Total filtrado</span>
+                <strong>@paginaDatos.Resumen.Total</strong>
+            </article>
+            <article>
+                <span>Activas</span>
+                <strong>@paginaDatos.Resumen.Activas</strong>
+            </article>
+            <article>
+                <span>Inactivas</span>
+                <strong>@paginaDatos.Resumen.Inactivas</strong>
+            </article>
+            <article>
+                <span>Portadas</span>
+                <strong>@paginaDatos.Resumen.Portadas</strong>
+            </article>
+            <article class="@(paginaDatos.Resumen.ArchivosFaltantes > 0 ? "warning" : string.Empty)">
+                <span>Archivos faltantes</span>
+                <strong>
+                    @(paginaDatos.Resumen.ArchivosFaltantes < 0
+                        ? "Bajo demanda"
+                        : paginaDatos.Resumen.ArchivosFaltantes
+                            .ToString(CultureInfo.InvariantCulture))
+                </strong>
+            </article>
+            <article class="@(paginaDatos.Resumen.Huerfanas > 0 ? "warning" : string.Empty)">
+                <span>Sin terreno</span>
+                <strong>@paginaDatos.Resumen.Huerfanas</strong>
+            </article>
+        </section>
+
+        <section class="ft-filter-panel">
+            <div class="ft-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="search"
+                       placeholder="Código, propietario, título o archivo"
+                       @bind="buscar"
+                       @bind:event="oninput"
+                       @onkeydown="BuscarConEnter" />
+            </div>
+
+            <label>
+                <span>Desde</span>
+                <InputDate class="ft-control"
+                           @bind-Value="fechaDesde" />
+            </label>
+
+            <label>
+                <span>Hasta</span>
+                <InputDate class="ft-control"
+                           @bind-Value="fechaHasta" />
+            </label>
+
+            <label>
+                <span>Estado</span>
+                <select class="ft-control" @bind="estadoFiltro">
+                    <option value="ACTIVAS">Solo activas</option>
+                    <option value="TODAS">Activas e inactivas</option>
+                </select>
+            </label>
+
+            <label>
+                <span>Revisión</span>
+                <select class="ft-control" @bind="problemaFiltro">
+                    <option value="">Todos los registros</option>
+                    <option value="ARCHIVO_FALTANTE">Archivo faltante</option>
+                    <option value="HUERFANAS">Sin terreno relacionado</option>
+                    <option value="TERRENO_INACTIVO">Terreno inactivo</option>
+                    <option value="CUALQUIER_PROBLEMA">Cualquier problema</option>
+                </select>
+            </label>
+
+            <button class="ft-button primary"
+                    disabled="@procesando"
+                    @onclick="AplicarFiltrosAsync">
+                <i class="fa-solid fa-filter"></i>
+                Aplicar
+            </button>
+
+            <button class="ft-button ghost"
+                    disabled="@procesando"
+                    @onclick="LimpiarFiltrosAsync">
+                Limpiar
+            </button>
+        </section>
+
+        @if (cargando)
+        {
+            <LoadingState Mensaje="Cargando fotografías de terrenos..." />
+        }
+        else if (paginaDatos.Items.Count == 0)
+        {
+            <section class="ft-empty">
+                <i class="fa-regular fa-images"></i>
+                <h2>No se encontraron fotografías</h2>
+                <p>
+                    Cambie los filtros o suba fotografías para un terreno.
+                </p>
+            </section>
+        }
+        else
+        {
+            <section class="ft-gallery">
+                @foreach (FotoTerrenoAdminItemWeb item in paginaDatos.Items)
+                {
+                    <article class="ft-card @(!item.Activo ? "inactive" : string.Empty)">
+                        <div class="ft-image-shell">
+                            @if (item.ArchivoExiste)
+                            {
+                                <img src="@item.Url"
+                                     alt="@TextoAlternativo(item)"
+                                     loading="lazy" />
+                            }
+                            else
+                            {
+                                <div class="ft-image-missing">
+                                    <i class="fa-solid fa-image-slash"></i>
+                                    <span>Archivo no encontrado</span>
+                                </div>
+                            }
+
+                            <div class="ft-badges">
+                                @if (item.EsPortada)
+                                {
+                                    <span class="cover">
+                                        <i class="fa-solid fa-star"></i>
+                                        Portada
+                                    </span>
+                                }
+
+                                <span class="@(item.Activo ? "active" : "inactive")">
+                                    @(item.Activo ? "Activa" : "Inactiva")
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="ft-card-body">
+                            <small>Fotografía #@item.FotoTerrenoId</small>
+                            <h2>@TituloVisible(item)</h2>
+
+                            <div class="ft-terrain-line">
+                                <i class="fa-solid fa-map-location-dot"></i>
+                                <div>
+                                    <strong>
+                                        @(string.IsNullOrWhiteSpace(item.CodigoTerreno)
+                                            ? "Terreno no disponible"
+                                            : item.CodigoTerreno)
+                                    </strong>
+                                    <span>@item.DireccionTerreno</span>
+                                </div>
+                            </div>
+
+                            <div class="ft-owner-line">
+                                <i class="fa-solid fa-user-tie"></i>
+                                <span>
+                                    @(string.IsNullOrWhiteSpace(item.Propietario)
+                                        ? "Sin propietario activo"
+                                        : item.Propietario)
+                                </span>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(item.Descripcion))
+                            {
+                                <p class="ft-description">@item.Descripcion</p>
+                            }
+
+                            <div class="ft-meta">
+                                <span>
+                                    <i class="fa-regular fa-calendar"></i>
+                                    @FechaVisible(item)
+                                </span>
+
+                                @if (!item.TerrenoActivo)
+                                {
+                                    <span class="danger">
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                        Terreno inactivo o inexistente
+                                    </span>
+                                }
+                            </div>
+                        </div>
+
+                        <footer class="ft-card-actions">
+                            @if (item.ArchivoExiste)
+                            {
+                                <a class="ft-icon-button"
+                                   href="@item.Url"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   title="Abrir imagen original">
+                                    <i class="fa-solid fa-up-right-from-square"></i>
+                                </a>
+
+                                <a class="ft-icon-button"
+                                   href="@item.Url"
+                                   download="@NombreDescarga(item)"
+                                   title="Descargar imagen">
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
+                            }
+
+                            @if (item.Activo && PuedeActualizar)
+                            {
+                                <button class="ft-icon-button edit"
+                                        title="Editar información"
+                                        @onclick="() => AbrirEdicion(item)">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+
+                                @if (!item.EsPortada)
+                                {
+                                    <button class="ft-icon-button cover"
+                                            title="Establecer como portada"
+                                            @onclick="() => EstablecerPortadaAsync(item)">
+                                        <i class="fa-solid fa-star"></i>
+                                    </button>
+                                }
+                            }
+
+                            @if (item.Activo && PuedeEliminar)
+                            {
+                                <button class="ft-icon-button delete"
+                                        title="Desactivar"
+                                        @onclick="() => DesactivarAsync(item)">
+                                    <i class="fa-solid fa-ban"></i>
+                                </button>
+                            }
+
+                            @if (!item.Activo && PuedeActualizar)
+                            {
+                                <button class="ft-button compact primary"
+                                        @onclick="() => ReactivarAsync(item)">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                    Reactivar
+                                </button>
+                            }
+
+                            @if (!item.Activo && PuedeEliminar)
+                            {
+                                <button class="ft-icon-button delete"
+                                        title="Eliminar definitivamente"
+                                        @onclick="() => EliminarDefinitivamenteAsync(item)">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            }
+                        </footer>
+                    </article>
+                }
+            </section>
+
+            <footer class="ft-pagination">
+                <span>
+                    @paginaDatos.TotalRegistros registro(s) · página
+                    @paginaDatos.Pagina de @Math.Max(1, paginaDatos.TotalPaginas)
+                </span>
+
+                <div>
+                    <button class="ft-button ghost"
+                            disabled="@(!paginaDatos.TienePaginaAnterior || procesando)"
+                            @onclick="PaginaAnteriorAsync">
+                        <i class="fa-solid fa-chevron-left"></i>
+                        Anterior
+                    </button>
+
+                    <button class="ft-button ghost"
+                            disabled="@(!paginaDatos.TienePaginaSiguiente || procesando)"
+                            @onclick="PaginaSiguienteAsync">
+                        Siguiente
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </footer>
+        }
+    }
+</section>
+
+@if (mostrarCarga)
+{
+    <div class="ft-modal-backdrop" @onclick="CerrarCarga">
+        <article class="ft-modal large" @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>Nueva galería</span>
+                    <h2>Subir fotografías</h2>
+                    <p>
+                        Puede seleccionar hasta diez imágenes. Cada archivo se
+                        procesará como WEBP y conservará su nombre original.
+                    </p>
+                </div>
+                <button class="ft-close" @onclick="CerrarCarga">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div class="ft-modal-body">
+                <section class="ft-terrain-picker">
+                    <label>
+                        <span>Buscar terreno *</span>
+                        <div class="ft-search">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="search"
+                                   placeholder="Código, dirección o propietario"
+                                   @bind="buscarTerreno"
+                                   @bind:event="oninput"
+                                   @onkeydown="BuscarTerrenoConEnter" />
+                        </div>
+                    </label>
+
+                    <button class="ft-button secondary"
+                            disabled="@buscandoTerrenos"
+                            @onclick="BuscarTerrenosAsync">
+                        <i class="fa-solid @(buscandoTerrenos ? "fa-spinner fa-spin" : "fa-magnifying-glass")"></i>
+                        Buscar
+                    </button>
+                </section>
+
+                @if (terrenoSeleccionado is not null)
+                {
+                    <div class="ft-selected-terrain">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <div>
+                            <strong>@terrenoSeleccionado.CodigoTerreno</strong>
+                            <span>
+                                @terrenoSeleccionado.Propietario ·
+                                @terrenoSeleccionado.Direccion
+                            </span>
+                        </div>
+                        <button @onclick="QuitarTerrenoSeleccionado">
+                            Cambiar
+                        </button>
+                    </div>
+                }
+                else if (resultadosTerreno.Count > 0)
+                {
+                    <div class="ft-terrain-results">
+                        @foreach (TerrenoFotoSelectorWeb terreno in resultadosTerreno)
+                        {
+                            <button @onclick="() => SeleccionarTerreno(terreno)">
+                                <strong>@terreno.CodigoTerreno</strong>
+                                <span>@terreno.Propietario</span>
+                                <small>
+                                    @terreno.Direccion ·
+                                    @terreno.CantidadFotosActivas foto(s)
+                                </small>
+                            </button>
+                        }
+                    </div>
+                }
+
+                <div class="ft-form-grid">
+                    <label class="full">
+                        <span>Fotografías *</span>
+                        <InputFile class="ft-file"
+                                   multiple
+                                   accept="image/jpeg,image/png,image/webp"
+                                   OnChange="SeleccionarArchivos" />
+                        <small>
+                            @TextoArchivosSeleccionados
+                        </small>
+                    </label>
+
+                    <label>
+                        <span>Título común</span>
+                        <InputText class="ft-control"
+                                   maxlength="150"
+                                   @bind-Value="cargaForm.Titulo" />
+                    </label>
+
+                    <label>
+                        <span>Fecha de captura</span>
+                        <InputDate class="ft-control"
+                                   @bind-Value="cargaForm.FechaCaptura" />
+                    </label>
+
+                    <label class="full">
+                        <span>Descripción</span>
+                        <InputTextArea class="ft-control"
+                                       rows="3"
+                                       maxlength="600"
+                                       @bind-Value="cargaForm.Descripcion" />
+                    </label>
+
+                    <label class="ft-check full">
+                        <InputCheckbox @bind-Value="establecerPortadaCarga" />
+                        <span>
+                            Establecer la primera fotografía como portada del
+                            terreno.
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <footer>
+                <button class="ft-button ghost"
+                        disabled="@procesando"
+                        @onclick="CerrarCarga">
+                    Cancelar
+                </button>
+
+                <button class="ft-button primary"
+                        disabled="@(procesando || !CargaValida)"
+                        @onclick="SubirArchivosAsync">
+                    <i class="fa-solid @(procesando ? "fa-spinner fa-spin" : "fa-cloud-arrow-up")"></i>
+                    Subir @archivosSeleccionados.Count fotografía(s)
+                </button>
+            </footer>
+        </article>
+    </div>
+}
+
+@if (mostrarEdicion && fotoEdicion is not null)
+{
+    <div class="ft-modal-backdrop" @onclick="CerrarEdicion">
+        <article class="ft-modal" @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span>Fotografía #@fotoEdicion.FotoTerrenoId</span>
+                    <h2>Editar información</h2>
+                </div>
+                <button class="ft-close" @onclick="CerrarEdicion">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <EditForm Model="edicionForm"
+                      OnValidSubmit="GuardarEdicionAsync"
+                      FormName="editar-foto-terreno">
+                <DataAnnotationsValidator />
+
+                <div class="ft-modal-body ft-form-grid">
+                    <label class="full">
+                        <span>Título</span>
+                        <InputText class="ft-control"
+                                   maxlength="150"
+                                   @bind-Value="edicionForm.Titulo" />
+                        <ValidationMessage For="() => edicionForm.Titulo" />
+                    </label>
+
+                    <label>
+                        <span>Fecha de captura</span>
+                        <InputDate class="ft-control"
+                                   @bind-Value="edicionForm.FechaCaptura" />
+                    </label>
+
+                    <label class="full">
+                        <span>Descripción</span>
+                        <InputTextArea class="ft-control"
+                                       rows="4"
+                                       maxlength="600"
+                                       @bind-Value="edicionForm.Descripcion" />
+                        <ValidationMessage For="() => edicionForm.Descripcion" />
+                    </label>
+                </div>
+
+                <footer>
+                    <button type="button"
+                            class="ft-button ghost"
+                            disabled="@procesando"
+                            @onclick="CerrarEdicion">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="ft-button primary"
+                            disabled="@procesando">
+                        <i class="fa-solid @(procesando ? "fa-spinner fa-spin" : "fa-floppy-disk")"></i>
+                        Guardar cambios
+                    </button>
+                </footer>
+            </EditForm>
+        </article>
+    </div>
+}
+
+@code {
+    private const string CodigoPermiso =
+        PermisosWeb.FotosTerreno;
+
+    private readonly List<IBrowserFile> archivosSeleccionados = [];
+    private readonly List<TerrenoFotoSelectorWeb> resultadosTerreno = [];
+
+    private FotoTerrenoAdminPaginaWeb paginaDatos = new();
+    private FotoTerrenoGuardarWeb cargaForm = new();
+    private FotoTerrenoGuardarWeb edicionForm = new();
+    private FotoTerrenoAdminItemWeb? fotoEdicion;
+    private TerrenoFotoSelectorWeb? terrenoSeleccionado;
+
+    private string buscar = string.Empty;
+    private string buscarTerreno = string.Empty;
+    private string estadoFiltro = "ACTIVAS";
+    private string problemaFiltro = string.Empty;
+    private string? mensaje;
+    private string? error;
+    private DateTime? fechaDesde;
+    private DateTime? fechaHasta;
+    private int paginaActual = 1;
+    private const int TamanoPagina = 16;
+
+    private bool cargando = true;
+    private bool procesando;
+    private bool buscandoTerrenos;
+    private bool mostrarCarga;
+    private bool mostrarEdicion;
+    private bool establecerPortadaCarga;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(CodigoPermiso);
+
+    private bool PuedeAgregar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(CodigoPermiso);
+
+    private bool PuedeActualizar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(CodigoPermiso);
+
+    private bool PuedeEliminar =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(CodigoPermiso);
+
+    private bool CargaValida =>
+        terrenoSeleccionado is not null &&
+        archivosSeleccionados.Count > 0;
+
+    private string TextoArchivosSeleccionados =>
+        archivosSeleccionados.Count == 0
+            ? "Seleccione entre 1 y 10 imágenes de máximo 8 MB cada una."
+            : archivosSeleccionados.Count == 1
+                ? archivosSeleccionados[0].Name
+                : $"{archivosSeleccionados.Count} archivos seleccionados.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!PuedeLeer)
+        {
+            cargando = false;
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            paginaDatos =
+                await Api.GetAsync<FotoTerrenoAdminPaginaWeb>(
+                    ConstruirRutaListado()) ??
+                new FotoTerrenoAdminPaginaWeb();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private string ConstruirRutaListado()
+    {
+        var parametros = new List<string>
+        {
+            $"pagina={paginaActual}",
+            $"tamanoPagina={TamanoPagina}",
+            $"incluirInactivas={(estadoFiltro == "TODAS" ? "true" : "false")}" 
+        };
+
+        if (!string.IsNullOrWhiteSpace(buscar))
+        {
+            parametros.Add(
+                "buscar=" +
+                Uri.EscapeDataString(buscar.Trim()));
+        }
+
+        if (fechaDesde.HasValue)
+        {
+            parametros.Add(
+                "fechaDesde=" +
+                fechaDesde.Value.ToString(
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture));
+        }
+
+        if (fechaHasta.HasValue)
+        {
+            parametros.Add(
+                "fechaHasta=" +
+                fechaHasta.Value.ToString(
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture));
+        }
+
+        if (!string.IsNullOrWhiteSpace(problemaFiltro))
+        {
+            parametros.Add(
+                "problema=" +
+                Uri.EscapeDataString(problemaFiltro));
+        }
+
+        return "api/administracion/fotos-terreno?" +
+               string.Join("&", parametros);
+    }
+
+    private async Task AplicarFiltrosAsync()
+    {
+        if (fechaDesde.HasValue &&
+            fechaHasta.HasValue &&
+            fechaDesde.Value.Date > fechaHasta.Value.Date)
+        {
+            error =
+                "La fecha inicial no puede ser posterior a la fecha final.";
+            return;
+        }
+
+        paginaActual = 1;
+        await CargarAsync();
+    }
+
+    private async Task LimpiarFiltrosAsync()
+    {
+        buscar = string.Empty;
+        fechaDesde = null;
+        fechaHasta = null;
+        estadoFiltro = "ACTIVAS";
+        problemaFiltro = string.Empty;
+        paginaActual = 1;
+        await CargarAsync();
+    }
+
+    private Task ActualizarAsync() => CargarAsync();
+
+    private async Task BuscarConEnter(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+            await AplicarFiltrosAsync();
+    }
+
+    private async Task PaginaAnteriorAsync()
+    {
+        if (!paginaDatos.TienePaginaAnterior)
+            return;
+
+        paginaActual--;
+        await CargarAsync();
+    }
+
+    private async Task PaginaSiguienteAsync()
+    {
+        if (!paginaDatos.TienePaginaSiguiente)
+            return;
+
+        paginaActual++;
+        await CargarAsync();
+    }
+
+    private void AbrirCarga()
+    {
+        cargaForm = new FotoTerrenoGuardarWeb
+        {
+            FechaCaptura = DateTime.Today
+        };
+        archivosSeleccionados.Clear();
+        resultadosTerreno.Clear();
+        terrenoSeleccionado = null;
+        buscarTerreno = string.Empty;
+        establecerPortadaCarga = false;
+        mostrarCarga = true;
+        LimpiarMensajes();
+    }
+
+    private void CerrarCarga()
+    {
+        if (procesando)
+            return;
+
+        mostrarCarga = false;
+        archivosSeleccionados.Clear();
+        resultadosTerreno.Clear();
+        terrenoSeleccionado = null;
+    }
+
+    private void SeleccionarArchivos(InputFileChangeEventArgs args)
+    {
+        archivosSeleccionados.Clear();
+        LimpiarMensajes();
+
+        try
+        {
+            IReadOnlyList<IBrowserFile> archivos =
+                args.GetMultipleFiles(10);
+
+            IBrowserFile? demasiadoGrande =
+                archivos.FirstOrDefault(item =>
+                    item.Size > 8 * 1024 * 1024);
+
+            if (demasiadoGrande is not null)
+            {
+                error =
+                    $"El archivo {demasiadoGrande.Name} supera los 8 MB.";
+                return;
+            }
+
+            archivosSeleccionados.AddRange(archivos);
+        }
+        catch (InvalidOperationException)
+        {
+            error =
+                "Seleccione un máximo de diez fotografías por carga.";
+        }
+    }
+
+    private async Task BuscarTerrenoConEnter(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+            await BuscarTerrenosAsync();
+    }
+
+    private async Task BuscarTerrenosAsync()
+    {
+        buscandoTerrenos = true;
+
+        try
+        {
+            List<TerrenoFotoSelectorWeb>? respuesta =
+                await Api.GetAsync<List<TerrenoFotoSelectorWeb>>(
+                    "api/administracion/fotos-terreno/terrenos" +
+                    "?limite=30&buscar=" +
+                    Uri.EscapeDataString(
+                        buscarTerreno.Trim()));
+
+            resultadosTerreno.Clear();
+
+            if (respuesta is not null)
+                resultadosTerreno.AddRange(respuesta);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            buscandoTerrenos = false;
+        }
+    }
+
+    private void SeleccionarTerreno(
+        TerrenoFotoSelectorWeb terreno)
+    {
+        terrenoSeleccionado = terreno;
+        resultadosTerreno.Clear();
+    }
+
+    private void QuitarTerrenoSeleccionado()
+    {
+        terrenoSeleccionado = null;
+    }
+
+    private async Task SubirArchivosAsync()
+    {
+        if (!CargaValida ||
+            terrenoSeleccionado is null ||
+            procesando)
+        {
+            return;
+        }
+
+        procesando = true;
+        LimpiarMensajes();
+
+        int subidas = 0;
+
+        try
+        {
+            for (int indice = 0;
+                 indice < archivosSeleccionados.Count;
+                 indice++)
+            {
+                IBrowserFile archivo =
+                    archivosSeleccionados[indice];
+
+                var campos = new Dictionary<string, string>
+                {
+                    ["TerrenoId"] =
+                        terrenoSeleccionado.TerrenoId.ToString(
+                            CultureInfo.InvariantCulture),
+                    ["Titulo"] = cargaForm.Titulo,
+                    ["Descripcion"] = cargaForm.Descripcion,
+                    ["FechaCaptura"] =
+                        cargaForm.FechaCaptura?.ToString(
+                            "yyyy-MM-dd",
+                            CultureInfo.InvariantCulture) ??
+                        string.Empty,
+                    ["EstablecerComoPortada"] =
+                        (establecerPortadaCarga && indice == 0)
+                            .ToString()
+                };
+
+                await Api.SubirFormularioArchivoAsync<
+                    FotoTerrenoOperacionWeb>(
+                    "api/administracion/fotos-terreno/subir",
+                    archivo,
+                    campos,
+                    nombreCampo: "Foto",
+                    tamanoMaximo: 8 * 1024 * 1024);
+
+                subidas++;
+            }
+
+            mostrarCarga = false;
+            archivosSeleccionados.Clear();
+            resultadosTerreno.Clear();
+            terrenoSeleccionado = null;
+            paginaActual = 1;
+
+            await CargarAsync();
+
+            mensaje = subidas == 1
+                ? "Fotografía subida correctamente."
+                : $"{subidas} fotografías subidas correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = subidas == 0
+                ? ex.Message
+                : $"Se subieron {subidas} archivo(s), pero el proceso se detuvo: {ex.Message}";
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private void AbrirEdicion(
+        FotoTerrenoAdminItemWeb item)
+    {
+        fotoEdicion = item;
+        edicionForm = new FotoTerrenoGuardarWeb
+        {
+            Titulo = item.Titulo,
+            Descripcion = item.Descripcion,
+            FechaCaptura = item.FechaCaptura
+        };
+        mostrarEdicion = true;
+        LimpiarMensajes();
+    }
+
+    private void CerrarEdicion()
+    {
+        if (procesando)
+            return;
+
+        mostrarEdicion = false;
+        fotoEdicion = null;
+        edicionForm = new FotoTerrenoGuardarWeb();
+    }
+
+    private async Task GuardarEdicionAsync()
+    {
+        if (fotoEdicion is null || procesando)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PutAsync<
+                FotoTerrenoGuardarWeb,
+                FotoTerrenoOperacionWeb>(
+                "api/administracion/fotos-terreno/" +
+                fotoEdicion.FotoTerrenoId,
+                edicionForm);
+
+            mostrarEdicion = false;
+            fotoEdicion = null;
+            await CargarAsync();
+            mensaje =
+                "Información de la fotografía actualizada correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task EstablecerPortadaAsync(
+        FotoTerrenoAdminItemWeb item)
+    {
+        if (!await ConfirmarAsync(
+                $"¿Establecer la fotografía #{item.FotoTerrenoId} como portada de {item.CodigoTerreno}?"))
+        {
+            return;
+        }
+
+        await EjecutarAccionAsync(
+            () => Api.PostSinContenidoAsync(
+                "api/administracion/fotos-terreno/" +
+                item.FotoTerrenoId +
+                "/portada"),
+            "Fotografía establecida como portada.");
+    }
+
+    private async Task DesactivarAsync(
+        FotoTerrenoAdminItemWeb item)
+    {
+        if (!await ConfirmarAsync(
+                "¿Desactivar esta fotografía? El archivo se conservará y podrá reactivarse."))
+        {
+            return;
+        }
+
+        await EjecutarAccionAsync(
+            () => Api.EliminarAsync(
+                "api/administracion/fotos-terreno/" +
+                item.FotoTerrenoId),
+            "Fotografía desactivada correctamente.");
+    }
+
+    private async Task ReactivarAsync(
+        FotoTerrenoAdminItemWeb item)
+    {
+        await EjecutarAccionAsync(
+            () => Api.PostSinContenidoAsync(
+                "api/administracion/fotos-terreno/" +
+                item.FotoTerrenoId +
+                "/reactivar"),
+            "Fotografía reactivada correctamente.");
+    }
+
+    private async Task EliminarDefinitivamenteAsync(
+        FotoTerrenoAdminItemWeb item)
+    {
+        if (!await ConfirmarAsync(
+                "Esta acción eliminará el registro y el archivo físico. ¿Desea continuar?"))
+        {
+            return;
+        }
+
+        await EjecutarAccionAsync(
+            () => Api.EliminarAsync(
+                "api/administracion/fotos-terreno/" +
+                item.FotoTerrenoId +
+                "/definitivo"),
+            "Fotografía eliminada definitivamente.");
+    }
+
+    private async Task EjecutarAccionAsync(
+        Func<Task> accion,
+        string mensajeExito)
+    {
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await accion();
+            await CargarAsync();
+            mensaje = mensajeExito;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task<bool> ConfirmarAsync(string texto) =>
+        await JS.InvokeAsync<bool>("confirm", texto);
+
+    private static string TituloVisible(
+        FotoTerrenoAdminItemWeb item) =>
+        string.IsNullOrWhiteSpace(item.Titulo)
+            ? $"Fotografía de {item.CodigoTerreno}"
+            : item.Titulo;
+
+    private static string TextoAlternativo(
+        FotoTerrenoAdminItemWeb item) =>
+        string.IsNullOrWhiteSpace(item.Titulo)
+            ? $"Fotografía del terreno {item.CodigoTerreno}"
+            : item.Titulo;
+
+    private static string FechaVisible(
+        FotoTerrenoAdminItemWeb item)
+    {
+        if (item.FechaCaptura.HasValue)
+        {
+            return item.FechaCaptura.Value
+                .ToString("dd/MM/yyyy");
+        }
+
+        return item.FechaRegistroUtc
+            .ToLocalTime()
+            .ToString("dd/MM/yyyy");
+    }
+
+    private static string NombreDescarga(
+        FotoTerrenoAdminItemWeb item)
+    {
+        string baseNombre =
+            string.IsNullOrWhiteSpace(item.CodigoTerreno)
+                ? $"foto-terreno-{item.FotoTerrenoId}"
+                : $"{item.CodigoTerreno}-foto-{item.FotoTerrenoId}";
+
+        return baseNombre + ".webp";
+    }
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+    }
+}

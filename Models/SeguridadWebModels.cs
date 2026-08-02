@@ -49,6 +49,9 @@ public static class PermisosWeb
 
     public const string PortalPropietario =
         "PortalPropietarioPage";
+
+    public const string FotosTerreno =
+        "fotosTerrenoPage";
 }
 
 public sealed class RolWebItem

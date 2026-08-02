@@ -185,6 +185,7 @@ else
 
                     @if (PuedeVerPropietarios ||
                          PuedeVerTerrenos ||
+                         PuedeVerFotosTerreno ||
                          PuedeVerParametrizacionAcceso)
                     {
                         <div class="nav-section">
@@ -204,6 +205,14 @@ else
                             <NavLink href="/terrenos">
                                 <i class="fa-solid fa-map-location-dot"></i>
                                 <span>Terrenos</span>
+                            </NavLink>
+                        }
+
+                        @if (PuedeVerFotosTerreno)
+                        {
+                            <NavLink href="/terrenos/fotografias">
+                                <i class="fa-solid fa-images"></i>
+                                <span>Fotografías de terrenos</span>
                             </NavLink>
                         }
 
@@ -620,6 +629,11 @@ else
         AuthState.TienePermisoLectura(
             PermisoReportes);
 
+    private bool PuedeVerFotosTerreno =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.FotosTerreno);
+
     private bool PuedeVerTerrenos =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
@@ -695,6 +709,7 @@ else
         PuedeAdministrarNoticias ||
         PuedeVerCategoriasPublicacion ||
         PuedeVerReportes ||
+        PuedeVerFotosTerreno ||
         PuedeVerUnidadesConversiones ||
         AuthState.TienePermisoLectura(
             PermisoElementosQuimicos) ||

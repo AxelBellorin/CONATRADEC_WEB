@@ -47,6 +47,38 @@
     </section>
 }
 
+@if (Puede(PermisosWeb.FotosTerreno))
+{
+    <section class="config-section">
+        <div class="config-section-title">
+            <div>
+                <p class="eyebrow">Fincas y evidencia fotográfica</p>
+                <h2>Galerías de terrenos</h2>
+            </div>
+            <span>
+                Fotografías reales de las fincas registradas en el sistema.
+            </span>
+        </div>
+
+        <div class="config-card-grid">
+            <a class="panel config-action-card"
+               href="/terrenos/fotografias">
+                <span class="config-action-icon">
+                    <i class="fa-solid fa-images"></i>
+                </span>
+                <span>
+                    <strong>Fotografías de terrenos</strong>
+                    <small>
+                        Carga, portadas, descripción, fechas, inactivos y
+                        revisión de archivos faltantes.
+                    </small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+        </div>
+    </section>
+}
+
 @if (PuedeVerParametrosAgronomicos)
 {
     <section class="config-section">

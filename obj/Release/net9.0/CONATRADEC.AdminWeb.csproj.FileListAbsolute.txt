@@ -158,8 +158,6 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scop
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Pages\ExtraccionNutrientes.razor.rz.scp.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Pages\RangosNutricionales.razor.rz.scp.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Pages\UnidadesConversiones.razor.rz.scp.css
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\722bys1tf3-{0}-ygqi1yq0d9-ygqi1yq0d9.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\bh50ruxdel-{0}-ygqi1yq0d9-ygqi1yq0d9.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\5wlip9si1t-{0}-z5q5m0rmfo-z5q5m0rmfo.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\31di4nhm97-{0}-riivv88g61-riivv88g61.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\9augaiy82i-{0}-bca4phlb8b-bca4phlb8b.gz
@@ -167,3 +165,6 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\comp
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\l1ur4bi7kl-{0}-cv6pdu1rev-cv6pdu1rev.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\q2geoc1tl9-{0}-32e2uu3xp0-32e2uu3xp0.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\3ikggyh3km-{0}-br27gxeqvx-br27gxeqvx.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Pages\FotosTerrenoAdmin.razor.rz.scp.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\722bys1tf3-{0}-yrwlobhww2-yrwlobhww2.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\bh50ruxdel-{0}-yrwlobhww2-yrwlobhww2.gz
