@@ -24,11 +24,13 @@ wwwroot\favicon.svg
 wwwroot\images\mascota-conatradec.webp
 wwwroot\js\climaLaboresTimeline.js
 wwwroot\js\dispositivosMapa.js
+wwwroot\js\file-download.js
 wwwroot\js\geologiaMapa.js
 wwwroot\js\mapa.js
 wwwroot\js\mapaInteligente.js
 wwwroot\js\mapaInteligenteMejoras.js
 wwwroot\js\mapaPanelesMovibles.js
+wwwroot\js\mapaRelacionesAnalisis.js
 wwwroot\js\portalCentroGeoespacial.js
 wwwroot\js\portalPropietarioMapa.js
 wwwroot\js\resumenTerritorialEnriquecido.js
@@ -37,7 +39,6 @@ wwwroot\js\session-inactivity.js
 wwwroot\js\tarjetaTerritorialMapa.js
 wwwroot\js\terrenoPoligonoEditor.js
 wwwroot\js\terrenoPoligonosMapa.js
-wwwroot\js\mapaRelacionesAnalisis.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\alertas-integracion.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\animations.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\app.css
@@ -73,6 +74,7 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\terrenoPolig
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\geologia-mapa.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\mapa-relaciones-analisis.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\css\resumen-territorial-enriquecido.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\file-download.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\geologiaMapa.js
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\resumenTerritorialEnriquecido.js
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\mapaRelacionesAnalisis.js
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\wwwroot\js\resumenTerritorialEnriquecido.js

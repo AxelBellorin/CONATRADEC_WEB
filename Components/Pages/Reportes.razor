@@ -1,7 +1,11 @@
 @page "/reportes"
+@using System.Net
+@using System.Net.Http.Headers
 @inject AuthStateService AuthState
 @inject SeguimientoAlertasService Service
+@inject IHttpClientFactory HttpClientFactory
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>Centro de reportes | CONATRADEC</PageTitle>
 
@@ -9,22 +13,66 @@
     <div>
         <p class="eyebrow">Información ejecutiva</p>
         <h1>Centro de reportes</h1>
-        <p>Consulta el estado general y descarga el seguimiento de alertas.</p>
+        <p>
+            Consulta el estado general y descarga archivos utilizando la
+            sesión autenticada del portal.
+        </p>
     </div>
 </div>
 
-@if (cargando)
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert alert-success-custom">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensaje</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+@if (!PuedeLeer)
+{
+    <section class="panel empty-state compact-empty">
+        <i class="fa-solid fa-lock"></i>
+        <h2>Sin permiso para reportes</h2>
+        <p>
+            Solicite al administrador el permiso “Centro de reportes”.
+        </p>
+    </section>
+}
+else if (cargando)
 {
     <LoadingState Mensaje="Preparando indicadores..." />
 }
 else
 {
     <section class="report-summary-grid">
-        <article><span>Total</span><strong>@resumen.Total</strong></article>
-        <article><span>Pendientes</span><strong>@resumen.Pendientes</strong></article>
-        <article><span>En proceso</span><strong>@resumen.EnProceso</strong></article>
-        <article><span>Atendidas</span><strong>@resumen.Atendidas</strong></article>
-        <article><span>Críticas</span><strong>@resumen.Criticas</strong></article>
+        <article>
+            <span>Total</span>
+            <strong>@resumen.Total</strong>
+        </article>
+        <article>
+            <span>Pendientes</span>
+            <strong>@resumen.Pendientes</strong>
+        </article>
+        <article>
+            <span>En proceso</span>
+            <strong>@resumen.EnProceso</strong>
+        </article>
+        <article>
+            <span>Atendidas</span>
+            <strong>@resumen.Atendidas</strong>
+        </article>
+        <article>
+            <span>Críticas</span>
+            <strong>@resumen.Criticas</strong>
+        </article>
     </section>
 
     <section class="report-options-grid">
@@ -32,36 +80,71 @@ else
             <i class="fa-solid fa-file-pdf"></i>
             <div>
                 <h2>Reporte PDF</h2>
-                <p>Documento tamaño carta con el seguimiento actual de alertas.</p>
+                <p>
+                    Documento tamaño carta con el seguimiento actual de
+                    alertas agrícolas.
+                </p>
             </div>
-            <a class="btn-primary"
-               href="@Ruta("api/reportes-alertas/pdf")"
-               target="_blank">
+
+            <button class="btn-primary"
+                    disabled="@descargando"
+                    @onclick='() => DescargarAsync(
+                        "api/reportes-alertas/pdf",
+                        "application/pdf",
+                        "reporte-alertas.pdf")'>
+                <i class="fa-solid @(descargando
+                    ? "fa-spinner fa-spin"
+                    : "fa-download")"></i>
                 Descargar PDF
-            </a>
+            </button>
         </article>
 
         <article class="report-option-card">
             <i class="fa-solid fa-file-excel"></i>
             <div>
                 <h2>Reporte Excel</h2>
-                <p>Archivo editable con todos los casos y sus estados.</p>
+                <p>
+                    Archivo editable con todos los casos, estados y fechas.
+                </p>
             </div>
-            <a class="btn-primary"
-               href="@Ruta("api/reportes-alertas/excel")">
+
+            <button class="btn-primary"
+                    disabled="@descargando"
+                    @onclick='() => DescargarAsync(
+                        "api/reportes-alertas/excel",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "reporte-alertas.xlsx")'>
+                <i class="fa-solid @(descargando
+                    ? "fa-spinner fa-spin"
+                    : "fa-download")"></i>
                 Descargar Excel
-            </a>
+            </button>
         </article>
     </section>
 }
 
 @code {
-    private ResumenReporteAlertas resumen = new();
-    private bool cargando = true;
+    private const string CodigoPermiso =
+        "reportesPage";
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private ResumenReporteAlertas resumen =
+        new();
+
+    private bool cargando = true;
+    private bool descargando;
+    private string? mensaje;
+    private string? error;
+
+    private bool PuedeLeer =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            CodigoPermiso);
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender)
+            return;
 
         if (!AuthState.IsAuthenticated)
         {
@@ -69,14 +152,187 @@ else
             return;
         }
 
-        resumen = await Service.ResumenReporteAsync() ?? new();
-        cargando = false;
+        if (!PuedeLeer)
+        {
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        await CargarResumenAsync();
         StateHasChanged();
     }
 
-    private string Ruta(string relativa)
+    private async Task CargarResumenAsync()
     {
-        string baseApi = Navigation.BaseUri;
-        return new Uri(new Uri(baseApi), relativa).ToString();
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            resumen =
+                await Service.ResumenReporteAsync() ??
+                new ResumenReporteAlertas();
+        }
+        catch (Exception ex)
+        {
+            error = LimpiarMensaje(ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task DescargarAsync(
+        string ruta,
+        string contentTypePredeterminado,
+        string nombrePredeterminado)
+    {
+        if (descargando)
+            return;
+
+        descargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            string? token =
+                AuthState.Usuario?.Token;
+
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                throw new UnauthorizedAccessException(
+                    "La sesión no contiene un token vigente.");
+            }
+
+            HttpClient client =
+                HttpClientFactory.CreateClient(
+                    "CONATRADEC_API_AUTENTICADA");
+
+            using var request =
+                new HttpRequestMessage(
+                    HttpMethod.Get,
+                    ruta);
+
+            request.Headers.Authorization =
+                new AuthenticationHeaderValue(
+                    "Bearer",
+                    token);
+
+            /*
+             * La descarga fue iniciada directamente por el usuario, por lo
+             * que debe registrar actividad real en la sesión.
+             */
+            request.Headers.TryAddWithoutValidation(
+                "X-Actividad-Usuario",
+                "true");
+
+            using HttpResponseMessage response =
+                await client.SendAsync(
+                    request,
+                    HttpCompletionOption.ResponseHeadersRead);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                string detalle =
+                    await response.Content.ReadAsStringAsync();
+
+                if (response.StatusCode is
+                    HttpStatusCode.Unauthorized or
+                    HttpStatusCode.Forbidden)
+                {
+                    throw new UnauthorizedAccessException(
+                        ExtraerMensaje(detalle));
+                }
+
+                throw new HttpRequestException(
+                    ExtraerMensaje(detalle),
+                    null,
+                    response.StatusCode);
+            }
+
+            byte[] contenido =
+                await response.Content.ReadAsByteArrayAsync();
+
+            if (contenido.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "La API devolvió un archivo vacío.");
+            }
+
+            string nombre =
+                ObtenerNombreArchivo(
+                    response,
+                    nombrePredeterminado);
+
+            string contentType =
+                response.Content.Headers.ContentType?
+                    .MediaType ??
+                contentTypePredeterminado;
+
+            await JS.InvokeVoidAsync(
+                "conatradecFiles.downloadFromBase64",
+                nombre,
+                contentType,
+                Convert.ToBase64String(contenido));
+
+            mensaje =
+                $"El archivo {nombre} fue generado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = LimpiarMensaje(ex.Message);
+        }
+        finally
+        {
+            descargando = false;
+        }
+    }
+
+    private static string ObtenerNombreArchivo(
+        HttpResponseMessage response,
+        string predeterminado)
+    {
+        ContentDispositionHeaderValue? disposition =
+            response.Content.Headers.ContentDisposition;
+
+        string? nombre =
+            disposition?.FileNameStar ??
+            disposition?.FileName;
+
+        nombre =
+            nombre?
+                .Trim()
+                .Trim('"');
+
+        return string.IsNullOrWhiteSpace(nombre)
+            ? predeterminado
+            : nombre;
+    }
+
+    private static string ExtraerMensaje(
+        string contenido)
+    {
+        string mensaje =
+            (contenido ?? string.Empty)
+                .Trim()
+                .Trim('"');
+
+        return string.IsNullOrWhiteSpace(mensaje)
+            ? "No fue posible completar la descarga."
+            : mensaje;
+    }
+
+    private static string LimpiarMensaje(
+        string mensaje) =>
+        (mensaje ?? string.Empty)
+            .Trim()
+            .Trim('"');
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
     }
 }

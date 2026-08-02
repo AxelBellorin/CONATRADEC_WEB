@@ -9,11 +9,43 @@
         <p class="eyebrow">Administración</p>
         <h1>Configuración y contenido</h1>
         <p>
-            Accede a la administración de contenidos y consulta la
-            configuración técnica del portal.
+            Accede a los catálogos, contenidos y herramientas habilitados
+            para tu rol.
         </p>
     </div>
 </div>
+
+@if (PuedeVerUbicaciones)
+{
+    <section class="config-section">
+        <div class="config-section-title">
+            <div>
+                <p class="eyebrow">Ubicación y cobertura</p>
+                <h2>Catálogos geográficos</h2>
+            </div>
+            <span>
+                Jerarquía utilizada por usuarios, propietarios y terrenos.
+            </span>
+        </div>
+
+        <div class="config-card-grid">
+            <a class="panel config-action-card"
+               href="/configuracion/ubicaciones">
+                <span class="config-action-icon">
+                    <i class="fa-solid fa-earth-americas"></i>
+                </span>
+                <span>
+                    <strong>Ubicaciones geográficas</strong>
+                    <small>
+                        Países, departamentos, municipios, inactivos y
+                        reactivación.
+                    </small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+        </div>
+    </section>
+}
 
 @if (PuedeVerParametrosAgronomicos)
 {
@@ -30,7 +62,7 @@
         </div>
 
         <div class="config-card-grid">
-            @if (PuedeVerElementos)
+            @if (Puede("elementoQuimicoPage"))
             {
                 <a class="panel config-action-card"
                    href="/parametros-agronomicos/elementos-quimicos">
@@ -48,7 +80,7 @@
                 </a>
             }
 
-            @if (PuedeVerCultivos)
+            @if (Puede("tipoCultivoPage"))
             {
                 <a class="panel config-action-card"
                    href="/parametros-agronomicos/tipos-cultivo">
@@ -58,15 +90,14 @@
                     <span>
                         <strong>Tipos de cultivo</strong>
                         <small>
-                            Cultivos, rangos relacionados y análisis
-                            históricos.
+                            Cultivos disponibles, relaciones y recuperación.
                         </small>
                     </span>
                     <i class="fa-solid fa-chevron-right"></i>
                 </a>
             }
 
-            @if (PuedeVerAnalisis)
+            @if (Puede("tipoAnalisisSueloPage"))
             {
                 <a class="panel config-action-card"
                    href="/parametros-agronomicos/tipos-analisis-suelo">
@@ -83,34 +114,172 @@
                     <i class="fa-solid fa-chevron-right"></i>
                 </a>
             }
+
+            @if (Puede("fuenteNutrientePage"))
+            {
+                <a class="panel config-action-card"
+                   href="/parametros-agronomicos/fuentes-nutrientes">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-flask-vial"></i>
+                    </span>
+                    <span>
+                        <strong>Fuentes de nutrientes</strong>
+                        <small>
+                            Composición, precio, fertilización mixta y
+                            enmienda calcárea.
+                        </small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            }
+
+            @if (Puede("extraccionNutrientePage"))
+            {
+                <a class="panel config-action-card"
+                   href="/parametros-agronomicos/extraccion-nutrientes">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-arrow-up-right-dots"></i>
+                    </span>
+                    <span>
+                        <strong>Extracción de nutrientes</strong>
+                        <small>
+                            Exportación de elementos por quintal de café oro.
+                        </small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            }
+
+            @if (Puede("rangoNutrientePage"))
+            {
+                <a class="panel config-action-card"
+                   href="/parametros-agronomicos/rangos-nutricionales">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-chart-simple"></i>
+                    </span>
+                    <span>
+                        <strong>Rangos nutricionales</strong>
+                        <small>
+                            Límites técnicos por cultivo y elemento químico.
+                        </small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            }
+
+            @if (Puede("unidadesConversionesPage"))
+            {
+                <a class="panel config-action-card"
+                   href="/parametros-agronomicos/unidades-conversiones">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-right-left"></i>
+                    </span>
+                    <span>
+                        <strong>Unidades y conversiones</strong>
+                        <small>
+                            Fórmulas y normalización final hacia lb/Mz.
+                        </small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            }
         </div>
     </section>
 }
 
-@if (PuedeVerAlbum)
+@if (PuedeVerContenido)
 {
     <section class="config-section">
         <div class="config-section-title">
             <div>
-                <p class="eyebrow">Contenido técnico</p>
-                <h2>Álbum botánico</h2>
+                <p class="eyebrow">Contenido y comunicación</p>
+                <h2>Contenido institucional</h2>
             </div>
             <span>
-                La información administrada aquí se consume desde móvil y Windows.
+                Información consumida desde móvil, Windows y el portal.
+            </span>
+        </div>
+
+        <div class="config-card-grid">
+            @if (PuedeAdministrarNoticias)
+            {
+                <a class="panel config-action-card"
+                   href="/contenido/publicaciones">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-newspaper"></i>
+                    </span>
+                    <span>
+                        <strong>Noticias y publicaciones</strong>
+                        <small>
+                            Borradores, programación, eventos, portadas y
+                            estados.
+                        </small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            }
+
+            @if (Puede("categoriaPublicacionPage"))
+            {
+                <a class="panel config-action-card"
+                   href="/contenido/tipos-publicacion">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-tags"></i>
+                    </span>
+                    <span>
+                        <strong>Tipos de publicación</strong>
+                        <small>
+                            Categorías, colores, orden, estado y relaciones.
+                        </small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            }
+
+            @if (Puede("albumFotosPage"))
+            {
+                <a class="panel config-action-card"
+                   href="/contenido/album-botanico">
+                    <span class="config-action-icon">
+                        <i class="fa-solid fa-seedling"></i>
+                    </span>
+                    <span>
+                        <strong>Álbum botánico</strong>
+                        <small>
+                            Categorías, fichas técnicas, portadas y galerías.
+                        </small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            }
+        </div>
+    </section>
+}
+
+@if (Puede("reportesPage"))
+{
+    <section class="config-section">
+        <div class="config-section-title">
+            <div>
+                <p class="eyebrow">Informes y exportación</p>
+                <h2>Centro de reportes</h2>
+            </div>
+            <span>
+                Indicadores ejecutivos y archivos protegidos por permisos.
             </span>
         </div>
 
         <div class="config-card-grid">
             <a class="panel config-action-card"
-               href="/contenido/album-botanico">
+               href="/reportes">
                 <span class="config-action-icon">
-                    <i class="fa-solid fa-seedling"></i>
+                    <i class="fa-solid fa-file-lines"></i>
                 </span>
                 <span>
-                    <strong>Administrar álbum botánico</strong>
+                    <strong>Reportes administrativos</strong>
                     <small>
-                        Entra por categoría y administra sus fichas,
-                        portadas y galerías de fotografías.
+                        Resumen de alertas y exportaciones PDF o Excel con
+                        autenticación.
                     </small>
                 </span>
                 <i class="fa-solid fa-chevron-right"></i>
@@ -161,29 +330,35 @@
 </section>
 
 @code {
-    private const string CodigoAlbum = "albumFotosPage";
-    private const string CodigoElementos = "elementoQuimicoPage";
-    private const string CodigoCultivos = "tipoCultivoPage";
-    private const string CodigoAnalisis = "tipoAnalisisSueloPage";
-
-    private bool PuedeVerAlbum =>
+    private bool Puede(string codigo) =>
         AuthState.EsAdministrador ||
-        AuthState.TienePermisoLectura(CodigoAlbum);
+        AuthState.TienePermisoLectura(codigo);
 
-    private bool PuedeVerElementos =>
-        AuthState.EsAdministrador ||
-        AuthState.TienePermisoLectura(CodigoElementos);
-
-    private bool PuedeVerCultivos =>
-        AuthState.EsAdministrador ||
-        AuthState.TienePermisoLectura(CodigoCultivos);
-
-    private bool PuedeVerAnalisis =>
-        AuthState.EsAdministrador ||
-        AuthState.TienePermisoLectura(CodigoAnalisis);
+    private bool PuedeVerUbicaciones =>
+        Puede("paisPage") ||
+        Puede("departamentoPage") ||
+        Puede("municipioPage");
 
     private bool PuedeVerParametrosAgronomicos =>
-        PuedeVerElementos ||
-        PuedeVerCultivos ||
-        PuedeVerAnalisis;
+        Puede("elementoQuimicoPage") ||
+        Puede("tipoCultivoPage") ||
+        Puede("tipoAnalisisSueloPage") ||
+        Puede("fuenteNutrientePage") ||
+        Puede("extraccionNutrientePage") ||
+        Puede("rangoNutrientePage") ||
+        Puede("unidadesConversionesPage");
+
+    private bool PuedeAdministrarNoticias =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(
+            "noticiasPage") ||
+        AuthState.TienePermisoActualizar(
+            "noticiasPage") ||
+        AuthState.TienePermisoEliminar(
+            "noticiasPage");
+
+    private bool PuedeVerContenido =>
+        PuedeAdministrarNoticias ||
+        Puede("categoriaPublicacionPage") ||
+        Puede("albumFotosPage");
 }

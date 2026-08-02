@@ -65,10 +65,6 @@
     <link rel="stylesheet"
           href="css/resumen-territorial-mapa.css?v=2.0.0" />
 
-    <!--
-        Geología se carga después del resumen territorial para evitar que
-        su tarjeta de estado cubra los controles flotantes del mapa.
-    -->
     <link rel="stylesheet"
           href="css/geologia-mapa.css?v=1.6.0" />
 
@@ -84,10 +80,6 @@
     <link rel="stylesheet"
           href="CONATRADEC.AdminWeb.styles.css" />
 
-    <!--
-        Distribución fluida global para todas las páginas administrativas.
-        Se carga al final para reemplazar los anchos máximos anteriores.
-    -->
     <link rel="stylesheet"
           href="css/responsive-layout.css?v=1.1.0" />
 
@@ -104,6 +96,7 @@
         @rendermode="new InteractiveServerRenderMode(prerender: false)" />
 
     <script src="js/session-inactivity.js"></script>
+    <script src="js/file-download.js?v=1.0.0"></script>
     <script src="_framework/blazor.web.js"></script>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -124,50 +117,20 @@
     <script src="js/mapaInteligente.js?v=2.4.1"></script>
     <script src="js/mapaInteligenteMejoras.js?v=1.2.0"></script>
 
-    <!--
-        Turf genera el corredor geográfico alrededor de las fallas.
-        Se fija la versión para evitar cambios inesperados del proveedor.
-    -->
     <script src="https://cdn.jsdelivr.net/npm/@@turf/turf@@7.3.0/turf.min.js"></script>
 
-    <!--
-        Capas exclusivamente informativas: fallas geológicas y volcanes.
-        Se carga después del mapa inteligente para extenderlo sin cambiar
-        la lógica agrícola, de suelo o de clima existente.
-    -->
     <script src="js/geologiaMapa.js?v=1.6.0"></script>
 
-    <!--
-        El punto continúa siendo dibujado por el mapa actual.
-        Estas capas agregan únicamente el polígono cuando existe.
-    -->
     <script src="js/terrenoPoligonosMapa.js?v=1.0.0"></script>
     <script src="js/terrenoPoligonoEditor.js?v=1.0.0"></script>
 
-    <!--
-        Resumen automático por departamento o municipio cuando la capa
-        de terrenos individuales está desactivada.
-    -->
     <script src="js/resumenTerritorialMapa.js?v=2.0.0"></script>
 
-    <!--
-        Enriquece la ficha departamental y municipal con clima,
-        elementos químicos y contexto geológico.
-    -->
     <script src="js/resumenTerritorialEnriquecido.js?v=1.1.0"></script>
 
-    <!--
-        Mapa de relaciones de análisis.
-        Utiliza solamente Cytoscape.js y su diseño jerárquico incorporado.
-        No depende de Dagre ni de complementos externos de distribución.
-    -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.33.1/cytoscape.min.js"></script>
     <script src="js/mapaRelacionesAnalisis.js?v=1.1.1"></script>
 
-    <!--
-        Pantalla completa con filtros disponibles y paneles movibles.
-        Debe cargarse después de mapaInteligente.js.
-    -->
     <script src="js/mapaPanelesMovibles.js?v=2.1.0"></script>
 
     <script src="js/climaLaboresTimeline.js?v=1.0.0"></script>

@@ -1,0 +1,952 @@
+@page "/configuracion/ubicaciones"
+@using System.ComponentModel.DataAnnotations
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Ubicaciones geográficas | CONATRADEC</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Ubicación y cobertura</p>
+        <h1>Ubicaciones geográficas</h1>
+        <p>
+            Administra la jerarquía país, departamento y municipio utilizada
+            por terrenos, propietarios y usuarios.
+        </p>
+    </div>
+
+    <a class="btn-secondary" href="/configuracion">
+        <i class="fa-solid fa-arrow-left"></i>
+        Configuración
+    </a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensaje))
+{
+    <div class="alert alert-success-custom">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>@mensaje</span>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@error</span>
+    </div>
+}
+
+@if (!PuedeLeerSeccion)
+{
+    <section class="panel empty-state compact-empty">
+        <i class="fa-solid fa-lock"></i>
+        <h2>Sin permiso de lectura</h2>
+        <p>Su rol no puede consultar esta sección geográfica.</p>
+    </section>
+}
+else
+{
+    <section class="panel">
+        <div class="security-tabs">
+            <button class="@(seccion == SeccionPais ? "btn-primary" : "btn-link")"
+                    @onclick="IrPaises">
+                Países
+            </button>
+
+            <button class="@(seccion == SeccionDepartamento ? "btn-primary" : "btn-link")"
+                    disabled="@(paisSeleccionado is null)"
+                    @onclick="IrDepartamentos">
+                Departamentos
+            </button>
+
+            <button class="@(seccion == SeccionMunicipio ? "btn-primary" : "btn-link")"
+                    disabled="@(departamentoSeleccionado is null)"
+                    @onclick="IrMunicipios">
+                Municipios
+            </button>
+        </div>
+
+        @if (paisSeleccionado is not null)
+        {
+            <div class="alert alert-info">
+                <strong>País:</strong> @paisSeleccionado.Nombre
+                @if (departamentoSeleccionado is not null)
+                {
+                    <span>
+                        · <strong>Departamento:</strong>
+                        @departamentoSeleccionado.Nombre
+                    </span>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="panel toolbar-panel">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input class="form-control"
+                   placeholder="@PlaceholderBusqueda"
+                   @bind="buscar"
+                   @bind:event="oninput" />
+        </div>
+
+        <label class="album-check">
+            <InputCheckbox @bind-Value="incluirInactivos" />
+            <span>Mostrar inactivos</span>
+        </label>
+
+        <button class="btn-primary"
+                disabled="@procesando"
+                @onclick="BuscarAsync">
+            Buscar
+        </button>
+
+        <button class="btn-secondary"
+                disabled="@procesando"
+                @onclick="LimpiarAsync">
+            Limpiar
+        </button>
+
+        @if (PuedeAgregarSeccion)
+        {
+            <button class="btn-primary"
+                    disabled="@procesando"
+                    @onclick="AbrirCrear">
+                <i class="fa-solid fa-plus"></i>
+                @TextoNuevo
+            </button>
+        }
+
+        <div class="toolbar-summary">
+            <strong>@PaginaActual.TotalRegistros</strong>
+            <span>@TextoRegistros</span>
+        </div>
+    </section>
+
+    @if (cargando)
+    {
+        <LoadingState Mensaje="Cargando ubicaciones..." />
+    }
+    else if (PaginaActual.Items.Count == 0)
+    {
+        <section class="panel empty-state compact-empty">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <h2>No se encontraron registros</h2>
+            <p>No existen ubicaciones que coincidan con los filtros.</p>
+        </section>
+    }
+    else
+    {
+        <section class="panel">
+            <div class="responsive-table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            @if (seccion == SeccionPais)
+                            {
+                                <th>Código</th>
+                            }
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th>Relaciones</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (UbicacionItem item in PaginaActual.Items)
+                        {
+                            <tr>
+                                @if (seccion == SeccionPais)
+                                {
+                                    <td>
+                                        <strong>@item.CodigoIso</strong>
+                                    </td>
+                                }
+
+                                <td>
+                                    <strong>@item.Nombre</strong>
+                                </td>
+
+                                <td>
+                                    <span class="status-label @(item.Activo ? "success" : "danger")">
+                                        @(item.Activo ? "Activo" : "Inactivo")
+                                    </span>
+                                </td>
+
+                                <td>@TextoDependencias(item)</td>
+
+                                <td>
+                                    <div class="security-actions">
+                                        @if (item.Activo && PuedeActualizarSeccion)
+                                        {
+                                            <button class="table-action"
+                                                    title="Editar"
+                                                    @onclick="() => AbrirEditar(item)">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                        }
+
+                                        @if (item.Activo && PuedeEliminarSeccion)
+                                        {
+                                            <button class="table-action danger"
+                                                    title="Desactivar"
+                                                    @onclick="() => DesactivarAsync(item)">
+                                                <i class="fa-solid fa-ban"></i>
+                                            </button>
+                                        }
+
+                                        @if (!item.Activo && PuedeActualizarSeccion)
+                                        {
+                                            <button class="btn-secondary"
+                                                    @onclick="() => ReactivarAsync(item)">
+                                                <i class="fa-solid fa-rotate-left"></i>
+                                                Reactivar
+                                            </button>
+                                        }
+
+                                        @if (item.Activo &&
+                                             seccion == SeccionPais &&
+                                             PuedeLeer(PermisoDepartamentos))
+                                        {
+                                            <button class="btn-secondary"
+                                                    @onclick="() => AbrirDepartamentosAsync(item)">
+                                                Departamentos
+                                                <i class="fa-solid fa-chevron-right"></i>
+                                            </button>
+                                        }
+
+                                        @if (item.Activo &&
+                                             seccion == SeccionDepartamento &&
+                                             PuedeLeer(PermisoMunicipios))
+                                        {
+                                            <button class="btn-secondary"
+                                                    @onclick="() => AbrirMunicipiosAsync(item)">
+                                                Municipios
+                                                <i class="fa-solid fa-chevron-right"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <Paginador Pagina="PaginaActual.PaginaActual"
+                       TotalPaginas="PaginaActual.TotalPaginas"
+                       TotalRegistros="PaginaActual.TotalRegistros"
+                       TamanoPagina="PaginaActual.TamanoPagina"
+                       Procesando="@procesando"
+                       PaginaCambiada="CambiarPaginaAsync"
+                       TamanoPaginaCambiado="CambiarTamanoPaginaAsync" />
+        </section>
+    }
+}
+
+@if (mostrarFormulario)
+{
+    <div class="modal-backdrop"
+         @onclick="CerrarFormulario">
+        <article class="modal-card"
+                 @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">@NombreSeccion</p>
+                    <h2>@TituloFormulario</h2>
+                </div>
+
+                <button class="modal-close"
+                        disabled="@procesando"
+                        @onclick="CerrarFormulario">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <EditForm Model="formulario"
+                      OnValidSubmit="GuardarAsync"
+                      FormName="ubicacion-administrativa-form">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-group">
+                    <label>Nombre *</label>
+                    <InputText class="form-control"
+                               maxlength="80"
+                               @bind-Value="formulario.Nombre" />
+                    <ValidationMessage For="() => formulario.Nombre" />
+                </div>
+
+                @if (seccion == SeccionPais)
+                {
+                    <div class="form-group">
+                        <label>Código ISO de tres letras *</label>
+                        <InputText class="form-control"
+                                   maxlength="3"
+                                   @bind-Value="formulario.CodigoIso" />
+                        <ValidationMessage For="() => formulario.CodigoIso" />
+                    </div>
+                }
+
+                <div class="modal-actions">
+                    <button type="button"
+                            class="btn-secondary"
+                            disabled="@procesando"
+                            @onclick="CerrarFormulario">
+                        Cancelar
+                    </button>
+
+                    <button type="submit"
+                            class="btn-primary"
+                            disabled="@procesando">
+                        @(procesando ? "Guardando..." : "Guardar")
+                    </button>
+                </div>
+            </EditForm>
+        </article>
+    </div>
+}
+
+@code {
+    private const string SeccionPais = "PAIS";
+    private const string SeccionDepartamento = "DEPARTAMENTO";
+    private const string SeccionMunicipio = "MUNICIPIO";
+
+    private const string PermisoPaises = "paisPage";
+    private const string PermisoDepartamentos = "departamentoPage";
+    private const string PermisoMunicipios = "municipioPage";
+
+    private string seccion = SeccionPais;
+    private string buscar = string.Empty;
+    private bool incluirInactivos;
+    private bool cargando = true;
+    private bool procesando;
+    private bool mostrarFormulario;
+    private string? mensaje;
+    private string? error;
+
+    private PaginaUbicaciones paises = new();
+    private PaginaUbicaciones departamentos = new();
+    private PaginaUbicaciones municipios = new();
+
+    private UbicacionItem? paisSeleccionado;
+    private UbicacionItem? departamentoSeleccionado;
+    private UbicacionFormulario formulario = new();
+
+    private PaginaUbicaciones PaginaActual =>
+        seccion switch
+        {
+            SeccionDepartamento => departamentos,
+            SeccionMunicipio => municipios,
+            _ => paises
+        };
+
+    private string CodigoPermisoActual =>
+        seccion switch
+        {
+            SeccionDepartamento => PermisoDepartamentos,
+            SeccionMunicipio => PermisoMunicipios,
+            _ => PermisoPaises
+        };
+
+    private bool PuedeLeerSeccion =>
+        PuedeLeer(CodigoPermisoActual);
+
+    private bool PuedeAgregarSeccion =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(CodigoPermisoActual);
+
+    private bool PuedeActualizarSeccion =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoActualizar(CodigoPermisoActual);
+
+    private bool PuedeEliminarSeccion =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoEliminar(CodigoPermisoActual);
+
+    private string NombreSeccion =>
+        seccion switch
+        {
+            SeccionDepartamento => "Departamento",
+            SeccionMunicipio => "Municipio",
+            _ => "País"
+        };
+
+    private string TituloFormulario =>
+        formulario.Id > 0
+            ? $"Editar {NombreSeccion.ToLowerInvariant()}"
+            : $"Crear {NombreSeccion.ToLowerInvariant()}";
+
+    private string TextoNuevo =>
+        $"Nuevo {NombreSeccion.ToLowerInvariant()}";
+
+    private string TextoRegistros =>
+        seccion switch
+        {
+            SeccionDepartamento => "departamentos",
+            SeccionMunicipio => "municipios",
+            _ => "países"
+        };
+
+    private string PlaceholderBusqueda =>
+        seccion == SeccionPais
+            ? "Buscar por país o código ISO"
+            : $"Buscar {NombreSeccion.ToLowerInvariant()}";
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+        StateHasChanged();
+    }
+
+    private bool PuedeLeer(string codigo) =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(codigo);
+
+    private async Task CargarAsync()
+    {
+        if (!PuedeLeerSeccion)
+        {
+            cargando = false;
+            return;
+        }
+
+        cargando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            string filtro =
+                Uri.EscapeDataString(buscar.Trim());
+
+            if (seccion == SeccionPais)
+            {
+                PaginaApi<PaisApi>? respuesta =
+                    await Api.GetAsync<PaginaApi<PaisApi>>(
+                        "api/administracion/ubicaciones/paises" +
+                        $"?pagina={Math.Max(1, paises.PaginaActual)}" +
+                        $"&tamanoPagina={paises.TamanoPagina}" +
+                        $"&incluirInactivos={incluirInactivos.ToString().ToLowerInvariant()}" +
+                        $"&buscar={filtro}");
+
+                paises = Mapear(respuesta, PaisAItem);
+            }
+            else if (seccion == SeccionDepartamento)
+            {
+                if (paisSeleccionado is null)
+                    return;
+
+                PaginaApi<DepartamentoApi>? respuesta =
+                    await Api.GetAsync<PaginaApi<DepartamentoApi>>(
+                        "api/administracion/ubicaciones/departamentos" +
+                        $"?paisId={paisSeleccionado.Id}" +
+                        $"&pagina={Math.Max(1, departamentos.PaginaActual)}" +
+                        $"&tamanoPagina={departamentos.TamanoPagina}" +
+                        $"&incluirInactivos={incluirInactivos.ToString().ToLowerInvariant()}" +
+                        $"&buscar={filtro}");
+
+                departamentos =
+                    Mapear(respuesta, DepartamentoAItem);
+            }
+            else
+            {
+                if (departamentoSeleccionado is null)
+                    return;
+
+                PaginaApi<MunicipioApi>? respuesta =
+                    await Api.GetAsync<PaginaApi<MunicipioApi>>(
+                        "api/administracion/ubicaciones/municipios" +
+                        $"?departamentoId={departamentoSeleccionado.Id}" +
+                        $"&pagina={Math.Max(1, municipios.PaginaActual)}" +
+                        $"&tamanoPagina={municipios.TamanoPagina}" +
+                        $"&incluirInactivos={incluirInactivos.ToString().ToLowerInvariant()}" +
+                        $"&buscar={filtro}");
+
+                municipios =
+                    Mapear(respuesta, MunicipioAItem);
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task BuscarAsync()
+    {
+        PaginaActual.PaginaActual = 1;
+        await CargarAsync();
+    }
+
+    private async Task LimpiarAsync()
+    {
+        buscar = string.Empty;
+        incluirInactivos = false;
+        PaginaActual.PaginaActual = 1;
+        await CargarAsync();
+    }
+
+    private async Task CambiarPaginaAsync(int pagina)
+    {
+        PaginaActual.PaginaActual = pagina;
+        await CargarAsync();
+    }
+
+    private async Task CambiarTamanoPaginaAsync(int tamano)
+    {
+        PaginaActual.TamanoPagina = tamano;
+        PaginaActual.PaginaActual = 1;
+        await CargarAsync();
+    }
+
+    private async Task AbrirDepartamentosAsync(
+        UbicacionItem pais)
+    {
+        paisSeleccionado = pais;
+        departamentoSeleccionado = null;
+        seccion = SeccionDepartamento;
+        buscar = string.Empty;
+        incluirInactivos = false;
+        departamentos.PaginaActual = 1;
+        await CargarAsync();
+    }
+
+    private async Task AbrirMunicipiosAsync(
+        UbicacionItem departamento)
+    {
+        departamentoSeleccionado = departamento;
+        seccion = SeccionMunicipio;
+        buscar = string.Empty;
+        incluirInactivos = false;
+        municipios.PaginaActual = 1;
+        await CargarAsync();
+    }
+
+    private async Task IrPaises()
+    {
+        seccion = SeccionPais;
+        paisSeleccionado = null;
+        departamentoSeleccionado = null;
+        buscar = string.Empty;
+        incluirInactivos = false;
+        await CargarAsync();
+    }
+
+    private async Task IrDepartamentos()
+    {
+        if (paisSeleccionado is null)
+            return;
+
+        seccion = SeccionDepartamento;
+        departamentoSeleccionado = null;
+        buscar = string.Empty;
+        incluirInactivos = false;
+        await CargarAsync();
+    }
+
+    private async Task IrMunicipios()
+    {
+        if (departamentoSeleccionado is null)
+            return;
+
+        seccion = SeccionMunicipio;
+        buscar = string.Empty;
+        incluirInactivos = false;
+        await CargarAsync();
+    }
+
+    private void AbrirCrear()
+    {
+        formulario = new UbicacionFormulario();
+        mostrarFormulario = true;
+        LimpiarMensajes();
+    }
+
+    private void AbrirEditar(UbicacionItem item)
+    {
+        formulario = new UbicacionFormulario
+        {
+            Id = item.Id,
+            Nombre = item.Nombre,
+            CodigoIso = item.CodigoIso
+        };
+
+        mostrarFormulario = true;
+        LimpiarMensajes();
+    }
+
+    private void CerrarFormulario()
+    {
+        if (procesando)
+            return;
+
+        mostrarFormulario = false;
+        formulario = new();
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (procesando)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            if (seccion == SeccionPais)
+            {
+                var datos = new PaisGuardar
+                {
+                    Nombre = formulario.Nombre,
+                    CodigoIso = formulario.CodigoIso
+                };
+
+                if (formulario.Id <= 0)
+                {
+                    await Api.PostAsync<
+                        PaisGuardar,
+                        RespuestaOperacion>(
+                        "api/administracion/ubicaciones/paises",
+                        datos);
+                }
+                else
+                {
+                    await Api.PutAsync<
+                        PaisGuardar,
+                        RespuestaOperacion>(
+                        $"api/administracion/ubicaciones/paises/{formulario.Id}",
+                        datos);
+                }
+            }
+            else if (seccion == SeccionDepartamento)
+            {
+                if (paisSeleccionado is null)
+                {
+                    throw new InvalidOperationException(
+                        "Debe seleccionar un país.");
+                }
+
+                var datos = new DepartamentoGuardar
+                {
+                    PaisId = paisSeleccionado.Id,
+                    Nombre = formulario.Nombre
+                };
+
+                if (formulario.Id <= 0)
+                {
+                    await Api.PostAsync<
+                        DepartamentoGuardar,
+                        RespuestaOperacion>(
+                        "api/administracion/ubicaciones/departamentos",
+                        datos);
+                }
+                else
+                {
+                    await Api.PutAsync<
+                        DepartamentoGuardar,
+                        RespuestaOperacion>(
+                        $"api/administracion/ubicaciones/departamentos/{formulario.Id}",
+                        datos);
+                }
+            }
+            else
+            {
+                if (departamentoSeleccionado is null)
+                {
+                    throw new InvalidOperationException(
+                        "Debe seleccionar un departamento.");
+                }
+
+                var datos = new MunicipioGuardar
+                {
+                    DepartamentoId =
+                        departamentoSeleccionado.Id,
+                    Nombre = formulario.Nombre
+                };
+
+                if (formulario.Id <= 0)
+                {
+                    await Api.PostAsync<
+                        MunicipioGuardar,
+                        RespuestaOperacion>(
+                        "api/administracion/ubicaciones/municipios",
+                        datos);
+                }
+                else
+                {
+                    await Api.PutAsync<
+                        MunicipioGuardar,
+                        RespuestaOperacion>(
+                        $"api/administracion/ubicaciones/municipios/{formulario.Id}",
+                        datos);
+                }
+            }
+
+            mostrarFormulario = false;
+            formulario = new();
+            await CargarAsync();
+            mensaje =
+                $"{NombreSeccion} guardado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task DesactivarAsync(
+        UbicacionItem item)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"¿Desea desactivar {item.Nombre}?");
+
+        if (!confirmar)
+            return;
+
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.EliminarAsync(
+                $"api/administracion/ubicaciones/{RutaSeccion}/{item.Id}");
+
+            await CargarAsync();
+            mensaje =
+                $"{NombreSeccion} desactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task ReactivarAsync(
+        UbicacionItem item)
+    {
+        procesando = true;
+        LimpiarMensajes();
+
+        try
+        {
+            await Api.PostSinContenidoAsync(
+                $"api/administracion/ubicaciones/{RutaSeccion}/{item.Id}/reactivar");
+
+            await CargarAsync();
+            mensaje =
+                $"{NombreSeccion} reactivado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private string RutaSeccion =>
+        seccion switch
+        {
+            SeccionDepartamento => "departamentos",
+            SeccionMunicipio => "municipios",
+            _ => "paises"
+        };
+
+    private string TextoDependencias(
+        UbicacionItem item) =>
+        seccion switch
+        {
+            SeccionPais =>
+                $"{item.CantidadDependencias} departamento(s)",
+            SeccionDepartamento =>
+                $"{item.CantidadDependencias} municipio(s)",
+            _ =>
+                $"{item.CantidadTerrenos} terreno(s) · " +
+                $"{item.CantidadUsuarios} usuario(s)"
+        };
+
+    private static PaginaUbicaciones Mapear<T>(
+        PaginaApi<T>? origen,
+        Func<T, UbicacionItem> convertidor)
+    {
+        if (origen is null)
+            return new();
+
+        return new PaginaUbicaciones
+        {
+            Items =
+                origen.Items
+                    .Select(convertidor)
+                    .ToList(),
+            PaginaActual = origen.PaginaActual,
+            TamanoPagina = origen.TamanoPagina,
+            TotalRegistros = origen.TotalRegistros,
+            TotalPaginas = origen.TotalPaginas
+        };
+    }
+
+    private static UbicacionItem PaisAItem(
+        PaisApi item) =>
+        new()
+        {
+            Id = item.PaisId,
+            Nombre = item.Nombre,
+            CodigoIso = item.CodigoIso,
+            Activo = item.Activo,
+            CantidadDependencias =
+                item.CantidadDependencias
+        };
+
+    private static UbicacionItem DepartamentoAItem(
+        DepartamentoApi item) =>
+        new()
+        {
+            Id = item.DepartamentoId,
+            Nombre = item.Nombre,
+            Activo = item.Activo,
+            CantidadDependencias =
+                item.CantidadDependencias
+        };
+
+    private static UbicacionItem MunicipioAItem(
+        MunicipioApi item) =>
+        new()
+        {
+            Id = item.MunicipioId,
+            Nombre = item.Nombre,
+            Activo = item.Activo,
+            CantidadTerrenos =
+                item.CantidadTerrenos,
+            CantidadUsuarios =
+                item.CantidadUsuarios
+        };
+
+    private void LimpiarMensajes()
+    {
+        mensaje = null;
+        error = null;
+    }
+
+    private sealed class PaginaUbicaciones
+    {
+        public List<UbicacionItem> Items { get; set; } = [];
+        public int PaginaActual { get; set; } = 1;
+        public int TamanoPagina { get; set; } = 20;
+        public int TotalRegistros { get; set; }
+        public int TotalPaginas { get; set; } = 1;
+    }
+
+    private sealed class PaginaApi<T>
+    {
+        public List<T> Items { get; set; } = [];
+        public int PaginaActual { get; set; } = 1;
+        public int TamanoPagina { get; set; } = 20;
+        public int TotalRegistros { get; set; }
+        public int TotalPaginas { get; set; } = 1;
+    }
+
+    private sealed class UbicacionItem
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public string CodigoIso { get; set; } = string.Empty;
+        public bool Activo { get; set; }
+        public int CantidadDependencias { get; set; }
+        public int CantidadTerrenos { get; set; }
+        public int CantidadUsuarios { get; set; }
+    }
+
+    private sealed class PaisApi
+    {
+        public int PaisId { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public string CodigoIso { get; set; } = string.Empty;
+        public bool Activo { get; set; }
+        public int CantidadDependencias { get; set; }
+    }
+
+    private sealed class DepartamentoApi
+    {
+        public int DepartamentoId { get; set; }
+        public int PaisId { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public bool Activo { get; set; }
+        public int CantidadDependencias { get; set; }
+    }
+
+    private sealed class MunicipioApi
+    {
+        public int MunicipioId { get; set; }
+        public int DepartamentoId { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public bool Activo { get; set; }
+        public int CantidadTerrenos { get; set; }
+        public int CantidadUsuarios { get; set; }
+    }
+
+    private sealed class UbicacionFormulario
+    {
+        public int Id { get; set; }
+
+        [Required(
+            ErrorMessage = "El nombre es obligatorio.")]
+        [MaxLength(80)]
+        public string Nombre { get; set; } = string.Empty;
+
+        [MaxLength(3)]
+        public string CodigoIso { get; set; } = string.Empty;
+    }
+
+    private sealed class PaisGuardar
+    {
+        public string Nombre { get; set; } = string.Empty;
+        public string CodigoIso { get; set; } = string.Empty;
+    }
+
+    private sealed class DepartamentoGuardar
+    {
+        public int PaisId { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+    }
+
+    private sealed class MunicipioGuardar
+    {
+        public int DepartamentoId { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+    }
+
+    private sealed class RespuestaOperacion
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+}

@@ -166,3 +166,4 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\comp
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\3ruxrx5x0b-{0}-82nqn14xh4-82nqn14xh4.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\l1ur4bi7kl-{0}-cv6pdu1rev-cv6pdu1rev.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\q2geoc1tl9-{0}-32e2uu3xp0-32e2uu3xp0.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\3ikggyh3km-{0}-br27gxeqvx-br27gxeqvx.gz

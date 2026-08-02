@@ -175,12 +175,29 @@ else
                         </NavLink>
                     }
 
-                    @if (PuedeVerTerrenos ||
+                    @if (PuedeVerReportes)
+                    {
+                        <NavLink href="/reportes">
+                            <i class="fa-solid fa-file-lines"></i>
+                            <span>Centro de reportes</span>
+                        </NavLink>
+                    }
+
+                    @if (PuedeVerPropietarios ||
+                         PuedeVerTerrenos ||
                          PuedeVerParametrizacionAcceso)
                     {
                         <div class="nav-section">
                             Propietarios y cobertura
                         </div>
+
+                        @if (PuedeVerPropietarios)
+                        {
+                            <NavLink href="/propietarios">
+                                <i class="fa-solid fa-address-card"></i>
+                                <span>Propietarios</span>
+                            </NavLink>
+                        }
 
                         @if (PuedeVerTerrenos)
                         {
@@ -262,16 +279,47 @@ else
                         }
                     }
 
-                    @if (PuedeVerAlbumBotanico)
+                    @if (PuedeVerUbicaciones)
+                    {
+                        <div class="nav-section">
+                            Catálogos generales
+                        </div>
+
+                        <NavLink href="/configuracion/ubicaciones">
+                            <i class="fa-solid fa-earth-americas"></i>
+                            <span>Ubicaciones geográficas</span>
+                        </NavLink>
+                    }
+
+                    @if (PuedeVerContenidoAdministrativo)
                     {
                         <div class="nav-section">
                             Contenido
                         </div>
 
-                        <NavLink href="/contenido/album-botanico">
-                            <i class="fa-solid fa-seedling"></i>
-                            <span>Álbum botánico</span>
-                        </NavLink>
+                        @if (PuedeAdministrarNoticias)
+                        {
+                            <NavLink href="/contenido/publicaciones">
+                                <i class="fa-solid fa-newspaper"></i>
+                                <span>Noticias y publicaciones</span>
+                            </NavLink>
+                        }
+
+                        @if (PuedeVerCategoriasPublicacion)
+                        {
+                            <NavLink href="/contenido/tipos-publicacion">
+                                <i class="fa-solid fa-tags"></i>
+                                <span>Tipos de publicación</span>
+                            </NavLink>
+                        }
+
+                        @if (PuedeVerAlbumBotanico)
+                        {
+                            <NavLink href="/contenido/album-botanico">
+                                <i class="fa-solid fa-seedling"></i>
+                                <span>Álbum botánico</span>
+                            </NavLink>
+                        }
                     }
 
                     <div class="nav-section">
@@ -479,6 +527,27 @@ else
     private const string PermisoRangosNutrientes =
         "rangoNutrientePage";
 
+    private const string PermisoPaises =
+        "paisPage";
+
+    private const string PermisoDepartamentos =
+        "departamentoPage";
+
+    private const string PermisoMunicipios =
+        "municipioPage";
+
+    private const string PermisoNoticias =
+        "noticiasPage";
+
+    private const string PermisoCategoriasPublicacion =
+        "categoriaPublicacionPage";
+
+    private const string PermisoUnidadesConversiones =
+        "unidadesConversionesPage";
+
+    private const string PermisoReportes =
+        "reportesPage";
+
     private bool menuAbierto;
     private bool monitorInactividadActivo;
     private bool cerrandoPorFaltaPermiso;
@@ -512,6 +581,44 @@ else
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
             PermisoAlbumBotanico);
+
+    private bool PuedeVerUbicaciones =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoPaises) ||
+        AuthState.TienePermisoLectura(
+            PermisoDepartamentos) ||
+        AuthState.TienePermisoLectura(
+            PermisoMunicipios);
+
+    private bool PuedeAdministrarNoticias =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoAgregar(
+            PermisoNoticias) ||
+        AuthState.TienePermisoActualizar(
+            PermisoNoticias) ||
+        AuthState.TienePermisoEliminar(
+            PermisoNoticias);
+
+    private bool PuedeVerCategoriasPublicacion =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoCategoriasPublicacion);
+
+    private bool PuedeVerContenidoAdministrativo =>
+        PuedeAdministrarNoticias ||
+        PuedeVerCategoriasPublicacion ||
+        PuedeVerAlbumBotanico;
+
+    private bool PuedeVerPropietarios =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisosWeb.Propietarios);
+
+    private bool PuedeVerReportes =>
+        AuthState.EsAdministrador ||
+        AuthState.TienePermisoLectura(
+            PermisoReportes);
 
     private bool PuedeVerTerrenos =>
         AuthState.EsAdministrador ||
@@ -550,15 +657,10 @@ else
         AuthState.TienePermisoLectura(
             PermisoRangosNutrientes);
 
-    /*
-     * Las conversiones dependen directamente de los elementos químicos.
-     * Se reutiliza temporalmente el mismo permiso para no introducir una
-     * interfaz inexistente en la matriz actual.
-     */
     private bool PuedeVerUnidadesConversiones =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
-            PermisoElementosQuimicos);
+            PermisoUnidadesConversiones);
 
     private bool PuedeVerParametrosAgronomicos =>
         PuedeVerElementosQuimicos ||
@@ -589,6 +691,11 @@ else
             PermisoReglasClima) ||
         AuthState.TienePermisoLectura(
             PermisoAlbumBotanico) ||
+        PuedeVerUbicaciones ||
+        PuedeAdministrarNoticias ||
+        PuedeVerCategoriasPublicacion ||
+        PuedeVerReportes ||
+        PuedeVerUnidadesConversiones ||
         AuthState.TienePermisoLectura(
             PermisoElementosQuimicos) ||
         AuthState.TienePermisoLectura(
@@ -635,7 +742,8 @@ else
         AuthState.TienePermisoLectura(
             PermisosWeb.AuditoriaAnalisis) ||
         AuthState.TienePermisoLectura(
-            PermisoReglasClima);
+            PermisoReglasClima) ||
+        PuedeVerReportes;
 
     private bool PuedeVerParametrizacionAcceso =>
         AuthState.TienePermisoLectura(
