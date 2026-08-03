@@ -1,0 +1,387 @@
+/* ============================================================
+   RESULTADO DEL LOGIN CON IDENTIDAD CAFETALERA
+   ============================================================ */
+
+.login-mascot-stage,
+.login-card-header {
+    position: relative;
+}
+
+/* Reserva un espacio real debajo de la mascota para evitar superposiciones. */
+.login-mascot-stage {
+    padding-bottom: 72px;
+}
+
+.login-mascot-greeting {
+    z-index: 6;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transform-origin: center;
+}
+
+.login-mascot-greeting-desktop {
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    width: min(96%, 520px);
+    min-height: 58px;
+    transform: translateX(-50%) translateY(10px) scale(0.9);
+}
+
+.login-mascot-greeting-mobile {
+    display: none;
+}
+
+.login-mascot-greeting-glow {
+    position: absolute;
+    inset: 8% 8% 0;
+    border-radius: 999px;
+    background:
+        radial-gradient(
+            circle,
+            rgba(112, 66, 20, 0.22) 0%,
+            rgba(255, 237, 204, 0.14) 46%,
+            transparent 74%);
+    filter: blur(14px);
+}
+
+.login-bean-text {
+    position: relative;
+    z-index: 1;
+    display: block;
+    text-align: center;
+    font-family: "Arial Black", "Impact", sans-serif;
+    font-size: clamp(2rem, 4vw, 3.15rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    line-height: 0.95;
+    text-transform: uppercase;
+    color: transparent;
+    background-color: #5a3417;
+    background-image:
+        radial-gradient(ellipse 13px 9px at 14px 10px, rgba(249, 214, 160, 0.88) 0 18%, transparent 19%),
+        radial-gradient(ellipse 14px 10px at 20px 18px, rgba(86, 48, 21, 0.72) 0 22%, transparent 23%),
+        radial-gradient(ellipse 16px 11px at 8px 18px, rgba(116, 66, 31, 0.82) 0 26%, transparent 27%),
+        radial-gradient(ellipse 15px 10px at 28px 8px, rgba(76, 40, 18, 0.75) 0 24%, transparent 25%),
+        linear-gradient(145deg, #8f5c2f 0%, #6b3d1d 45%, #4a2c11 100%);
+    background-size: 34px 26px;
+    background-position: 0 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    text-shadow:
+        0 2px 0 rgba(255, 232, 196, 0.14),
+        0 8px 16px rgba(44, 22, 8, 0.16);
+    filter: drop-shadow(0 10px 20px rgba(44, 22, 8, 0.14));
+}
+
+.login-mascot-greeting.is-error .login-bean-text {
+    font-size: clamp(1.5rem, 3.15vw, 2.45rem);
+    letter-spacing: 0.025em;
+    background-color: #652c1d;
+    background-image:
+        radial-gradient(ellipse 13px 9px at 14px 10px, rgba(255, 205, 158, 0.78) 0 18%, transparent 19%),
+        radial-gradient(ellipse 14px 10px at 20px 18px, rgba(102, 44, 29, 0.78) 0 22%, transparent 23%),
+        radial-gradient(ellipse 16px 11px at 8px 18px, rgba(133, 59, 36, 0.82) 0 26%, transparent 27%),
+        radial-gradient(ellipse 15px 10px at 28px 8px, rgba(78, 31, 21, 0.78) 0 24%, transparent 25%),
+        linear-gradient(145deg, #9a5134 0%, #713521 46%, #4b2118 100%);
+    background-size: 34px 26px;
+}
+
+.login-mascot-greeting.is-error .login-mascot-greeting-glow {
+    background:
+        radial-gradient(
+            circle,
+            rgba(132, 55, 35, 0.22) 0%,
+            rgba(255, 222, 196, 0.12) 46%,
+            transparent 74%);
+}
+
+.login-mascot-greeting.is-visible {
+    visibility: visible;
+    animation:
+        loginMascotGreetingReveal
+        900ms
+        cubic-bezier(.18, .82, .24, 1)
+        forwards;
+}
+
+.login-mascot-greeting.is-error.is-visible {
+    animation:
+        loginMascotGreetingRetry
+        1350ms
+        cubic-bezier(.18, .82, .24, 1)
+        forwards;
+}
+
+/* Estados del botón principal. */
+.login-submit.is-success,
+.login-submit.is-success:disabled {
+    border-color: #2f6f56;
+    background: linear-gradient(135deg, #3b8064, #2f6955);
+    color: #fff;
+    box-shadow: 0 14px 30px rgba(47, 105, 85, 0.28);
+    opacity: 1;
+}
+
+.login-submit.is-error {
+    border-color: rgba(140, 58, 38, 0.24);
+    background: linear-gradient(135deg, #8d4936, #703426);
+    color: #fff;
+    box-shadow: 0 12px 26px rgba(112, 52, 38, 0.20);
+}
+
+.login-submit.is-success i {
+    animation: loginAccessCheck 520ms cubic-bezier(.2, .9, .25, 1.2) both;
+}
+
+/* El error se concentra en la contraseña para orientar el siguiente intento. */
+.login-page.has-error #clave {
+    border-color: rgba(177, 76, 52, 0.72);
+    box-shadow: 0 0 0 4px rgba(177, 76, 52, 0.10);
+}
+
+.login-page.has-error .login-field-password .input-with-icon > i {
+    color: #a64f38;
+}
+
+/* Reacciones breves, no continuas. */
+.login-page.is-login-success .login-mascot {
+    animation: loginMascotCelebrate 760ms cubic-bezier(.2, .9, .25, 1.15) both !important;
+}
+
+.login-page.is-login-error .login-card {
+    animation: loginCardAuthError 480ms cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes loginMascotGreetingReveal {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(12px) scale(0.84);
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    72% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-5px) scale(1.02);
+    }
+}
+
+@keyframes loginMascotGreetingRetry {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(8px) scale(0.92);
+    }
+
+    15% {
+        opacity: 1;
+        transform: translateX(calc(-50% - 6px)) translateY(0) scale(1);
+    }
+
+    23% {
+        transform: translateX(calc(-50% + 5px)) translateY(0) scale(1);
+    }
+
+    31% {
+        transform: translateX(calc(-50% - 3px)) translateY(0) scale(1);
+    }
+
+    70% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-5px) scale(1.01);
+    }
+}
+
+@keyframes loginMascotGreetingRevealMobile {
+    0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.86);
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    72% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-4px) scale(1.02);
+    }
+}
+
+@keyframes loginMascotGreetingRetryMobile {
+    0% {
+        opacity: 0;
+        transform: translateX(0) translateY(8px) scale(0.92);
+    }
+
+    15% {
+        opacity: 1;
+        transform: translateX(-6px) translateY(0) scale(1);
+    }
+
+    23% {
+        transform: translateX(5px) translateY(0) scale(1);
+    }
+
+    31% {
+        transform: translateX(-3px) translateY(0) scale(1);
+    }
+
+    70% {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(0) translateY(-4px) scale(1.01);
+    }
+}
+
+@keyframes loginMascotCelebrate {
+    0% {
+        transform: translateY(0) rotate(0) scale(1);
+    }
+
+    28% {
+        transform: translateY(-10px) rotate(-2deg) scale(1.025);
+    }
+
+    54% {
+        transform: translateY(-4px) rotate(2deg) scale(1.015);
+    }
+
+    78% {
+        transform: translateY(-7px) rotate(-1deg) scale(1.02);
+    }
+
+    100% {
+        transform: translateY(0) rotate(0) scale(1);
+    }
+}
+
+@keyframes loginCardAuthError {
+    0%, 100% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-7px);
+    }
+
+    40% {
+        transform: translateX(6px);
+    }
+
+    60% {
+        transform: translateX(-4px);
+    }
+
+    80% {
+        transform: translateX(3px);
+    }
+}
+
+@keyframes loginAccessCheck {
+    0% {
+        opacity: 0;
+        transform: scale(0.5) rotate(-18deg);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0);
+    }
+}
+
+@media (max-width: 991px) {
+    .login-mascot-stage {
+        padding-bottom: 62px;
+    }
+
+    .login-mascot-greeting-desktop {
+        width: min(94%, 430px);
+        min-height: 52px;
+    }
+
+    .login-bean-text {
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+    }
+
+    .login-mascot-greeting.is-error .login-bean-text {
+        font-size: clamp(1.3rem, 3.2vw, 1.95rem);
+    }
+}
+
+@media (max-width: 767px) {
+    .login-mascot-stage {
+        padding-bottom: 0;
+    }
+
+    .login-mascot-greeting-desktop {
+        display: none;
+    }
+
+    .login-mascot-greeting-mobile {
+        position: relative;
+        display: grid;
+        width: min(88vw, 320px);
+        min-height: 44px;
+        margin: 4px auto 9px;
+        transform: translateY(8px) scale(0.9);
+    }
+
+    .login-mascot-greeting-mobile.is-visible {
+        animation-name: loginMascotGreetingRevealMobile;
+    }
+
+    .login-mascot-greeting-mobile.is-error.is-visible {
+        animation-name: loginMascotGreetingRetryMobile;
+    }
+
+    .login-bean-text {
+        font-size: clamp(1.38rem, 6.8vw, 2.05rem);
+        letter-spacing: 0.04em;
+    }
+
+    .login-mascot-greeting.is-error .login-bean-text {
+        font-size: clamp(1rem, 5.1vw, 1.5rem);
+        letter-spacing: 0.012em;
+    }
+
+    .login-password-safety {
+        max-width: 240px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .login-mascot-greeting {
+        display: none;
+    }
+
+    .login-page.is-login-success .login-mascot,
+    .login-page.is-login-error .login-card,
+    .login-submit.is-success i {
+        animation: none !important;
+    }
+}

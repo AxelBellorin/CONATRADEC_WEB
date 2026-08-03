@@ -1,10 +1,21 @@
 @page "/error"
 
-<PageTitle>Error | CONATRADEC</PageTitle>
+<PageTitle>No fue posible completar la operación | CONATRADEC</PageTitle>
 
-<div class="empty-state">
+<div class="empty-state"
+     role="alert"
+     aria-live="assertive">
     <i class="fa-solid fa-circle-exclamation"></i>
-    <h1>Ocurrió un error</h1>
-    <p>No fue posible completar la operación. Intenta nuevamente.</p>
-    <a class="btn-primary" href="/">Volver al dashboard</a>
+
+    <h1>No fue posible completar la operación</h1>
+
+    <p>
+        Ocurrió un inconveniente al procesar la solicitud.
+        Intenta nuevamente o regresa al inicio.
+    </p>
+
+    <a class="btn-primary"
+       href="/">
+        Volver al inicio
+    </a>
 </div>

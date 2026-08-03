@@ -352,18 +352,36 @@ public sealed class ApiClientService : IDisposable
             }
         }
 
-        HttpResponseMessage response =
-            await httpClient.SendAsync(
-                request,
-                cancellationToken);
-
-        if (versionActividad > 0)
+        try
         {
-            actividad.Confirmar(
-                versionActividad);
-        }
+            HttpResponseMessage response =
+                await httpClient.SendAsync(
+                    request,
+                    cancellationToken);
 
-        return response;
+            if (versionActividad > 0)
+            {
+                actividad.Confirmar(
+                    versionActividad);
+            }
+
+            return response;
+        }
+        catch (TaskCanceledException ex)
+            when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new HttpRequestException(
+                "La solicitud tardó más de lo esperado. " +
+                "Verifica tu conexión e intenta nuevamente.",
+                ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new HttpRequestException(
+                "No fue posible comunicarse con el servicio. " +
+                "Verifica tu conexión e intenta nuevamente.",
+                ex);
+        }
     }
 
     private static void AgregarEncabezados(
@@ -425,7 +443,7 @@ public sealed class ApiClientService : IDisposable
             await response.Content.ReadAsStringAsync(
                 cancellationToken);
 
-        string mensaje =
+        string mensajeBackend =
             ExtraerMensaje(contenido);
 
         if (EsSesionInvalidada(
@@ -437,7 +455,63 @@ public sealed class ApiClientService : IDisposable
                 EventArgs.Empty);
 
             throw new UnauthorizedAccessException(
-                mensaje);
+                "Tu sesión venció o fue cerrada. " +
+                "Inicia sesión nuevamente.");
+        }
+
+        string mensajeUsuario;
+
+        if ((int)response.StatusCode >= 500)
+        {
+            mensajeUsuario =
+                "El servicio no pudo completar la solicitud en este momento. " +
+                "Intenta nuevamente más tarde.";
+        }
+        else
+        {
+            mensajeUsuario =
+                response.StatusCode switch
+                {
+                    HttpStatusCode.Unauthorized =>
+                        "No fue posible validar tu sesión. " +
+                        "Inicia sesión nuevamente.",
+
+                    HttpStatusCode.Forbidden =>
+                        "No tienes permiso para realizar esta acción.",
+
+                    HttpStatusCode.NotFound =>
+                        "No se encontró la información solicitada.",
+
+                    HttpStatusCode.Conflict =>
+                        NormalizarMensaje(
+                            mensajeBackend,
+                            "No fue posible completar la operación porque " +
+                            "el registro está relacionado con otra información."),
+
+                    HttpStatusCode.BadRequest =>
+                        NormalizarMensaje(
+                            mensajeBackend,
+                            "Revisa la información ingresada e intenta nuevamente."),
+
+                    HttpStatusCode.UnprocessableEntity =>
+                        NormalizarMensaje(
+                            mensajeBackend,
+                            "Revisa los datos del formulario e intenta nuevamente."),
+
+                    HttpStatusCode.TooManyRequests =>
+                        "Se realizaron demasiadas solicitudes. " +
+                        "Espera un momento e intenta nuevamente.",
+
+                    HttpStatusCode.RequestTimeout =>
+                        "La solicitud tardó más de lo esperado. " +
+                        "Intenta nuevamente.",
+
+                    _ =>
+                        NormalizarMensaje(
+                            mensajeBackend,
+                            "No fue posible completar la operación. " +
+                            "Intenta nuevamente.")
+                };
         }
 
         if (response.StatusCode is
@@ -445,11 +519,11 @@ public sealed class ApiClientService : IDisposable
             HttpStatusCode.Forbidden)
         {
             throw new UnauthorizedAccessException(
-                mensaje);
+                mensajeUsuario);
         }
 
         throw new HttpRequestException(
-            mensaje,
+            mensajeUsuario,
             null,
             response.StatusCode);
     }
@@ -496,7 +570,7 @@ public sealed class ApiClientService : IDisposable
     {
         if (string.IsNullOrWhiteSpace(contenido))
         {
-            return "La API no devolvió detalles del error.";
+            return "No fue posible completar la solicitud.";
         }
 
         try
@@ -552,7 +626,7 @@ public sealed class ApiClientService : IDisposable
                 if (usos.Length > 0)
                 {
                     string detalle =
-                        " Utilizado en: " +
+                        " Este registro se utiliza en: " +
                         string.Join(", ", usos) +
                         ".";
 
@@ -610,10 +684,50 @@ public sealed class ApiClientService : IDisposable
         }
         catch (JsonException)
         {
-            // La API también puede devolver texto plano.
+            // El servicio también puede devolver texto plano.
         }
 
         return contenido.Trim('"');
+    }
+
+    private static string NormalizarMensaje(
+        string? mensaje,
+        string mensajeAlternativo)
+    {
+        if (string.IsNullOrWhiteSpace(mensaje))
+            return mensajeAlternativo;
+
+        string texto = mensaje.Trim();
+
+        string[] indicadoresTecnicos =
+        [
+            "exception",
+            "stack trace",
+            "inner exception",
+            "system.",
+            "microsoft.",
+            "sql",
+            "database",
+            "endpoint",
+            "http://",
+            "https://",
+            " at ",
+            "line ",
+            "token:",
+            "jwt",
+            "null reference"
+        ];
+
+        bool pareceTecnico =
+            indicadoresTecnicos.Any(indicador =>
+                texto.Contains(
+                    indicador,
+                    StringComparison.OrdinalIgnoreCase));
+
+        if (pareceTecnico || texto.Length > 420)
+            return mensajeAlternativo;
+
+        return texto;
     }
 
     public void Dispose()

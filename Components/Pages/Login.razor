@@ -1,4 +1,5 @@
 @page "/login"
+@implements IAsyncDisposable
 @inject AuthStateService AuthState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -57,6 +58,12 @@
                      alt="" />
 
                 <span class="mascot-ground-shadow"></span>
+
+                <div class="login-mascot-greeting login-mascot-greeting-desktop"
+                     aria-hidden="true">
+                    <span class="login-mascot-greeting-glow"></span>
+                    <span class="login-bean-text">Bienvenido</span>
+                </div>
             </div>
         </div>
     </section>
@@ -70,6 +77,12 @@
                          height="734"
                          alt="Mascota de CONATRADEC" />
                 </span>
+
+                <div class="login-mascot-greeting login-mascot-greeting-mobile"
+                     aria-hidden="true">
+                    <span class="login-mascot-greeting-glow"></span>
+                    <span class="login-bean-text">Bienvenido</span>
+                </div>
 
                 <p class="eyebrow">
                     Portal administrativo
@@ -111,6 +124,7 @@
                                    class="form-control"
                                    autocomplete="username"
                                    disabled="@procesando"
+                                   @oninput="LimpiarEstadoAlEditarAsync"
                                    @bind-Value="modelo.UsuarioOEmail"
                                    placeholder="Escribe tu usuario o correo" />
                     </div>
@@ -133,6 +147,7 @@
                                    class="form-control"
                                    autocomplete="current-password"
                                    disabled="@procesando"
+                                   @oninput="LimpiarEstadoAlEditarAsync"
                                    @bind-Value="modelo.Clave"
                                    placeholder="Escribe tu contraseña" />
 
@@ -155,24 +170,34 @@
                     <label class="login-remember">
                         <InputCheckbox
                             disabled="@procesando"
-                            @bind-Value="recordarCredenciales" />
+                            @bind-Value="recordarUsuario" />
 
-                        <span>Recordar credenciales</span>
+                        <span>Recordar usuario</span>
                     </label>
 
                     <span class="login-password-safety">
                         <i class="fa-solid fa-shield-halved"></i>
-                        Protegidas por el navegador
+                        La contraseña no se guarda aquí
                     </span>
                 </div>
 
                 <button type="submit"
-                        class="btn-primary btn-block login-submit"
+                        class="@ClaseBotonLogin"
                         disabled="@procesando">
-                    @if (procesando)
+                    @if (accesoConcedido)
+                    {
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Acceso concedido</span>
+                    }
+                    else if (procesando)
                     {
                         <span class="spinner"></span>
                         <span>Validando...</span>
+                    }
+                    else if (autenticacionFallida)
+                    {
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>Intentar nuevamente</span>
                     }
                     else
                     {
@@ -199,7 +224,9 @@
 
     private bool procesando;
     private bool mostrarClave;
-    private bool recordarCredenciales;
+    private bool recordarUsuario;
+    private bool accesoConcedido;
+    private bool autenticacionFallida;
     private string saludo = "Bienvenido";
     private string? error;
 
@@ -220,7 +247,16 @@
 
     private string ClasePagina =>
         $"login-page{(procesando ? " is-processing" : string.Empty)}" +
-        $"{(!string.IsNullOrWhiteSpace(error) ? " has-error" : string.Empty)}";
+        $"{(autenticacionFallida ? " has-error" : string.Empty)}" +
+        $"{(accesoConcedido ? " has-success" : string.Empty)}";
+
+    private string ClaseBotonLogin =>
+        "btn-primary btn-block login-submit" +
+        (accesoConcedido
+            ? " is-success"
+            : autenticacionFallida
+                ? " is-error"
+                : string.Empty);
 
     protected override async Task OnAfterRenderAsync(
         bool firstRender)
@@ -242,28 +278,17 @@
                         : contexto.Saludo;
             }
 
-            CredencialNavegadorWeb? credencial =
-                await JS.InvokeAsync<CredencialNavegadorWeb>(
-                    "conatradecBrowser.getSavedCredentials");
+            string? usuarioRecordado =
+                await JS.InvokeAsync<string?>(
+                    "conatradecBrowser.getRememberedLogin");
 
-            if (credencial is not null &&
-                credencial.Encontrada)
+            if (!string.IsNullOrWhiteSpace(
+                    usuarioRecordado))
             {
-                if (!string.IsNullOrWhiteSpace(
-                        credencial.Usuario))
-                {
-                    modelo.UsuarioOEmail =
-                        credencial.Usuario.Trim();
-                }
+                modelo.UsuarioOEmail =
+                    usuarioRecordado.Trim();
 
-                if (!string.IsNullOrEmpty(
-                        credencial.Clave))
-                {
-                    modelo.Clave =
-                        credencial.Clave;
-
-                    recordarCredenciales = true;
-                }
+                recordarUsuario = true;
             }
         }
         catch
@@ -271,6 +296,20 @@
             /*
              * El formulario continúa funcionando aunque el navegador no
              * permita consultar su administrador de contraseñas.
+             */
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecCoffeeTrail.init",
+                ".login-page");
+        }
+        catch
+        {
+            /*
+             * El mensaje animado es decorativo. Un navegador sin soporte
+             * para la animación no debe impedir que el usuario inicie sesión.
              */
         }
 
@@ -289,7 +328,11 @@
             return;
 
         procesando = true;
+        accesoConcedido = false;
+        autenticacionFallida = false;
         error = null;
+
+        await LimpiarMensajeMascotaAsync();
 
         try
         {
@@ -299,11 +342,33 @@
 
             if (!resultado.Exitoso)
             {
-                error = resultado.Mensaje;
+                autenticacionFallida = true;
+                error =
+                    "Usuario o contraseña incorrectos.";
+
+                procesando = false;
+                await InvokeAsync(StateHasChanged);
+
+                await MostrarMensajeMascotaAsync(
+                    "error");
+
+                await EnfocarClaveAsync();
                 return;
             }
 
-            await GuardarCredencialesAsync();
+            accesoConcedido = true;
+            await InvokeAsync(StateHasChanged);
+
+            await GuardarUsuarioRecordadoAsync();
+
+            bool animacionMostrada =
+                await MostrarMensajeMascotaAsync(
+                    "success");
+
+            if (animacionMostrada)
+            {
+                await Task.Delay(850);
+            }
 
             Navigation.NavigateTo(
                 "/",
@@ -312,38 +377,131 @@
         }
         catch (Exception ex)
         {
+            Console.Error.WriteLine(
+                $"Error al iniciar sesión en el portal web: {ex}");
+
+            autenticacionFallida = true;
             error =
-                "No fue posible completar el inicio de sesión. " +
-                ex.Message;
+                "No fue posible iniciar sesión. " +
+                "Verifica tu conexión e intenta nuevamente.";
+
+            procesando = false;
+            await InvokeAsync(StateHasChanged);
+
+            await MostrarMensajeMascotaAsync(
+                "error");
+
+            await EnfocarClaveAsync();
         }
         finally
         {
-            procesando = false;
+            if (!accesoConcedido)
+                procesando = false;
         }
     }
 
-    private async Task GuardarCredencialesAsync()
+    private async Task LimpiarEstadoAlEditarAsync(
+        ChangeEventArgs _)
+    {
+        if (procesando ||
+            (!autenticacionFallida &&
+             string.IsNullOrWhiteSpace(error)))
+        {
+            return;
+        }
+
+        autenticacionFallida = false;
+        error = null;
+
+        await LimpiarMensajeMascotaAsync();
+    }
+
+    private async Task<bool> MostrarMensajeMascotaAsync(
+        string resultado)
     {
         try
         {
-            if (recordarCredenciales)
+            return await JS.InvokeAsync<bool>(
+                "conatradecCoffeeTrail.show",
+                resultado);
+        }
+        catch
+        {
+            /*
+             * El mensaje de la mascota es decorativo. Si el navegador no
+             * puede mostrarlo, el inicio de sesión continúa normalmente.
+             */
+            return false;
+        }
+    }
+
+    private async Task LimpiarMensajeMascotaAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecCoffeeTrail.clear");
+        }
+        catch
+        {
+            /*
+             * La limpieza visual no debe afectar el formulario.
+             */
+        }
+    }
+
+    private async Task EnfocarClaveAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecCoffeeTrail.focusPassword");
+        }
+        catch
+        {
+            /*
+             * El enfoque automático es una mejora de usabilidad opcional.
+             */
+        }
+    }
+
+    private async Task GuardarUsuarioRecordadoAsync()
+    {
+        try
+        {
+            if (recordarUsuario)
             {
-                await JS.InvokeAsync<bool>(
-                    "conatradecBrowser.saveCredentials",
-                    modelo.UsuarioOEmail,
-                    modelo.Clave);
+                await JS.InvokeVoidAsync(
+                    "conatradecBrowser.setRememberedLogin",
+                    modelo.UsuarioOEmail);
             }
             else
             {
                 await JS.InvokeVoidAsync(
-                    "conatradecBrowser.clearSavedCredentials");
+                    "conatradecBrowser.clearRememberedLogin");
             }
         }
         catch
         {
             /*
-             * El inicio de sesión ya fue correcto. Un problema del
-             * administrador de contraseñas no debe impedir la navegación.
+             * El inicio de sesión ya fue correcto. Recordar el usuario es
+             * opcional y nunca debe impedir la navegación.
+             */
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecCoffeeTrail.dispose");
+        }
+        catch
+        {
+            /*
+             * La conexión de Blazor puede haberse cerrado antes de que el
+             * componente termine de liberarse.
              */
         }
     }
