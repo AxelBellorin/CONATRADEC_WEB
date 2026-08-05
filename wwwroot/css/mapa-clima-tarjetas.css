@@ -1,0 +1,212 @@
+/*
+ * CONATRADEC
+ * Clima mostrado únicamente dentro de fichas y tooltips.
+ * No aplica superficies de calor sobre el mapa.
+ */
+
+.geo-climate-card {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px;
+    min-width: 240px;
+    border: 1px solid rgba(59, 101, 91, 0.16);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+    color: #18312a;
+}
+
+.geo-climate-card.compact {
+    min-width: 220px;
+    padding: 10px;
+    margin-top: 9px;
+    gap: 6px;
+    box-shadow: none;
+}
+
+.geo-climate-card-heading {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+}
+
+.geo-climate-card-icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #e8f4f0;
+    color: #2f6f61;
+}
+
+.geo-climate-card-copy {
+    display: grid;
+    min-width: 0;
+}
+
+.geo-climate-card-copy small {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.geo-climate-card-copy strong {
+    color: #172b25;
+    font-size: 18px;
+    line-height: 1.15;
+}
+
+.geo-climate-card-heading > b {
+    padding: 5px 7px;
+    border-radius: 999px;
+    background: #eef5f2;
+    color: #315f55;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.geo-climate-gradient,
+.geo-climate-inline-gradient > div {
+    position: relative;
+    height: 9px;
+    border-radius: 999px;
+    background:
+        linear-gradient(
+            90deg,
+            #2457c5 0%,
+            #24a7d8 22%,
+            #2dbb75 44%,
+            #f2c94c 64%,
+            #f17b31 82%,
+            #bd1e2d 100%);
+    box-shadow:
+        inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.geo-climate-card.humidity .geo-climate-gradient,
+.geo-climate-inline-gradient.humidity > div {
+    background:
+        linear-gradient(
+            90deg,
+            #d9b382 0%,
+            #7fc8a9 35%,
+            #42a5c6 58%,
+            #2878b5 78%,
+            #153e75 100%);
+}
+
+.geo-climate-card.rain .geo-climate-gradient,
+.geo-climate-inline-gradient.rain > div {
+    background:
+        linear-gradient(
+            90deg,
+            #edf8ff 0%,
+            #86d6f2 32%,
+            #3182ce 58%,
+            #2448a8 80%,
+            #4a148c 100%);
+}
+
+.geo-climate-card.wind .geo-climate-gradient,
+.geo-climate-inline-gradient.wind > div {
+    background:
+        linear-gradient(
+            90deg,
+            #d7f5ef 0%,
+            #54c6b2 34%,
+            #f2c94c 58%,
+            #f18f3b 80%,
+            #c0392b 100%);
+}
+
+.geo-climate-gradient > i,
+.geo-climate-inline-gradient > div > i {
+    position: absolute;
+    top: 50%;
+    left: var(--climate-position);
+    width: 15px;
+    height: 15px;
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+    background: #173c33;
+    box-shadow:
+        0 2px 7px rgba(15, 23, 42, 0.32);
+    transform: translate(-50%, -50%);
+}
+
+.geo-climate-scale {
+    display: flex;
+    justify-content: space-between;
+    color: #64748b;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.geo-climate-card-meta {
+    display: grid;
+    gap: 2px;
+    padding-top: 4px;
+    border-top: 1px solid #e8eeeb;
+    color: #64748b;
+    font-size: 10px;
+}
+
+.geo-climate-inline-gradient {
+    display: grid;
+    gap: 5px;
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(100, 116, 139, 0.18);
+}
+
+.geo-climate-inline-gradient > div {
+    height: 8px;
+}
+
+.geo-climate-inline-gradient > span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: #64748b;
+}
+
+.geo-climate-inline-gradient > span small {
+    font-size: 9px;
+}
+
+.geo-climate-inline-gradient > span b {
+    color: #315f55;
+    font-size: 10px;
+}
+
+.department-tooltip .geo-climate-card,
+.municipality-tooltip .geo-climate-card,
+.geo-summary-tooltip-container .geo-climate-card {
+    margin-bottom: 2px;
+}
+
+.leaflet-tooltip .geo-climate-card {
+    pointer-events: none;
+}
+
+@media (max-width: 760px) {
+    .geo-climate-card {
+        min-width: 210px;
+    }
+
+    .geo-climate-card-heading {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .geo-climate-card-heading > b {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+}

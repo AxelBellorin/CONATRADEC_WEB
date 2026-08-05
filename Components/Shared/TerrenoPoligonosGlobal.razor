@@ -1,36 +1,101 @@
-@implements IDisposable
+@implements IAsyncDisposable
 @inject AuthStateService AuthState
 @inject ApiClientService Api
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
 @code {
-    private bool cargando;
+    private const string ElementIdMapaNacional = "mapaTerrenos";
+    private const string ElementIdMapaPropietario = "mapaTerrenosPropietario";
+    private const int ZoomMinimoPoligonos = 13;
+    private const int LimitePoligonos = 900;
+    private static readonly TimeSpan VigenciaCachePropietario =
+        TimeSpan.FromSeconds(30);
+
+    private bool cargandoGlobal;
+    private bool disposed;
+    private List<TerrenoPoligonoWeb>? poligonosPropietarioCache;
+    private DateTime poligonosPropietarioCacheUtc;
+    private DotNetObjectReference<TerrenoPoligonosGlobal>? referenciaDotNet;
 
     protected override void OnInitialized()
     {
+        referenciaDotNet = DotNetObjectReference.Create(this);
         Navigation.LocationChanged += UbicacionCambiada;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
-            await CargarAsync();
+            await ConfigurarRutaActualAsync();
     }
 
     private async void UbicacionCambiada(
         object? sender,
         Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args)
     {
-        await InvokeAsync(CargarAsync);
+        try
+        {
+            await InvokeAsync(ConfigurarRutaActualAsync);
+        }
+        catch (ObjectDisposedException)
+        {
+            // La navegación finalizó el componente.
+        }
     }
 
-    private async Task CargarAsync()
+    private async Task ConfigurarRutaActualAsync()
     {
-        if (!AuthState.IsAuthenticated || cargando)
+        if (disposed || !AuthState.IsAuthenticated)
             return;
 
-        cargando = true;
+        if (EsMapaNacional)
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoPoligonosMapa.desconfigurarCargaDinamica",
+                ElementIdMapaPropietario);
+
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoPoligonosMapa.configurarCargaDinamica",
+                ElementIdMapaNacional,
+                referenciaDotNet,
+                ZoomMinimoPoligonos);
+
+            return;
+        }
+
+        if (EsMapaPropietario)
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoPoligonosMapa.desconfigurarCargaDinamica",
+                ElementIdMapaNacional);
+
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoPoligonosMapa.configurarCargaDinamica",
+                ElementIdMapaPropietario,
+                referenciaDotNet,
+                ZoomMinimoPoligonos);
+
+            return;
+        }
+
+        await JS.InvokeVoidAsync(
+            "conatradecTerrenoPoligonosMapa.desconfigurarCargaDinamica",
+            ElementIdMapaNacional);
+
+        await JS.InvokeVoidAsync(
+            "conatradecTerrenoPoligonosMapa.desconfigurarCargaDinamica",
+            ElementIdMapaPropietario);
+
+        await CargarPoligonosGlobalesAsync();
+    }
+
+    private async Task CargarPoligonosGlobalesAsync()
+    {
+        if (cargandoGlobal || disposed)
+            return;
+
+        cargandoGlobal = true;
 
         try
         {
@@ -51,23 +116,153 @@
         }
         catch
         {
-            // Si el módulo no está instalado, los mapas siguen usando puntos.
             await JS.InvokeVoidAsync(
                 "conatradecTerrenoPoligonosMapa.establecerPoligonos",
                 Array.Empty<TerrenoPoligonoWeb>());
         }
         finally
         {
-            cargando = false;
+            cargandoGlobal = false;
         }
     }
 
-    private bool EsRutaPropietario =>
+    [JSInvokable]
+    public async Task<List<TerrenoPoligonoWeb>> ObtenerPoligonosMapa(
+        double sur,
+        double norte,
+        double oeste,
+        double este,
+        int zoom,
+        string? departamento,
+        string? municipio)
+    {
+        if (disposed)
+            return [];
+
+        if (EsMapaNacional && PuedeConsultarAdministracion)
+        {
+            var parametros = new List<string>
+            {
+                FormattableString.Invariant($"sur={sur:0.########}"),
+                FormattableString.Invariant($"norte={norte:0.########}"),
+                FormattableString.Invariant($"oeste={oeste:0.########}"),
+                FormattableString.Invariant($"este={este:0.########}"),
+                $"zoom={Math.Clamp(zoom, 0, 22)}",
+                $"limite={LimitePoligonos}"
+            };
+
+            if (!string.IsNullOrWhiteSpace(departamento))
+            {
+                parametros.Add(
+                    "departamento=" +
+                    Uri.EscapeDataString(departamento.Trim()));
+            }
+
+            if (!string.IsNullOrWhiteSpace(municipio))
+            {
+                parametros.Add(
+                    "municipio=" +
+                    Uri.EscapeDataString(municipio.Trim()));
+            }
+
+            string ruta =
+                "api/terreno-poligono/mapa-visible?" +
+                string.Join("&", parametros);
+
+            return await Api.GetAsync<List<TerrenoPoligonoWeb>>(ruta) ?? [];
+        }
+
+        if (EsMapaPropietario)
+        {
+            List<TerrenoPoligonoWeb> poligonos =
+                await ObtenerPoligonosPropietarioAsync();
+
+            return poligonos
+                .Where(item => IntersecaVista(
+                    item,
+                    sur,
+                    norte,
+                    oeste,
+                    este))
+                .Take(LimitePoligonos)
+                .ToList();
+        }
+
+        return [];
+    }
+
+    private async Task<List<TerrenoPoligonoWeb>>
+        ObtenerPoligonosPropietarioAsync()
+    {
+        bool cacheVigente =
+            poligonosPropietarioCache is not null &&
+            DateTime.UtcNow - poligonosPropietarioCacheUtc <
+                VigenciaCachePropietario;
+
+        if (cacheVigente)
+            return poligonosPropietarioCache!;
+
+        poligonosPropietarioCache =
+            await Api.GetAsync<List<TerrenoPoligonoWeb>>(
+                "api/terreno-poligono/mis-terrenos") ?? [];
+
+        poligonosPropietarioCacheUtc = DateTime.UtcNow;
+        return poligonosPropietarioCache;
+    }
+
+    private static bool IntersecaVista(
+        TerrenoPoligonoWeb poligono,
+        double sur,
+        double norte,
+        double oeste,
+        double este)
+    {
+        var latitudes = new List<double>
+        {
+            (double)poligono.LatitudPunto
+        };
+
+        var longitudes = new List<double>
+        {
+            (double)poligono.LongitudPunto
+        };
+
+        foreach (TerrenoPoligonoVerticeWeb vertice in poligono.Vertices)
+        {
+            latitudes.Add((double)vertice.Latitud);
+            longitudes.Add((double)vertice.Longitud);
+        }
+
+        double minimoLatitud = latitudes.Min();
+        double maximoLatitud = latitudes.Max();
+        double minimoLongitud = longitudes.Min();
+        double maximoLongitud = longitudes.Max();
+
+        return maximoLatitud >= sur &&
+               minimoLatitud <= norte &&
+               maximoLongitud >= oeste &&
+               minimoLongitud <= este;
+    }
+
+    private bool EsMapaNacional =>
+        RutaActual.Equals(
+            "mapa",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool EsMapaPropietario =>
+        RutaActual.Equals(
+            "mi-portal/centro-geoespacial",
+            StringComparison.OrdinalIgnoreCase);
+
+    private string RutaActual =>
         Navigation
             .ToBaseRelativePath(Navigation.Uri)
-            .StartsWith(
-                "mi-portal",
-                StringComparison.OrdinalIgnoreCase);
+            .Trim('/');
+
+    private bool EsRutaPropietario =>
+        RutaActual.StartsWith(
+            "mi-portal",
+            StringComparison.OrdinalIgnoreCase);
 
     private bool PuedeConsultarAdministracion =>
         AuthState.EsAdministrador ||
@@ -75,8 +270,26 @@
         AuthState.TienePermisoLectura("TerrenoPage") ||
         AuthState.TienePermisoLectura("MapaTerrenosWeb");
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        disposed = true;
         Navigation.LocationChanged -= UbicacionCambiada;
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoPoligonosMapa.desconfigurarCargaDinamica",
+                ElementIdMapaNacional);
+
+            await JS.InvokeVoidAsync(
+                "conatradecTerrenoPoligonosMapa.desconfigurarCargaDinamica",
+                ElementIdMapaPropietario);
+        }
+        catch (JSDisconnectedException)
+        {
+            // El circuito de Blazor ya se cerró.
+        }
+
+        referenciaDotNet?.Dispose();
     }
 }
