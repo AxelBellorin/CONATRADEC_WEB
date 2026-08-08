@@ -1,0 +1,72 @@
+@implements IAsyncDisposable
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@code {
+    private bool disposed;
+
+    private bool PuedeInspeccion =>
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.DiagnosticoSolicitud) ||
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.DiagnosticoAnalizador) ||
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.DiagnosticoAprobador);
+
+    private bool PuedeControl =>
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.ControlFitosanitario);
+
+    private bool PuedeConfiguracion =>
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.DiagnosticoConfiguracion);
+
+    protected override void OnInitialized()
+    {
+        AuthState.EstadoCambiado += EstadoCambiado;
+        Navigation.LocationChanged += LocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (disposed)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "conatradecFitosanitarioMenu.sync",
+                AuthState.IsAuthenticated && PuedeInspeccion,
+                AuthState.IsAuthenticated && PuedeControl,
+                AuthState.IsAuthenticated && PuedeConfiguracion,
+                Navigation.ToBaseRelativePath(Navigation.Uri));
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+            // El circuito todavía puede estar terminando de conectarse.
+        }
+    }
+
+    private void EstadoCambiado(object? sender, EventArgs e)
+    {
+        if (disposed)
+            return;
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void LocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (disposed)
+            return;
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        disposed = true;
+        AuthState.EstadoCambiado -= EstadoCambiado;
+        Navigation.LocationChanged -= LocationChanged;
+        return ValueTask.CompletedTask;
+    }
+}

@@ -315,6 +315,35 @@ public sealed class AuthStateService : IAsyncDisposable
             selector);
     }
 
+    /*
+     * Estas variantes consultan exclusivamente la matriz real del rol.
+     * El módulo fitosanitario las utiliza para que incluso el rol
+     * Administrador requiera el permiso correspondiente.
+     */
+    public bool TienePermisoDirectoLectura(
+        string interfaz) =>
+        TienePermisoDirecto(
+            interfaz,
+            permiso => permiso.Leer == true);
+
+    public bool TienePermisoDirectoAgregar(
+        string interfaz) =>
+        TienePermisoDirecto(
+            interfaz,
+            permiso => permiso.Agregar == true);
+
+    public bool TienePermisoDirectoActualizar(
+        string interfaz) =>
+        TienePermisoDirecto(
+            interfaz,
+            permiso => permiso.Actualizar == true);
+
+    public bool TienePermisoDirectoEliminar(
+        string interfaz) =>
+        TienePermisoDirecto(
+            interfaz,
+            permiso => permiso.Eliminar == true);
+
     private bool TienePermisoDirecto(
         string interfaz,
         Func<PermisoInterfaz, bool> selector) =>

@@ -1,0 +1,654 @@
+@page "/inspeccion-fitosanitaria"
+@inject InspeccionFitosanitariaWebService Servicio
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Inspección fitosanitaria</PageTitle>
+
+<div class="fit-page">
+    <header class="fit-header">
+        <div>
+            <span class="fit-kicker">Supervisión agrícola</span>
+            <h1>Inspección fitosanitaria</h1>
+            <p>
+                El mismo flujo operativo de móvil/Windows, adaptado al portal web.
+                Cada fotografía conserva su proceso y trazabilidad independiente.
+            </p>
+        </div>
+
+        @if (PuedeCrear && vistaActual == "mis")
+        {
+            <button class="fit-btn fit-btn-primary" @onclick="AbrirNuevaInspeccion">
+                <i class="fa-solid fa-plus"></i>
+                Nueva inspección
+            </button>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(mensaje))
+    {
+        <div class="fit-alert @(mensajeError ? "error" : "success")">
+            <i class="fa-solid @(mensajeError ? "fa-circle-exclamation" : "fa-circle-check")"></i>
+            <span>@mensaje</span>
+            <button type="button" @onclick="() => mensaje = string.Empty" aria-label="Cerrar">×</button>
+        </div>
+    }
+
+    <nav class="fit-tabs" aria-label="Bandejas fitosanitarias">
+        @if (PuedeSolicitud)
+        {
+            <button class="@(vistaActual == "mis" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("mis")'>
+                <i class="fa-solid fa-folder-open"></i>
+                Mis inspecciones
+            </button>
+
+            <button class="@(vistaActual == "decisiones" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("decisiones")'>
+                <i class="fa-solid fa-user-check"></i>
+                Decisiones técnicas
+            </button>
+        }
+
+        @if (PuedeAnalizador)
+        {
+            <button class="@(vistaActual == "analizador" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("analizador")'>
+                <i class="fa-solid fa-microscope"></i>
+                Analizador
+            </button>
+
+            <button class="@(vistaActual == "analizador-revisadas" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("analizador-revisadas")'>
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                Revisadas por analizador
+            </button>
+        }
+
+        @if (PuedeAprobador)
+        {
+            <button class="@(vistaActual == "aprobador" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("aprobador")'>
+                <i class="fa-solid fa-stamp"></i>
+                Aprobador
+            </button>
+
+            <button class="@(vistaActual == "aprobador-revisadas" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("aprobador-revisadas")'>
+                <i class="fa-solid fa-box-archive"></i>
+                Revisadas por aprobador
+            </button>
+        }
+
+        @if (PuedeSolicitud)
+        {
+            <button class="@(vistaActual == "historial" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("historial")'>
+                <i class="fa-solid fa-timeline"></i>
+                Historial
+            </button>
+        }
+    </nav>
+
+    <section class="fit-panel fit-filters">
+        <div class="fit-field grow">
+            <label>Buscar</label>
+            <div class="fit-input-icon">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input @bind="buscar"
+                       @bind:event="oninput"
+                       placeholder="ID, inspección, terreno, técnico o propietario" />
+            </div>
+        </div>
+
+        <div class="fit-field">
+            <label>Estado</label>
+            <select @bind="estado">
+                <option value="">Todos</option>
+                <option value="BORRADOR">Borrador</option>
+                <option value="EN_PROCESO">En proceso</option>
+                <option value="EN_PROCESO_CON_ERRORES">Con errores</option>
+                <option value="PENDIENTE_REVISION">Pendiente revisión</option>
+                <option value="PENDIENTE_APROBACION">Pendiente aprobación</option>
+                <option value="FINALIZADA">Finalizada</option>
+                <option value="FINALIZADA_PARCIALMENTE">Finalizada parcialmente</option>
+            </select>
+        </div>
+
+        <div class="fit-field">
+            <label>Desde</label>
+            <input type="date" @bind="fechaDesde" />
+        </div>
+
+        <div class="fit-field">
+            <label>Hasta</label>
+            <input type="date" @bind="fechaHasta" />
+        </div>
+
+        <button class="fit-btn fit-btn-secondary" @onclick="AplicarFiltrosAsync" disabled="@cargando">
+            <i class="fa-solid fa-filter"></i>
+            Aplicar
+        </button>
+
+        <button class="fit-btn fit-btn-light" @onclick="LimpiarFiltrosAsync" disabled="@cargando">
+            Limpiar
+        </button>
+    </section>
+
+    @if (cargando && inspecciones.Count == 0)
+    {
+        <div class="fit-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <span>Cargando inspecciones...</span>
+        </div>
+    }
+    else if (inspecciones.Count == 0)
+    {
+        <div class="fit-empty">
+            <i class="fa-solid fa-leaf"></i>
+            <h3>No hay inspecciones en esta bandeja</h3>
+            <p>Los registros aparecerán aquí cuando cumplan las condiciones de la etapa seleccionada.</p>
+        </div>
+    }
+    else
+    {
+        <section class="fit-list">
+            @foreach (InspeccionFitosanitariaBandejaItemWeb item in inspecciones)
+            {
+                <article class="fit-card" @onclick="() => AbrirDetalle(item)">
+                    <div class="fit-thumb">
+                        @if (!string.IsNullOrWhiteSpace(item.UrlMiniatura))
+                        {
+                            <img src="@item.UrlMiniatura" alt="Evidencia de la inspección" loading="lazy" />
+                        }
+                        else
+                        {
+                            <i class="fa-solid fa-seedling"></i>
+                        }
+                    </div>
+
+                    <div class="fit-card-main">
+                        <div class="fit-card-title-row">
+                            <div>
+                                <span class="fit-id">#@item.InspeccionId</span>
+                                <h3>@NombreInspeccion(item)</h3>
+                            </div>
+                            <span class="fit-status @ClaseEstado(item.Estado)">@TextoEstado(item.Estado)</span>
+                        </div>
+
+                        <div class="fit-meta-grid">
+                            <span><i class="fa-solid fa-map-location-dot"></i> @Terreno(item)</span>
+                            <span><i class="fa-solid fa-user"></i> @Tecnico(item)</span>
+                            @if (!string.IsNullOrWhiteSpace(item.Propietario))
+                            {
+                                <span><i class="fa-solid fa-id-card"></i> @item.Propietario</span>
+                            }
+                            <span><i class="fa-regular fa-clock"></i> @Local(item.FechaRegistroSistemaUtc).ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+
+                        <div class="fit-progress-row">
+                            <span><strong>@item.TotalFotografias</strong> fotos</span>
+                            <span><strong>@item.Pendientes</strong> pendientes</span>
+                            <span class="@(item.ConError > 0 ? "danger" : string.Empty)"><strong>@item.ConError</strong> error IA</span>
+                            <span><strong>@item.Finalizadas</strong> finalizadas</span>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(item.AnalizadorAsignado) ||
+                             !string.IsNullOrWhiteSpace(item.AprobadorAsignado))
+                        {
+                            <div class="fit-assignments">
+                                @if (!string.IsNullOrWhiteSpace(item.AnalizadorAsignado))
+                                {
+                                    <span><i class="fa-solid fa-microscope"></i> Analizador: @item.AnalizadorAsignado</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.AprobadorAsignado))
+                                {
+                                    <span><i class="fa-solid fa-stamp"></i> Aprobador: @item.AprobadorAsignado</span>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <i class="fa-solid fa-chevron-right fit-open"></i>
+                </article>
+            }
+        </section>
+
+        @if (hayMas)
+        {
+            <div class="fit-load-more">
+                <button class="fit-btn fit-btn-secondary" @onclick="CargarMasAsync" disabled="@cargando">
+                    @if (cargando)
+                    {
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-arrow-down"></i>
+                    }
+                    Cargar más
+                </button>
+            </div>
+        }
+    }
+</div>
+
+@if (mostrarNueva)
+{
+    <div class="fit-modal-backdrop" @onclick="CerrarNuevaInspeccion">
+        <section class="fit-modal fit-modal-wide" @onclick:stopPropagation="true">
+            <header>
+                <div>
+                    <span class="fit-kicker">Registro en campo</span>
+                    <h2>Nueva inspección fitosanitaria</h2>
+                </div>
+                <button class="fit-icon-btn" @onclick="CerrarNuevaInspeccion" aria-label="Cerrar">×</button>
+            </header>
+
+            <div class="fit-form-grid">
+                <div class="fit-field">
+                    <label>Código del terreno *</label>
+                    <input @bind="codigoTerreno" maxlength="50" placeholder="Ej. TR-001" />
+                    <small>Debe corresponder a un terreno activo en CONATRADEC.</small>
+                </div>
+
+                <div class="fit-field">
+                    <label>Nombre de la inspección</label>
+                    <input @bind="nombreInspeccion" maxlength="150" placeholder="Ej. Monitoreo lote norte" />
+                </div>
+
+                <div class="fit-field full">
+                    <label>Observación general</label>
+                    <textarea @bind="observacion" maxlength="1000" rows="3"
+                              placeholder="Contexto general observado durante la visita"></textarea>
+                </div>
+
+                <div class="fit-field full">
+                    <label>Fotografías *</label>
+                    <label class="fit-file-drop">
+                        <i class="fa-solid fa-images"></i>
+                        <strong>Seleccionar fotografías</strong>
+                        <span>JPG, PNG o WEBP. Hasta 40 evidencias; máximo 12 MB por foto.</span>
+                        <InputFile OnChange="SeleccionarFotosAsync" multiple accept="image/*" />
+                    </label>
+                </div>
+            </div>
+
+            @if (fotosNueva.Count > 0)
+            {
+                <div class="fit-upload-list">
+                    @for (int i = 0; i < fotosNueva.Count; i++)
+                    {
+                        FotoFitosanitariaCargaWeb foto = fotosNueva[i];
+                        int indice = i;
+                        <div class="fit-upload-item">
+                            <div class="fit-file-icon"><i class="fa-regular fa-image"></i></div>
+                            <div class="fit-file-name">
+                                <strong>@foto.Archivo.Name</strong>
+                                <span>@FormatoBytes(foto.Archivo.Size)</span>
+                            </div>
+                            <div class="fit-field compact">
+                                <label>Tipo</label>
+                                <select @bind="foto.TipoFotografia">
+                                    @foreach (TipoFotografiaIAWeb tipo in tiposFotografia)
+                                    {
+                                        <option value="@tipo.Codigo">@tipo.Nombre</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="fit-field compact">
+                                <label>Fecha en campo</label>
+                                <input type="date" @bind="foto.FechaIdentificacionCampo" max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                            </div>
+                            <button class="fit-icon-btn danger" @onclick="() => EliminarFoto(indice)" aria-label="Quitar fotografía">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                            @if (tiposFotografia.FirstOrDefault(t => t.Codigo == foto.TipoFotografia) is TipoFotografiaIAWeb seleccionado &&
+                                 !string.IsNullOrWhiteSpace(seleccionado.InstruccionIA))
+                            {
+                                <p class="fit-photo-help"><i class="fa-solid fa-wand-magic-sparkles"></i> @seleccionado.InstruccionIA</p>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <footer>
+                <button class="fit-btn fit-btn-light" @onclick="CerrarNuevaInspeccion" disabled="@guardando">Cancelar</button>
+                <button class="fit-btn fit-btn-primary" @onclick="GuardarNuevaInspeccionAsync" disabled="@guardando">
+                    @if (guardando)
+                    {
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span>Registrando...</span>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Registrar inspección</span>
+                    }
+                </button>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    private readonly List<InspeccionFitosanitariaBandejaItemWeb> inspecciones = [];
+    private readonly List<FotoFitosanitariaCargaWeb> fotosNueva = [];
+    private List<TipoFotografiaIAWeb> tiposFotografia = [];
+
+    private string vistaActual = "mis";
+    private string buscar = string.Empty;
+    private string estado = string.Empty;
+    private DateTime? fechaDesde;
+    private DateTime? fechaHasta;
+    private bool cargando;
+    private bool guardando;
+    private bool hayMas;
+    private DateTime? siguienteFechaUtc;
+    private int? siguienteId;
+    private bool mostrarNueva;
+    private string codigoTerreno = string.Empty;
+    private string nombreInspeccion = string.Empty;
+    private string observacion = string.Empty;
+    private string mensaje = string.Empty;
+    private bool mensajeError;
+
+    private bool PuedeSolicitud =>
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.DiagnosticoSolicitud);
+
+    private bool PuedeCrear =>
+        AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud);
+
+    private bool PuedeAnalizador =>
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.DiagnosticoAnalizador);
+
+    private bool PuedeAprobador =>
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.DiagnosticoAprobador);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!PuedeSolicitud && !PuedeAnalizador && !PuedeAprobador)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        vistaActual = PuedeSolicitud
+            ? "mis"
+            : PuedeAnalizador
+                ? "analizador"
+                : "aprobador";
+
+        try
+        {
+            tiposFotografia = await Servicio.ObtenerTiposFotografiaAsync();
+        }
+        catch
+        {
+            tiposFotografia =
+            [
+                new TipoFotografiaIAWeb
+                {
+                    Codigo = "EVIDENCIA",
+                    Nombre = "Evidencia",
+                    Activo = true
+                }
+            ];
+        }
+
+        await RecargarAsync();
+    }
+
+    private async Task CambiarVistaAsync(string vista)
+    {
+        vistaActual = vista;
+        await RecargarAsync();
+    }
+
+    private Task AplicarFiltrosAsync() => RecargarAsync();
+
+    private async Task LimpiarFiltrosAsync()
+    {
+        buscar = string.Empty;
+        estado = string.Empty;
+        fechaDesde = null;
+        fechaHasta = null;
+        await RecargarAsync();
+    }
+
+    private async Task RecargarAsync()
+    {
+        inspecciones.Clear();
+        siguienteFechaUtc = null;
+        siguienteId = null;
+        hayMas = false;
+        await CargarPaginaAsync(false);
+    }
+
+    private Task CargarMasAsync() => CargarPaginaAsync(true);
+
+    private async Task CargarPaginaAsync(bool agregar)
+    {
+        if (cargando)
+            return;
+
+        cargando = true;
+        try
+        {
+            InspeccionFitosanitariaBandejaWeb pagina =
+                await Servicio.ObtenerBandejaAsync(
+                    vistaActual,
+                    buscar,
+                    null,
+                    null,
+                    null,
+                    null,
+                    estado,
+                    fechaDesde,
+                    fechaHasta,
+                    agregar ? siguienteFechaUtc : null,
+                    agregar ? siguienteId : null,
+                    20);
+
+            if (!agregar)
+                inspecciones.Clear();
+
+            foreach (InspeccionFitosanitariaBandejaItemWeb item in pagina.Items)
+            {
+                if (inspecciones.All(x => x.InspeccionId != item.InspeccionId))
+                    inspecciones.Add(item);
+            }
+
+            hayMas = pagina.HayMas;
+            siguienteFechaUtc = pagina.SiguienteFechaUtc;
+            siguienteId = pagina.SiguienteId;
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AbrirNuevaInspeccion()
+    {
+        if (!PuedeCrear)
+            return;
+
+        codigoTerreno = string.Empty;
+        nombreInspeccion = string.Empty;
+        observacion = string.Empty;
+        fotosNueva.Clear();
+        mostrarNueva = true;
+
+        if (tiposFotografia.Count == 0)
+        {
+            try
+            {
+                tiposFotografia = await Servicio.ObtenerTiposFotografiaAsync();
+            }
+            catch (Exception ex)
+            {
+                MostrarMensaje(ex.Message, true);
+            }
+        }
+    }
+
+    private void CerrarNuevaInspeccion()
+    {
+        if (!guardando)
+            mostrarNueva = false;
+    }
+
+    private Task SeleccionarFotosAsync(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            IReadOnlyList<IBrowserFile> archivos = e.GetMultipleFiles(40);
+            string tipoInicial = tiposFotografia.FirstOrDefault()?.Codigo ?? "EVIDENCIA";
+
+            foreach (IBrowserFile archivo in archivos)
+            {
+                if (fotosNueva.Count >= 40)
+                    break;
+
+                if (archivo.Size > 12L * 1024L * 1024L)
+                {
+                    MostrarMensaje($"{archivo.Name} supera el máximo de 12 MB.", true);
+                    continue;
+                }
+
+                fotosNueva.Add(new FotoFitosanitariaCargaWeb
+                {
+                    Archivo = archivo,
+                    TipoFotografia = tipoInicial,
+                    FechaIdentificacionCampo = DateTime.Today
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void EliminarFoto(int indice)
+    {
+        if (indice >= 0 && indice < fotosNueva.Count)
+            fotosNueva.RemoveAt(indice);
+    }
+
+    private async Task GuardarNuevaInspeccionAsync()
+    {
+        if (guardando)
+            return;
+
+        if (string.IsNullOrWhiteSpace(codigoTerreno))
+        {
+            MostrarMensaje("Debe indicar el código del terreno.", true);
+            return;
+        }
+
+        if (fotosNueva.Count == 0)
+        {
+            MostrarMensaje("Debe seleccionar al menos una fotografía.", true);
+            return;
+        }
+
+        if (fotosNueva.Any(x => x.FechaIdentificacionCampo.Date > DateTime.Today))
+        {
+            MostrarMensaje("La fecha de identificación en campo no puede estar en el futuro.", true);
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            InspeccionFitosanitariaDetalleWeb creada =
+                await Servicio.CrearAsync(
+                    codigoTerreno,
+                    nombreInspeccion,
+                    observacion,
+                    fotosNueva);
+
+            mostrarNueva = false;
+            MostrarMensaje("La inspección fue registrada. Puede seleccionar las fotografías que desea procesar con IA.", false);
+            await RecargarAsync();
+            Navigation.NavigateTo($"/inspeccion-fitosanitaria/{creada.InspeccionId}?modo=mis");
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void AbrirDetalle(InspeccionFitosanitariaBandejaItemWeb item) =>
+        Navigation.NavigateTo(
+            $"/inspeccion-fitosanitaria/{item.InspeccionId}?modo={Uri.EscapeDataString(vistaActual)}");
+
+    private void MostrarMensaje(string texto, bool error)
+    {
+        mensaje = texto;
+        mensajeError = error;
+    }
+
+    private static string NombreInspeccion(InspeccionFitosanitariaBandejaItemWeb item) =>
+        string.IsNullOrWhiteSpace(item.NombreInspeccion)
+            ? $"Inspección #{item.InspeccionId}"
+            : item.NombreInspeccion;
+
+    private static string Terreno(InspeccionFitosanitariaBandejaItemWeb item) =>
+        string.IsNullOrWhiteSpace(item.CodigoTerreno)
+            ? "Terreno sin código"
+            : item.CodigoTerreno;
+
+    private static string Tecnico(InspeccionFitosanitariaBandejaItemWeb item) =>
+        !string.IsNullOrWhiteSpace(item.TecnicoNombreCompleto)
+            ? item.TecnicoNombreCompleto
+            : !string.IsNullOrWhiteSpace(item.TecnicoUsuario)
+                ? item.TecnicoUsuario
+                : $"Usuario #{item.UsuarioTecnicoId}";
+
+    private static DateTime Local(DateTime utc) =>
+        utc.Kind == DateTimeKind.Utc ? utc.ToLocalTime() : DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime();
+
+    private static string TextoEstado(string? estado) =>
+        (estado ?? string.Empty).Replace('_', ' ').ToLowerInvariant() switch
+        {
+            "" => "Sin estado",
+            var texto => char.ToUpperInvariant(texto[0]) + texto[1..]
+        };
+
+    private static string ClaseEstado(string? estado) =>
+        (estado ?? string.Empty).ToUpperInvariant() switch
+        {
+            "FINALIZADA" => "ok",
+            "FINALIZADA_PARCIALMENTE" => "warn",
+            "PENDIENTE_APROBACION" => "purple",
+            "PENDIENTE_REVISION" => "blue",
+            "EN_PROCESO_CON_ERRORES" => "danger",
+            "EN_PROCESO" => "blue",
+            _ => "neutral"
+        };
+
+    private static string FormatoBytes(long bytes) =>
+        bytes >= 1024L * 1024L
+            ? $"{bytes / 1024d / 1024d:N1} MB"
+            : $"{bytes / 1024d:N0} KB";
+}

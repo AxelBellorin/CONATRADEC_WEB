@@ -119,6 +119,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcRGV0YWlsSXRlbS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Shared/FitosanitarioNavigationBridge.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcRml0b3Nhbml0YXJpb05hdmlnYXRpb25CcmlkZ2UucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Shared/LoadingState.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcTG9hZGluZ1N0YXRlLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
@@ -199,9 +203,17 @@ build_metadata.AdditionalFiles.CssScope = b-e0fitnw97r
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb25maWd1cmFjaW9uQWxlcnRhcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-cybv9w4lhn
 
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/ConfiguracionFitosanitaria.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb25maWd1cmFjaW9uRml0b3Nhbml0YXJpYS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-6d7dfed46b
+
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/ControlAnalisis.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb250cm9sQW5hbGlzaXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = b-ekfbq2xieo
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/ControlFitosanitario.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb250cm9sRml0b3Nhbml0YXJpby5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-rfi58j53q2
 
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/DescargaProtegida.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xEZXNjYXJnYVByb3RlZ2lkYS5yYXpvcg==
@@ -230,6 +242,14 @@ build_metadata.AdditionalFiles.CssScope = b-12hmmzhun8
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/Home.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
 build_metadata.AdditionalFiles.CssScope = b-fwauv8ku64
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/InspeccionFitosanitaria.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xJbnNwZWNjaW9uRml0b3Nhbml0YXJpYS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-gjv8htlgno
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/InspeccionFitosanitariaDetalle.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xJbnNwZWNjaW9uRml0b3Nhbml0YXJpYURldGFsbGUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-r2pe4v3155
 
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Pages/LlavesDescarga.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xMbGF2ZXNEZXNjYXJnYS5yYXpvcg==

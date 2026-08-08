@@ -1,0 +1,851 @@
+@page "/inspeccion-fitosanitaria/{InspeccionId:int}"
+@implements IAsyncDisposable
+@inject InspeccionFitosanitariaWebService Servicio
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Detalle de inspección fitosanitaria</PageTitle>
+
+@if (cargando && detalle is null)
+{
+    <div class="fd-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando expediente...</div>
+}
+else if (detalle is null)
+{
+    <div class="fd-empty">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <h2>No fue posible abrir la inspección</h2>
+        <p>@mensaje</p>
+        <button class="fd-btn fd-secondary" @onclick="Volver">Volver a la bandeja</button>
+    </div>
+}
+else
+{
+    <div class="fd-page">
+        <header class="fd-header">
+            <button class="fd-back" @onclick="Volver"><i class="fa-solid fa-arrow-left"></i></button>
+            <div class="fd-header-main">
+                <span class="fd-kicker">Expediente fitosanitario #@detalle.InspeccionId</span>
+                <h1>@(string.IsNullOrWhiteSpace(detalle.CodigoTerreno) ? "Inspección fitosanitaria" : $"Terreno {detalle.CodigoTerreno}")</h1>
+                <p>Registrada por @detalle.UsuarioSolicitante · @Local(detalle.FechaRegistroSistemaUtc).ToString("dd/MM/yyyy HH:mm")</p>
+            </div>
+            <div class="fd-header-status">
+                <span class="fd-status @ClaseEstado(detalle.Estado)">@TextoEstado(detalle.Estado)</span>
+                <span class="fd-stage">@(detalle.CerradaDefinitiva ? "Cerrada definitivamente" : detalle.EtapaTecnicaFinalizada ? "Etapa técnica finalizada" : "Etapa técnica abierta")</span>
+            </div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <div class="fd-alert @(mensajeError ? "error" : "success")">
+                <i class="fa-solid @(mensajeError ? "fa-circle-exclamation" : "fa-circle-check")"></i>
+                <span>@mensaje</span>
+                <button @onclick="() => mensaje = string.Empty">×</button>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(mensajeBloqueo))
+        {
+            <div class="fd-alert warning">
+                <i class="fa-solid fa-lock"></i>
+                <span>@mensajeBloqueo</span>
+            </div>
+        }
+
+        <section class="fd-summary">
+            <div><span>Total</span><strong>@detalle.Fotografias.Count</strong></div>
+            <div><span>Pendientes</span><strong>@detalle.Fotografias.Count(x => !EsFinal(x.Estado))</strong></div>
+            <div><span>Finalizadas</span><strong>@detalle.Fotografias.Count(x => EsFinal(x.Estado))</strong></div>
+            <div><span>Error IA</span><strong class="danger">@detalle.Fotografias.Count(x => x.Estado == EstadosFotoFitosanitariaWeb.ErrorIA)</strong></div>
+            <div><span>Publicadas</span><strong>@detalle.Fotografias.Count(x => x.PublicadaAlbum)</strong></div>
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(detalle.Observacion))
+        {
+            <section class="fd-note"><i class="fa-regular fa-note-sticky"></i><span>@detalle.Observacion</span></section>
+        }
+
+        <div class="fd-workspace">
+            <aside class="fd-gallery">
+                <div class="fd-gallery-head">
+                    <div><strong>Fotografías</strong><span>@detalle.Fotografias.Count evidencias</span></div>
+                    @if (PuedeAgregarFotos)
+                    {
+                        <button class="fd-icon" title="Agregar fotografías" @onclick="AbrirAgregarFotos"><i class="fa-solid fa-plus"></i></button>
+                    }
+                </div>
+
+                <div class="fd-photo-list">
+                    @foreach (InspeccionFotoWeb foto in detalle.Fotografias.OrderBy(x => x.Orden))
+                    {
+                        <button class="fd-photo-row @(fotoSeleccionada?.FotografiaId == foto.FotografiaId ? "active" : string.Empty)"
+                                @onclick="() => SeleccionarFoto(foto)">
+                            <span class="fd-photo-thumb">
+                                @if (!string.IsNullOrWhiteSpace(foto.UrlImagen))
+                                {
+                                    <img src="@foto.UrlImagen" alt="Fotografía @foto.Orden" loading="lazy" />
+                                }
+                                else
+                                {
+                                    <i class="fa-regular fa-image"></i>
+                                }
+                            </span>
+                            <span class="fd-photo-copy">
+                                <strong>Foto @foto.Orden</strong>
+                                <small>@TextoTipo(foto.TipoFotografia)</small>
+                                <em class="fd-mini-status @ClaseEstadoFoto(foto.Estado)">@TextoEstado(foto.Estado)</em>
+                            </span>
+                        </button>
+                    }
+                </div>
+
+                @if (PuedeFinalizarEtapaTecnica)
+                {
+                    <button class="fd-btn fd-primary fd-full" @onclick="FinalizarEtapaTecnicaAsync" disabled="@ocupado">
+                        <i class="fa-solid fa-flag-checkered"></i> Finalizar etapa técnica
+                    </button>
+                }
+
+                @if (EsModoAnalizadorEdicion && PuedeOperarAnalizador && !detalle.CerradaDefinitiva)
+                {
+                    <button class="fd-btn fd-secondary fd-full" @onclick="FinalizarAnalizadorAsync" disabled="@ocupado">
+                        <i class="fa-solid fa-check-double"></i> Finalizar revisión disponible
+                    </button>
+                }
+            </aside>
+
+            <main class="fd-detail">
+                @if (fotoSeleccionada is null)
+                {
+                    <div class="fd-empty-small"><i class="fa-regular fa-image"></i> Seleccione una fotografía.</div>
+                }
+                else
+                {
+                    <section class="fd-photo-header">
+                        <div>
+                            <span class="fd-kicker">Fotografía #@fotoSeleccionada.FotografiaId</span>
+                            <h2>Foto @fotoSeleccionada.Orden · @TextoTipo(fotoSeleccionada.TipoFotografia)</h2>
+                            <p>Identificación en campo: @(fotoSeleccionada.FechaIdentificacionCampo?.ToString("dd/MM/yyyy") ?? "No registrada")</p>
+                        </div>
+                        <span class="fd-status @ClaseEstadoFoto(fotoSeleccionada.Estado)">@TextoEstado(fotoSeleccionada.Estado)</span>
+                    </section>
+
+                    <div class="fd-photo-layout">
+                        <div class="fd-image-wrap">
+                            @if (!string.IsNullOrWhiteSpace(fotoSeleccionada.UrlImagen))
+                            {
+                                <img src="@fotoSeleccionada.UrlImagen" alt="Evidencia fitosanitaria" />
+                            }
+                            else
+                            {
+                                <div class="fd-no-image"><i class="fa-regular fa-image"></i></div>
+                            }
+                        </div>
+
+                        <section class="fd-actions">
+                            <h3>Acciones disponibles</h3>
+
+                            @if (detalle.CerradaDefinitiva)
+                            {
+                                <div class="fd-readonly"><i class="fa-solid fa-lock"></i> Expediente en solo lectura.</div>
+                            }
+                            else if (EsModoTecnico)
+                            {
+                                @if (PuedeProcesarFoto(fotoSeleccionada))
+                                {
+                                    <button class="fd-btn fd-primary" @onclick="ProcesarSeleccionadaAsync" disabled="@ocupado">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i> Analizar con IA
+                                    </button>
+                                }
+
+                                @if (fotoSeleccionada.Estado == EstadosFotoFitosanitariaWeb.PendienteDecisionTecnico)
+                                {
+                                    <button class="fd-btn fd-primary" @onclick="EnviarAnalizadorAsync" disabled="@ocupado">
+                                        <i class="fa-solid fa-paper-plane"></i> Enviar al analizador
+                                    </button>
+                                    <button class="fd-btn fd-secondary" @onclick='() => formularioAccion = "revision-ia"' disabled="@ocupado">
+                                        <i class="fa-solid fa-rotate"></i> Solicitar revisión IA
+                                    </button>
+                                    <button class="fd-btn fd-danger" @onclick='() => formularioAccion = "descartar"' disabled="@ocupado">
+                                        <i class="fa-solid fa-ban"></i> Descartar evidencia
+                                    </button>
+                                }
+
+                                @if (fotoSeleccionada.Estado == EstadosFotoFitosanitariaWeb.DevueltaTecnico)
+                                {
+                                    <button class="fd-btn fd-secondary" @onclick="PrepararResolverDevolucion" disabled="@ocupado">
+                                        <i class="fa-solid fa-reply"></i> Resolver devolución
+                                    </button>
+                                }
+                            }
+                            else if (EsModoAnalizador)
+                            {
+                                @if (EsModoAnalizadorRevisadas)
+                                {
+                                    <div class="fd-readonly">
+                                        <i class="fa-solid fa-eye"></i>
+                                        Revisión finalizada. Esta bandeja es de consulta y no requiere bloqueo de edición.
+                                    </div>
+                                }
+                                else if (!TieneBloqueoOperativo)
+                                {
+                                    <div class="fd-readonly"><i class="fa-solid fa-lock"></i> No hay un bloqueo exclusivo activo para editar esta etapa.</div>
+                                }
+                                else if (PuedeAnalizarFoto(fotoSeleccionada))
+                                {
+                                    <button class="fd-btn fd-primary" @onclick="PrepararAnalisisHumano" disabled="@ocupado">
+                                        <i class="fa-solid fa-microscope"></i> Clasificar fotografía
+                                    </button>
+                                    <button class="fd-btn fd-secondary" @onclick="PrepararDevolucionTecnicoAsync" disabled="@ocupado">
+                                        <i class="fa-solid fa-arrow-rotate-left"></i> Devolver al técnico
+                                    </button>
+                                }
+
+                                @if (EsModoAnalizadorEdicion &&
+                                     fotoSeleccionada.Estado == EstadosFotoFitosanitariaWeb.EnAnalisisHumano &&
+                                     TieneBloqueoOperativo)
+                                {
+                                    <button class="fd-btn fd-primary" @onclick="EnviarAprobadorAsync" disabled="@ocupado">
+                                        <i class="fa-solid fa-paper-plane"></i> Enviar al aprobador
+                                    </button>
+                                }
+                            }
+                            else if (EsModoAprobador)
+                            {
+                                @if (EsModoAprobadorRevisadas)
+                                {
+                                    <div class="fd-readonly">
+                                        <i class="fa-solid fa-eye"></i>
+                                        Revisión finalizada. Esta bandeja es de consulta y no requiere bloqueo de edición.
+                                    </div>
+                                }
+                                else if (!TieneBloqueoOperativo)
+                                {
+                                    <div class="fd-readonly"><i class="fa-solid fa-lock"></i> No hay un bloqueo exclusivo activo para editar esta etapa.</div>
+                                }
+                                else if (fotoSeleccionada.Estado == EstadosFotoFitosanitariaWeb.PendienteAprobacion)
+                                {
+                                    <button class="fd-btn fd-primary" @onclick="PrepararAprobacion" disabled="@ocupado">
+                                        <i class="fa-solid fa-stamp"></i> Registrar decisión
+                                    </button>
+                                }
+
+                                @if (PuedePublicarFoto(fotoSeleccionada))
+                                {
+                                    <button class="fd-btn fd-secondary" @onclick="PrepararPublicacionAsync" disabled="@ocupado">
+                                        <i class="fa-solid fa-seedling"></i> Publicar en Álbum Botánico
+                                    </button>
+                                }
+
+                                @if (EsModoAprobadorEdicion &&
+                                     detalle.PuedeCerrarInspeccion &&
+                                     TieneBloqueoOperativo)
+                                {
+                                    <button class="fd-btn fd-dark" @onclick="CerrarDefinitivamenteAsync" disabled="@ocupado">
+                                        <i class="fa-solid fa-lock"></i> Cerrar definitivamente
+                                    </button>
+                                }
+                            }
+                            else
+                            {
+                                <div class="fd-readonly"><i class="fa-regular fa-eye"></i> Vista histórica en solo lectura.</div>
+                            }
+                        </section>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(fotoSeleccionada.ErrorProcesamiento))
+                    {
+                        <div class="fd-error-box"><strong>Error de procesamiento IA</strong><span>@fotoSeleccionada.ErrorProcesamiento</span></div>
+                    }
+
+                    @if (formularioAccion == "revision-ia")
+                    {
+                        <section class="fd-form-card">
+                            <header><h3>Solicitar una segunda revisión a la IA</h3><button @onclick="CerrarFormulario">×</button></header>
+                            <div class="fd-field"><label>Retroalimentación técnica *</label><textarea rows="4" maxlength="2000" @bind="retroalimentacionIA"></textarea></div>
+                            <div class="fd-field"><label>Diagnóstico propuesto (opcional)</label><input maxlength="300" @bind="diagnosticoPropuestoIA" /></div>
+                            <footer><button class="fd-btn fd-secondary" @onclick="CerrarFormulario">Cancelar</button><button class="fd-btn fd-primary" @onclick="SolicitarRevisionIAAsync" disabled="@ocupado">Enviar revisión</button></footer>
+                        </section>
+                    }
+
+                    @if (formularioAccion == "descartar")
+                    {
+                        <section class="fd-form-card">
+                            <header><h3>Descartar fotografía</h3><button @onclick="CerrarFormulario">×</button></header>
+                            <div class="fd-field"><label>Motivo *</label><textarea rows="3" maxlength="1000" @bind="motivoDescarte"></textarea></div>
+                            <footer><button class="fd-btn fd-secondary" @onclick="CerrarFormulario">Cancelar</button><button class="fd-btn fd-danger" @onclick="DescartarAsync" disabled="@ocupado">Descartar</button></footer>
+                        </section>
+                    }
+
+                    @if (formularioAccion == "analisis")
+                    {
+                        <section class="fd-form-card">
+                            <header><h3>Clasificación humana</h3><button @onclick="CerrarFormulario">×</button></header>
+                            <div class="fd-form-grid">
+                                <div class="fd-field"><label>Calidad</label><select @bind="analisis.CalidadEvaluacion"><option>EVALUABLE</option><option>PARCIALMENTE_EVALUABLE</option><option>NO_EVALUABLE</option></select></div>
+                                <div class="fd-field"><label>Estado general</label><select @bind="analisis.EstadoGeneral"><option>APARENTEMENTE_SANA</option><option>CON_AFECTACION</option><option>INDETERMINADA</option></select></div>
+                                <div class="fd-field"><label>Categoría principal</label><select @bind="analisis.CategoriaPrincipal"><option>ENFERMEDAD</option><option>PLAGA</option><option>ALTERACION_NUTRICIONAL</option><option>ESTRES_ABIOTICO</option><option>DANO_MECANICO</option><option>AFECTACION_NO_DETERMINADA</option><option>NO_APLICA</option></select></div>
+                                <div class="fd-field"><label>Severidad</label><select @bind="analisis.Severidad"><option>LEVE</option><option>MODERADA</option><option>SEVERA</option><option>NO_EVALUABLE</option><option>NO_APLICA</option></select></div>
+                                <div class="fd-field"><label>Nivel de certeza</label><select @bind="analisis.NivelCerteza"><option>ALTO</option><option>MEDIO</option><option>BAJO</option><option>NO_DETERMINADO</option></select></div>
+                                <div class="fd-field"><label>Tipo de diagnóstico</label><input maxlength="80" @bind="analisis.TipoDiagnostico" /></div>
+                                <div class="fd-field full"><label>Diagnóstico humano *</label><input maxlength="300" @bind="analisis.Diagnostico" /></div>
+                                <div class="fd-field full"><label>Observaciones</label><textarea rows="4" maxlength="2000" @bind="analisis.Observaciones"></textarea></div>
+                            </div>
+                            <footer><button class="fd-btn fd-secondary" @onclick="CerrarFormulario">Cancelar</button><button class="fd-btn fd-primary" @onclick="GuardarAnalisisHumanoAsync" disabled="@ocupado">Guardar borrador</button></footer>
+                        </section>
+                    }
+
+                    @if (formularioAccion == "devolver")
+                    {
+                        <section class="fd-form-card">
+                            <header><h3>Devolver fotografía al técnico</h3><button @onclick="CerrarFormulario">×</button></header>
+                            <div class="fd-field"><label>Motivo *</label><select @bind="motivoDevolucionId"><option value="0">Seleccione...</option>@foreach (MotivoDevolucionTecnicoWeb motivo in motivosDevolucion){<option value="@motivo.MotivoDevolucionTecnicoId">@motivo.Nombre</option>}</select></div>
+                            @if (MotivoSeleccionado is not null)
+                            {
+                                <div class="fd-hint"><strong>@MotivoSeleccionado.Nombre</strong><span>@MotivoSeleccionado.Descripcion</span><span>@MotivoSeleccionado.InstruccionSugerida</span></div>
+                            }
+                            <div class="fd-field"><label>Instrucciones específicas *</label><textarea rows="4" maxlength="3000" @bind="instruccionesDevolucion"></textarea></div>
+                            <footer><button class="fd-btn fd-secondary" @onclick="CerrarFormulario">Cancelar</button><button class="fd-btn fd-primary" @onclick="DevolverTecnicoAsync" disabled="@ocupado">Confirmar devolución</button></footer>
+                        </section>
+                    }
+
+                    @if (formularioAccion == "resolver")
+                    {
+                        <section class="fd-form-card">
+                            <header><h3>Resolver devolución del analizador</h3><button @onclick="CerrarFormulario">×</button></header>
+                            <div class="fd-form-grid">
+                                <div class="fd-field"><label>Tipo de fotografía</label><select @bind="tipoResolucion">@foreach (TipoFotografiaIAWeb tipo in tiposFotografia){<option value="@tipo.Codigo">@tipo.Nombre</option>}</select></div>
+                                <div class="fd-field"><label>Fecha de identificación</label><input type="date" @bind="fechaResolucion" max="@DateTime.Today.ToString("yyyy-MM-dd")" /></div>
+                                <div class="fd-field full"><label>Respuesta técnica *</label><textarea rows="4" maxlength="2000" @bind="respuestaResolucion"></textarea></div>
+                            </div>
+                            <footer><button class="fd-btn fd-secondary" @onclick="CerrarFormulario">Cancelar</button><button class="fd-btn fd-primary" @onclick="ResolverDevolucionAsync" disabled="@ocupado">Resolver y reenviar a IA</button></footer>
+                        </section>
+                    }
+
+                    @if (formularioAccion == "aprobacion")
+                    {
+                        <section class="fd-form-card">
+                            <header><h3>Decisión del aprobador</h3><button @onclick="CerrarFormulario">×</button></header>
+                            <div class="fd-form-grid">
+                                <div class="fd-field"><label>Decisión *</label><select @bind="aprobacion.Decision"><option value="APROBAR_SIN_CAMBIOS">Aprobar sin cambios</option><option value="APROBAR_CON_CORRECCION">Aprobar con corrección</option><option value="DEVOLVER_AL_ANALIZADOR">Devolver al analizador</option><option value="RECHAZAR_DIAGNOSTICO">Rechazar diagnóstico</option><option value="MARCAR_NO_CONCLUYENTE">Marcar no concluyente</option></select></div>
+                                <div class="fd-field"><label>Diagnóstico final</label><input maxlength="300" @bind="aprobacion.DiagnosticoFinal" /></div>
+                                <div class="fd-field"><label>Calidad final</label><select @bind="aprobacion.CalidadEvaluacionFinal"><option>EVALUABLE</option><option>PARCIALMENTE_EVALUABLE</option><option>NO_EVALUABLE</option></select></div>
+                                <div class="fd-field"><label>Estado general final</label><select @bind="aprobacion.EstadoGeneralFinal"><option>APARENTEMENTE_SANA</option><option>CON_AFECTACION</option><option>INDETERMINADA</option></select></div>
+                                <div class="fd-field"><label>Categoría final</label><select @bind="aprobacion.CategoriaPrincipalFinal"><option>ENFERMEDAD</option><option>PLAGA</option><option>ALTERACION_NUTRICIONAL</option><option>ESTRES_ABIOTICO</option><option>DANO_MECANICO</option><option>AFECTACION_NO_DETERMINADA</option><option>NO_APLICA</option></select></div>
+                                <div class="fd-field"><label>Severidad final</label><select @bind="aprobacion.SeveridadFinal"><option>LEVE</option><option>MODERADA</option><option>SEVERA</option><option>NO_EVALUABLE</option><option>NO_APLICA</option></select></div>
+                                <div class="fd-field"><label>Certeza final</label><select @bind="aprobacion.NivelCertezaFinal"><option>ALTO</option><option>MEDIO</option><option>BAJO</option><option>NO_DETERMINADO</option></select></div>
+                                <div class="fd-field"><label>Tipo diagnóstico final</label><input maxlength="80" @bind="aprobacion.TipoDiagnosticoFinal" /></div>
+                                <div class="fd-field full"><label>Observaciones</label><textarea rows="4" maxlength="2000" @bind="aprobacion.Observaciones"></textarea></div>
+                                <label class="fd-check full"><input type="checkbox" @bind="aprobacion.AutorizaPublicacionAlbum" /> Autorizar esta evidencia para una futura publicación en el Álbum Botánico</label>
+                            </div>
+                            <footer><button class="fd-btn fd-secondary" @onclick="CerrarFormulario">Cancelar</button><button class="fd-btn fd-primary" @onclick="RegistrarAprobacionAsync" disabled="@ocupado">Registrar decisión</button></footer>
+                        </section>
+                    }
+
+                    @if (formularioAccion == "publicar")
+                    {
+                        <section class="fd-form-card">
+                            <header><h3>Publicar evidencia en el Álbum Botánico</h3><button @onclick="CerrarFormulario">×</button></header>
+                            <div class="fd-form-grid">
+                                <div class="fd-field"><label>Categoría</label><select value="@categoriaAlbumId" @onchange="CambiarCategoriaAlbum"><option value="0">Seleccione...</option>@foreach (InspeccionAlbumCategoriaWeb cat in catalogoAlbum){<option value="@cat.CategoriaAlbumBotanicoId">@cat.Nombre</option>}</select></div>
+                                <div class="fd-field"><label>Ficha</label><select @bind="fichaAlbumId"><option value="0">Seleccione...</option>@foreach (InspeccionAlbumFichaWeb ficha in FichasCategoria){<option value="@ficha.AlbumBotanicoCafeId">@ficha.Titulo</option>}</select></div>
+                                <div class="fd-field full"><label>Descripción de la fotografía</label><textarea rows="3" maxlength="1000" @bind="descripcionAlbum"></textarea></div>
+                                <label class="fd-check"><input type="checkbox" @bind="esPortadaAlbum" /> Usar como portada</label>
+                                <div class="fd-field"><label>Orden</label><input type="number" min="1" max="999" @bind="ordenAlbum" /></div>
+                            </div>
+                            <footer><button class="fd-btn fd-secondary" @onclick="CerrarFormulario">Cancelar</button><button class="fd-btn fd-primary" @onclick="PublicarAlbumAsync" disabled="@ocupado">Publicar copia</button></footer>
+                        </section>
+                    }
+
+                    <div class="fd-data-grid">
+                        <section class="fd-info-card">
+                            <header><i class="fa-solid fa-wand-magic-sparkles"></i><h3>Resultado IA</h3></header>
+                            @if (fotoSeleccionada.ResultadoIA is null)
+                            {
+                                <p class="muted">Esta fotografía todavía no tiene un resultado IA disponible.</p>
+                            }
+                            else
+                            {
+                                <dl>
+                                    <dt>Diagnóstico</dt><dd>@Valor(fotoSeleccionada.ResultadoIA.DiagnosticoProbable)</dd>
+                                    <dt>Categoría</dt><dd>@TextoTipo(fotoSeleccionada.ResultadoIA.CategoriaPrincipal)</dd>
+                                    <dt>Severidad</dt><dd>@TextoTipo(fotoSeleccionada.ResultadoIA.SeveridadVisual)</dd>
+                                    <dt>Certeza</dt><dd>@TextoTipo(fotoSeleccionada.ResultadoIA.NivelCerteza)</dd>
+                                    <dt>Parte de planta</dt><dd>@Valor(fotoSeleccionada.ResultadoIA.PartePlanta)</dd>
+                                    <dt>Modelo</dt><dd>@Valor(fotoSeleccionada.ModeloIAUtilizado)</dd>
+                                    <dt>Intentos</dt><dd>@fotoSeleccionada.IntentosIA</dd>
+                                </dl>
+                                @if (!string.IsNullOrWhiteSpace(fotoSeleccionada.ResultadoIA.ResumenImagen))
+                                {
+                                    <p class="fd-summary-text">@fotoSeleccionada.ResultadoIA.ResumenImagen</p>
+                                }
+                                @if (fotoSeleccionada.ResultadoIA.SintomasVisibles.Count > 0)
+                                {
+                                    <div class="fd-tags">@foreach (string sintoma in fotoSeleccionada.ResultadoIA.SintomasVisibles){<span>@sintoma</span>}</div>
+                                }
+                            }
+                        </section>
+
+                        <section class="fd-info-card">
+                            <header><i class="fa-solid fa-microscope"></i><h3>Análisis humano</h3></header>
+                            @if (fotoSeleccionada.UltimoAnalisisHumano is null)
+                            {
+                                <p class="muted">No se ha registrado una clasificación humana.</p>
+                            }
+                            else
+                            {
+                                <dl>
+                                    <dt>Analizador</dt><dd>@fotoSeleccionada.UltimoAnalisisHumano.UsuarioAnalizador</dd>
+                                    <dt>Diagnóstico</dt><dd>@fotoSeleccionada.UltimoAnalisisHumano.Diagnostico</dd>
+                                    <dt>Categoría</dt><dd>@TextoTipo(fotoSeleccionada.UltimoAnalisisHumano.CategoriaPrincipal)</dd>
+                                    <dt>Severidad</dt><dd>@TextoTipo(fotoSeleccionada.UltimoAnalisisHumano.Severidad)</dd>
+                                    <dt>Certeza</dt><dd>@TextoTipo(fotoSeleccionada.UltimoAnalisisHumano.NivelCerteza)</dd>
+                                    <dt>Registro</dt><dd>@TextoTipo(fotoSeleccionada.UltimoAnalisisHumano.EstadoRegistro)</dd>
+                                </dl>
+                                @if (!string.IsNullOrWhiteSpace(fotoSeleccionada.UltimoAnalisisHumano.Observaciones)){<p class="fd-summary-text">@fotoSeleccionada.UltimoAnalisisHumano.Observaciones</p>}
+                            }
+                        </section>
+
+                        <section class="fd-info-card">
+                            <header><i class="fa-solid fa-stamp"></i><h3>Aprobación</h3></header>
+                            @if (fotoSeleccionada.UltimaAprobacion is null)
+                            {
+                                <p class="muted">No existe una decisión final del aprobador.</p>
+                            }
+                            else
+                            {
+                                <dl>
+                                    <dt>Aprobador</dt><dd>@fotoSeleccionada.UltimaAprobacion.UsuarioAprobador</dd>
+                                    <dt>Decisión</dt><dd>@TextoTipo(fotoSeleccionada.UltimaAprobacion.Decision)</dd>
+                                    <dt>Diagnóstico final</dt><dd>@Valor(fotoSeleccionada.UltimaAprobacion.DiagnosticoFinal)</dd>
+                                    <dt>Álbum</dt><dd>@(fotoSeleccionada.UltimaAprobacion.AutorizaPublicacionAlbum ? "Autorizada" : "No autorizada")</dd>
+                                </dl>
+                                @if (fotoSeleccionada.UltimaAprobacion.MismoUsuarioQueAnalizo){<div class="fd-warning-inline"><i class="fa-solid fa-triangle-exclamation"></i> El mismo usuario participó como analizador y aprobador; la trazabilidad lo conserva explícitamente.</div>}
+                            }
+                        </section>
+                    </div>
+
+                    <section class="fd-timeline-card">
+                        <header><i class="fa-solid fa-timeline"></i><h3>Historial de la fotografía</h3></header>
+                        @if (fotoSeleccionada.Historial.Count == 0)
+                        {
+                            <p class="muted">Sin eventos registrados.</p>
+                        }
+                        else
+                        {
+                            <div class="fd-timeline">
+                                @foreach (InspeccionFotoHistorialWeb evento in fotoSeleccionada.Historial.OrderByDescending(x => x.FechaUtc))
+                                {
+                                    <div class="fd-event">
+                                        <span class="fd-dot"></span>
+                                        <div><strong>@TextoTipo(evento.Accion)</strong><small>@Local(evento.FechaUtc).ToString("dd/MM/yyyy HH:mm") · @Valor(evento.Usuario)</small><p>@evento.Detalle</p>@if (!string.IsNullOrWhiteSpace(evento.EstadoAnterior) || !string.IsNullOrWhiteSpace(evento.EstadoNuevo)){<em>@TextoEstado(evento.EstadoAnterior) → @TextoEstado(evento.EstadoNuevo)</em>}</div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </section>
+                }
+            </main>
+        </div>
+    </div>
+}
+
+@if (mostrarAgregarFotos)
+{
+    <div class="fd-modal-backdrop" @onclick="CerrarAgregarFotos">
+        <section class="fd-modal" @onclick:stopPropagation="true">
+            <header><div><span class="fd-kicker">Nueva evidencia</span><h2>Agregar fotografías</h2></div><button @onclick="CerrarAgregarFotos">×</button></header>
+            <div class="fd-modal-body">
+                <label class="fd-file-drop"><i class="fa-solid fa-images"></i><strong>Seleccionar fotografías</strong><span>Hasta completar el máximo de 40 evidencias.</span><InputFile OnChange="SeleccionarFotosAgregarAsync" multiple accept="image/*" /></label>
+                @foreach (FotoFitosanitariaCargaWeb foto in fotosAgregar)
+                {
+                    <div class="fd-upload-row"><strong>@foto.Archivo.Name</strong><select @bind="foto.TipoFotografia">@foreach (TipoFotografiaIAWeb tipo in tiposFotografia){<option value="@tipo.Codigo">@tipo.Nombre</option>}</select><input type="date" @bind="foto.FechaIdentificacionCampo" max="@DateTime.Today.ToString("yyyy-MM-dd")" /></div>
+                }
+            </div>
+            <footer><button class="fd-btn fd-secondary" @onclick="CerrarAgregarFotos">Cancelar</button><button class="fd-btn fd-primary" @onclick="GuardarFotosAgregadasAsync" disabled="@ocupado">Agregar fotografías</button></footer>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public int InspeccionId { get; set; }
+    [SupplyParameterFromQuery(Name = "modo")] public string? Modo { get; set; }
+
+    private InspeccionFitosanitariaDetalleWeb? detalle;
+    private InspeccionFotoWeb? fotoSeleccionada;
+    private bool cargando = true;
+    private bool ocupado;
+    private string mensaje = string.Empty;
+    private bool mensajeError;
+    private string mensajeBloqueo = string.Empty;
+    private string formularioAccion = string.Empty;
+    private List<TipoFotografiaIAWeb> tiposFotografia = [];
+    private List<MotivoDevolucionTecnicoWeb> motivosDevolucion = [];
+    private List<InspeccionAlbumCategoriaWeb> catalogoAlbum = [];
+    private InspeccionBloqueoWeb? bloqueo;
+    private CancellationTokenSource? bloqueoCts;
+    private Task? tareaRenovacion;
+
+    private string retroalimentacionIA = string.Empty;
+    private string diagnosticoPropuestoIA = string.Empty;
+    private string motivoDescarte = string.Empty;
+    private InspeccionFotoAnalisisHumanoRequestWeb analisis = new();
+    private InspeccionFotoAprobacionRequestWeb aprobacion = new();
+    private int motivoDevolucionId;
+    private string instruccionesDevolucion = string.Empty;
+    private string tipoResolucion = "EVIDENCIA";
+    private DateTime fechaResolucion = DateTime.Today;
+    private string respuestaResolucion = string.Empty;
+    private int categoriaAlbumId;
+    private int fichaAlbumId;
+    private string descripcionAlbum = string.Empty;
+    private bool esPortadaAlbum;
+    private int ordenAlbum = 1;
+    private bool mostrarAgregarFotos;
+    private readonly List<FotoFitosanitariaCargaWeb> fotosAgregar = [];
+
+    private string ModoActual => (Modo ?? "mis").Trim().ToLowerInvariant();
+    private bool EsModoAnalizadorRevisadas => ModoActual == "analizador-revisadas";
+    private bool EsModoAprobadorRevisadas => ModoActual == "aprobador-revisadas";
+    private bool EsModoAnalizadorEdicion => ModoActual == "analizador";
+    private bool EsModoAprobadorEdicion => ModoActual == "aprobador";
+    private bool EsModoAnalizador => EsModoAnalizadorEdicion || EsModoAnalizadorRevisadas;
+    private bool EsModoAprobador => EsModoAprobadorEdicion || EsModoAprobadorRevisadas;
+    private bool EsModoTecnico => ModoActual is "mis" or "decisiones";
+    private bool TieneBloqueoOperativo => bloqueo?.Adquirido == true && !string.IsNullOrWhiteSpace(bloqueo.Token);
+    private bool PuedeOperarAnalizador => AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAnalizador);
+    private bool PuedeOperarAprobador => AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAprobador);
+    private bool PuedeAgregarFotos => detalle is not null && !detalle.EtapaTecnicaFinalizada && !detalle.CerradaDefinitiva && detalle.PuedeGestionarSolicitud && AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud);
+    private bool PuedeFinalizarEtapaTecnica => detalle is not null && !detalle.EtapaTecnicaFinalizada && !detalle.CerradaDefinitiva && detalle.PuedeGestionarSolicitud && AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud);
+    private MotivoDevolucionTecnicoWeb? MotivoSeleccionado => motivosDevolucion.FirstOrDefault(x => x.MotivoDevolucionTecnicoId == motivoDevolucionId);
+    private IEnumerable<InspeccionAlbumFichaWeb> FichasCategoria => catalogoAlbum.FirstOrDefault(x => x.CategoriaAlbumBotanicoId == categoriaAlbumId)?.Fichas ?? [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        try
+        {
+            detalle = await Servicio.ObtenerDetalleAsync(InspeccionId);
+            tiposFotografia = await Servicio.ObtenerTiposFotografiaAsync();
+            fotoSeleccionada = detalle.Fotografias.OrderBy(x => x.Orden).FirstOrDefault(x => fotoSeleccionada?.FotografiaId == x.FotografiaId) ?? detalle.Fotografias.OrderBy(x => x.Orden).FirstOrDefault();
+            await PrepararBloqueoAsync();
+            mensaje = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            mensaje = ex.Message;
+            mensajeError = true;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task PrepararBloqueoAsync()
+    {
+        bool requiere =
+            (EsModoAnalizadorEdicion && PuedeOperarAnalizador) ||
+            (EsModoAprobadorEdicion && PuedeOperarAprobador);
+
+        if (!requiere || detalle?.CerradaDefinitiva == true)
+        {
+            mensajeBloqueo = string.Empty;
+            return;
+        }
+
+        string modo = EsModoAnalizadorEdicion
+            ? "analizador"
+            : "aprobador";
+
+        if (TieneBloqueoOperativo &&
+            bloqueo?.Modo.Equals(
+                modo,
+                StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return;
+        }
+
+        try
+        {
+            bloqueo = await Servicio.AdquirirBloqueoAsync(InspeccionId, modo);
+            mensajeBloqueo = string.Empty;
+            IniciarRenovacionBloqueo(modo);
+        }
+        catch (Exception ex)
+        {
+            bloqueo = null;
+            mensajeBloqueo = ex.Message;
+        }
+    }
+
+    private void IniciarRenovacionBloqueo(string modo)
+    {
+        bloqueoCts?.Cancel();
+        bloqueoCts?.Dispose();
+        bloqueoCts = new CancellationTokenSource();
+        CancellationToken token = bloqueoCts.Token;
+        tareaRenovacion = Task.Run(async () =>
+        {
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(60), token);
+                    if (bloqueo is null || string.IsNullOrWhiteSpace(bloqueo.Token))
+                        break;
+                    bloqueo = await Servicio.RenovarBloqueoAsync(InspeccionId, modo, bloqueo.Token, token);
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                bloqueo = null;
+                await InvokeAsync(() => { mensajeBloqueo = ex.Message; StateHasChanged(); });
+            }
+        }, token);
+    }
+
+    private void SeleccionarFoto(InspeccionFotoWeb foto)
+    {
+        fotoSeleccionada = foto;
+        formularioAccion = string.Empty;
+    }
+
+    private async Task EjecutarAsync(Func<Task> accion, string mensajeExito)
+    {
+        if (ocupado) return;
+        ocupado = true;
+        try
+        {
+            await accion();
+            MostrarMensaje(mensajeExito, false);
+            int? actual = fotoSeleccionada?.FotografiaId;
+            detalle = await Servicio.ObtenerDetalleAsync(InspeccionId);
+            fotoSeleccionada = detalle.Fotografias.FirstOrDefault(x => x.FotografiaId == actual) ?? detalle.Fotografias.OrderBy(x => x.Orden).FirstOrDefault();
+            formularioAccion = string.Empty;
+        }
+        catch (Exception ex) { MostrarMensaje(ex.Message, true); }
+        finally { ocupado = false; }
+    }
+
+    private Task ProcesarSeleccionadaAsync() => fotoSeleccionada is null ? Task.CompletedTask : EjecutarAsync(() => Servicio.ProcesarFotosAsync(InspeccionId, new[] { fotoSeleccionada.FotografiaId }), "La fotografía fue enviada a procesamiento IA.");
+    private Task EnviarAnalizadorAsync() => fotoSeleccionada is null ? Task.CompletedTask : EjecutarAsync(() => Servicio.EnviarAnalizadorAsync(InspeccionId, new[] { fotoSeleccionada.FotografiaId }), "La fotografía fue enviada al analizador.");
+
+    private async Task SolicitarRevisionIAAsync()
+    {
+        if (fotoSeleccionada is null) return;
+        if (retroalimentacionIA.Trim().Length < 8) { MostrarMensaje("Ingrese una retroalimentación técnica de al menos 8 caracteres.", true); return; }
+        await EjecutarAsync(() => Servicio.SolicitarRevisionIAAsync(InspeccionId, fotoSeleccionada.FotografiaId, retroalimentacionIA.Trim(), diagnosticoPropuestoIA.Trim()), "La revisión IA fue solicitada.");
+    }
+
+    private async Task DescartarAsync()
+    {
+        if (fotoSeleccionada is null) return;
+        if (motivoDescarte.Trim().Length < 5) { MostrarMensaje("Indique el motivo del descarte.", true); return; }
+        await EjecutarAsync(() => Servicio.DescartarFotoAsync(InspeccionId, fotoSeleccionada.FotografiaId, motivoDescarte.Trim()), "La fotografía fue descartada con trazabilidad.");
+    }
+
+    private Task FinalizarEtapaTecnicaAsync() => EjecutarAsync(() => Servicio.FinalizarEtapaTecnicaAsync(InspeccionId), "La etapa técnica fue finalizada.");
+    private Task FinalizarAnalizadorAsync() => EjecutarAsync(() => Servicio.FinalizarAnalizadorAsync(InspeccionId), "La revisión del analizador fue finalizada cuando el expediente cumplió las condiciones.");
+
+    private void PrepararAnalisisHumano()
+    {
+        if (fotoSeleccionada is null) return;
+        InspeccionFotoAnalisisHumanoWeb? previo = fotoSeleccionada.UltimoAnalisisHumano;
+        InspeccionFotoResultadoIAWeb? ia = fotoSeleccionada.ResultadoIA;
+        analisis = new InspeccionFotoAnalisisHumanoRequestWeb
+        {
+            FotografiaId = fotoSeleccionada.FotografiaId,
+            CalidadEvaluacion = previo?.CalidadEvaluacion ?? ia?.CalidadEvaluacion ?? "EVALUABLE",
+            EstadoGeneral = previo?.EstadoGeneral ?? ia?.EstadoGeneral ?? "INDETERMINADA",
+            CategoriaPrincipal = previo?.CategoriaPrincipal ?? ia?.CategoriaPrincipal ?? "AFECTACION_NO_DETERMINADA",
+            Diagnostico = previo?.Diagnostico ?? ia?.DiagnosticoProbable ?? string.Empty,
+            TipoDiagnostico = previo?.TipoDiagnostico ?? ia?.TipoDiagnostico ?? string.Empty,
+            Severidad = previo?.Severidad ?? ia?.SeveridadVisual ?? "NO_EVALUABLE",
+            NivelCerteza = previo?.NivelCerteza ?? ia?.NivelCerteza ?? "NO_DETERMINADO",
+            Observaciones = previo?.Observaciones ?? string.Empty
+        };
+        formularioAccion = "analisis";
+    }
+
+    private async Task GuardarAnalisisHumanoAsync()
+    {
+        if (string.IsNullOrWhiteSpace(analisis.Diagnostico)) { MostrarMensaje("El diagnóstico humano es obligatorio.", true); return; }
+        await EjecutarAsync(() => Servicio.GuardarAnalisisHumanoAsync(InspeccionId, analisis), "La clasificación humana quedó guardada como borrador.");
+    }
+
+    private Task EnviarAprobadorAsync() => fotoSeleccionada is null ? Task.CompletedTask : EjecutarAsync(() => Servicio.EnviarAprobadorAsync(InspeccionId, new[] { fotoSeleccionada.FotografiaId }), "La fotografía fue enviada al aprobador.");
+
+    private async Task PrepararDevolucionTecnicoAsync()
+    {
+        try
+        {
+            if (motivosDevolucion.Count == 0) motivosDevolucion = await Servicio.ObtenerMotivosDevolucionAsync();
+            motivoDevolucionId = motivosDevolucion.FirstOrDefault()?.MotivoDevolucionTecnicoId ?? 0;
+            instruccionesDevolucion = MotivoSeleccionado?.InstruccionSugerida ?? string.Empty;
+            formularioAccion = "devolver";
+        }
+        catch (Exception ex) { MostrarMensaje(ex.Message, true); }
+    }
+
+    private async Task DevolverTecnicoAsync()
+    {
+        if (fotoSeleccionada is null) return;
+        if (motivoDevolucionId <= 0 || instruccionesDevolucion.Trim().Length < 8) { MostrarMensaje("Seleccione un motivo e indique instrucciones específicas de al menos 8 caracteres.", true); return; }
+        await EjecutarAsync(() => Servicio.DevolverTecnicoAsync(InspeccionId, fotoSeleccionada.FotografiaId, motivoDevolucionId, instruccionesDevolucion.Trim()), "La fotografía fue devuelta al técnico.");
+    }
+
+    private void PrepararResolverDevolucion()
+    {
+        if (fotoSeleccionada is null) return;
+        tipoResolucion = string.IsNullOrWhiteSpace(fotoSeleccionada.TipoFotografia) ? tiposFotografia.FirstOrDefault()?.Codigo ?? "EVIDENCIA" : fotoSeleccionada.TipoFotografia;
+        fechaResolucion = fotoSeleccionada.FechaIdentificacionCampo?.Date ?? DateTime.Today;
+        respuestaResolucion = string.Empty;
+        formularioAccion = "resolver";
+    }
+
+    private async Task ResolverDevolucionAsync()
+    {
+        if (fotoSeleccionada is null) return;
+        if (respuestaResolucion.Trim().Length < 8) { MostrarMensaje("La respuesta técnica debe contener al menos 8 caracteres.", true); return; }
+        await EjecutarAsync(() => Servicio.ResolverDevolucionAsync(InspeccionId, fotoSeleccionada.FotografiaId, tipoResolucion, fechaResolucion, respuestaResolucion.Trim()), "La devolución fue resuelta y la fotografía volvió al flujo técnico.");
+    }
+
+    private void PrepararAprobacion()
+    {
+        if (fotoSeleccionada is null) return;
+        InspeccionFotoAnalisisHumanoWeb? h = fotoSeleccionada.UltimoAnalisisHumano;
+        aprobacion = new InspeccionFotoAprobacionRequestWeb
+        {
+            FotografiaId = fotoSeleccionada.FotografiaId,
+            Decision = DecisionesAprobacionFitosanitariaWeb.Aprobar,
+            CalidadEvaluacionFinal = h?.CalidadEvaluacion ?? "EVALUABLE",
+            EstadoGeneralFinal = h?.EstadoGeneral ?? "INDETERMINADA",
+            CategoriaPrincipalFinal = h?.CategoriaPrincipal ?? "AFECTACION_NO_DETERMINADA",
+            DiagnosticoFinal = h?.Diagnostico ?? string.Empty,
+            TipoDiagnosticoFinal = h?.TipoDiagnostico ?? string.Empty,
+            SeveridadFinal = h?.Severidad ?? "NO_EVALUABLE",
+            NivelCertezaFinal = h?.NivelCerteza ?? "NO_DETERMINADO",
+            Observaciones = string.Empty,
+            AutorizaPublicacionAlbum = false
+        };
+        formularioAccion = "aprobacion";
+    }
+
+    private async Task RegistrarAprobacionAsync()
+    {
+        if (fotoSeleccionada is null) return;
+        aprobacion.FotografiaId = fotoSeleccionada.FotografiaId;
+        await EjecutarAsync(() => Servicio.RegistrarAprobacionAsync(InspeccionId, aprobacion), "La decisión del aprobador fue registrada.");
+    }
+
+    private Task CerrarDefinitivamenteAsync() => EjecutarAsync(() => Servicio.CerrarDefinitivamenteAsync(InspeccionId), "La inspección quedó cerrada definitivamente y en modo de solo lectura.");
+
+    private async Task PrepararPublicacionAsync()
+    {
+        try
+        {
+            if (catalogoAlbum.Count == 0) catalogoAlbum = await Servicio.ObtenerCatalogoAlbumAsync();
+            categoriaAlbumId = catalogoAlbum.FirstOrDefault()?.CategoriaAlbumBotanicoId ?? 0;
+            fichaAlbumId = FichasCategoria.FirstOrDefault()?.AlbumBotanicoCafeId ?? 0;
+            descripcionAlbum = string.Empty;
+            esPortadaAlbum = false;
+            ordenAlbum = 1;
+            formularioAccion = "publicar";
+        }
+        catch (Exception ex) { MostrarMensaje(ex.Message, true); }
+    }
+
+    private void CambiarCategoriaAlbum(ChangeEventArgs e)
+    {
+        categoriaAlbumId = int.TryParse(Convert.ToString(e.Value), out int id) ? id : 0;
+        fichaAlbumId = FichasCategoria.FirstOrDefault()?.AlbumBotanicoCafeId ?? 0;
+    }
+
+    private async Task PublicarAlbumAsync()
+    {
+        if (fotoSeleccionada is null) return;
+        if (categoriaAlbumId <= 0 || fichaAlbumId <= 0) { MostrarMensaje("Seleccione una categoría y una ficha del Álbum Botánico.", true); return; }
+        await EjecutarAsync(() => Servicio.PublicarAlbumAsync(InspeccionId, fotoSeleccionada.FotografiaId, categoriaAlbumId, fichaAlbumId, descripcionAlbum, esPortadaAlbum, Math.Max(1, ordenAlbum)), "La evidencia fue copiada al Álbum Botánico sin alterar el expediente.");
+    }
+
+    private void AbrirAgregarFotos() { fotosAgregar.Clear(); mostrarAgregarFotos = true; }
+    private void CerrarAgregarFotos() { if (!ocupado) mostrarAgregarFotos = false; }
+
+    private Task SeleccionarFotosAgregarAsync(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            int disponibles = Math.Max(0, 40 - (detalle?.Fotografias.Count ?? 0));
+            if (disponibles == 0) { MostrarMensaje("La inspección ya alcanzó el máximo de 40 fotografías.", true); return Task.CompletedTask; }
+            string tipo = tiposFotografia.FirstOrDefault()?.Codigo ?? "EVIDENCIA";
+            foreach (IBrowserFile archivo in e.GetMultipleFiles(Math.Min(40, disponibles)))
+            {
+                if (archivo.Size > 12L * 1024L * 1024L) { MostrarMensaje($"{archivo.Name} supera el máximo de 12 MB.", true); continue; }
+                fotosAgregar.Add(new FotoFitosanitariaCargaWeb { Archivo = archivo, TipoFotografia = tipo, FechaIdentificacionCampo = DateTime.Today });
+            }
+        }
+        catch (Exception ex) { MostrarMensaje(ex.Message, true); }
+        return Task.CompletedTask;
+    }
+
+    private async Task GuardarFotosAgregadasAsync()
+    {
+        if (fotosAgregar.Count == 0) { MostrarMensaje("Seleccione al menos una fotografía.", true); return; }
+        await EjecutarAsync(() => Servicio.AgregarFotosAsync(InspeccionId, fotosAgregar), "Las nuevas fotografías fueron agregadas a la inspección.");
+        mostrarAgregarFotos = false;
+        fotosAgregar.Clear();
+    }
+
+    private bool PuedeProcesarFoto(InspeccionFotoWeb f) => detalle?.PuedeGestionarSolicitud == true && AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud) && !detalle.EtapaTecnicaFinalizada && f.Estado is EstadosFotoFitosanitariaWeb.Borrador or EstadosFotoFitosanitariaWeb.PendienteIA or EstadosFotoFitosanitariaWeb.ErrorIA;
+    private bool PuedeAnalizarFoto(InspeccionFotoWeb f) => PuedeOperarAnalizador && f.Estado is EstadosFotoFitosanitariaWeb.PendienteAnalizador or EstadosFotoFitosanitariaWeb.EnAnalisisHumano or EstadosFotoFitosanitariaWeb.DevueltaAnalizador;
+    private bool PuedePublicarFoto(InspeccionFotoWeb f) => AuthState.TienePermisoDirectoAgregar("albumFotosPage") && f.UltimaAprobacion?.AutorizaPublicacionAlbum == true && !f.PublicadaAlbum && f.Estado is EstadosFotoFitosanitariaWeb.Aprobada or EstadosFotoFitosanitariaWeb.AprobadaConCorreccion;
+
+    private static bool EsFinal(string? e) => (e ?? string.Empty).ToUpperInvariant() is "APROBADA" or "APROBADA_CON_CORRECCION" or "RECHAZADA" or "NO_CONCLUYENTE" or "DESCARTADA" or "PUBLICADA_ALBUM";
+    private void CerrarFormulario() => formularioAccion = string.Empty;
+    private void MostrarMensaje(string texto, bool error) { mensaje = texto; mensajeError = error; }
+    private void Volver() => Navigation.NavigateTo("/inspeccion-fitosanitaria");
+    private static string Valor(string? v) => string.IsNullOrWhiteSpace(v) ? "No disponible" : v;
+    private static string TextoTipo(string? v) => string.IsNullOrWhiteSpace(v) ? "No disponible" : string.Join(' ', v.Split('_', StringSplitOptions.RemoveEmptyEntries).Select(x => char.ToUpperInvariant(x[0]) + x[1..].ToLowerInvariant()));
+    private static string TextoEstado(string? v) => TextoTipo(v);
+    private static string ClaseEstado(string? e) => ClaseEstadoFoto(e);
+    private static string ClaseEstadoFoto(string? e) => (e ?? string.Empty).ToUpperInvariant() switch { "APROBADA" or "APROBADA_CON_CORRECCION" or "PUBLICADA_ALBUM" or "FINALIZADA" => "ok", "RECHAZADA" or "ERROR_IA" => "danger", "NO_CONCLUYENTE" or "DEVUELTA_AL_TECNICO" or "DEVUELTA_AL_ANALIZADOR" => "warn", "PENDIENTE_APROBACION" => "purple", "PENDIENTE_ANALIZADOR" or "EN_ANALISIS_HUMANO" or "ANALIZANDO_IA" or "PENDIENTE_IA" => "blue", _ => "neutral" };
+    private static DateTime Local(DateTime utc) => utc.Kind == DateTimeKind.Utc ? utc.ToLocalTime() : DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime();
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            bloqueoCts?.Cancel();
+            if (tareaRenovacion is not null) { try { await tareaRenovacion; } catch { } }
+            if (bloqueo is not null && !string.IsNullOrWhiteSpace(bloqueo.Token))
+            {
+                string modo = (bloqueo.Modo ?? string.Empty)
+                    .Trim()
+                    .ToLowerInvariant();
+
+                if (modo is "analizador" or "aprobador")
+                {
+                    try
+                    {
+                        await Servicio.LiberarBloqueoAsync(
+                            InspeccionId,
+                            modo,
+                            bloqueo.Token);
+                    }
+                    catch
+                    {
+                        // El bloqueo puede haber vencido o haber sido liberado.
+                    }
+                }
+            }
+        }
+        finally { bloqueoCts?.Dispose(); bloqueoCts = null; }
+    }
+}

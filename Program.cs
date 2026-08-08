@@ -111,6 +111,7 @@ builder.Services.AddScoped<WebActivityService>();
 builder.Services.AddScoped<BrowserSessionService>();
 builder.Services.AddScoped<AuthStateService>();
 builder.Services.AddScoped<SeguridadWebService>();
+builder.Services.AddScoped<InspeccionFitosanitariaWebService>();
 
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<MapaService>();

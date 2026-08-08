@@ -32,6 +32,21 @@ public static class PermisosWeb
     public const string AuditoriaAnalisis =
         "auditoriaAnalisisPage";
 
+    public const string DiagnosticoSolicitud =
+        "diagnosticoIASolicitudPage";
+
+    public const string DiagnosticoAnalizador =
+        "diagnosticoIAAnalizadorPage";
+
+    public const string DiagnosticoAprobador =
+        "diagnosticoIAAprobadorPage";
+
+    public const string DiagnosticoConfiguracion =
+        "diagnosticoIAConfiguracionPage";
+
+    public const string ControlFitosanitario =
+        "diagnosticoIAControlPage";
+
     public const string ParametrizacionAcceso =
         "ParametrizacionAccesoPage";
 

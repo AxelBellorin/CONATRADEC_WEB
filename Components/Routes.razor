@@ -1,6 +1,8 @@
 @using CONATRADEC.AdminWeb.Components.Layout
 @using CONATRADEC.AdminWeb.Components.Shared
 
+<FitosanitarioNavigationBridge />
+
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
         @if (EsPaginaPublica(routeData.PageType))

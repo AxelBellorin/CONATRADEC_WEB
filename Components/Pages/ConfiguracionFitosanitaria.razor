@@ -1,0 +1,561 @@
+@page "/configuracion/fitosanitaria"
+@inject AuthStateService AuthState
+@inject InspeccionFitosanitariaWebService Servicio
+@inject NavigationManager Navigation
+
+<PageTitle>Configuración fitosanitaria | CONATRADEC</PageTitle>
+
+<div class="fc-page">
+    <header class="page-header">
+        <div>
+            <p class="eyebrow">Inspección fitosanitaria</p>
+            <h1>Configuración de inteligencia artificial</h1>
+            <p>
+                Administra el límite de revisiones adicionales y el catálogo de
+                tipos de fotografía que orienta el análisis visual.
+            </p>
+        </div>
+        <button class="btn-secondary" @onclick="CargarAsync" disabled="@cargando">
+            <i class="fa-solid fa-rotate"></i>
+            Actualizar
+        </button>
+    </header>
+
+    @if (!PuedeLeer)
+    {
+        <section class="panel fc-denied">
+            <i class="fa-solid fa-lock"></i>
+            <h2>Acceso no habilitado</h2>
+            <p>Tu rol no posee permiso para consultar la configuración fitosanitaria.</p>
+        </section>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <div class="fc-alert @(mensajeError ? "error" : "success")">
+                <i class="fa-solid @(mensajeError ? "fa-circle-exclamation" : "fa-circle-check")"></i>
+                <span>@mensaje</span>
+                <button @onclick="LimpiarMensaje" aria-label="Cerrar">×</button>
+            </div>
+        }
+
+        @if (cargando)
+        {
+            <div class="fc-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando configuración...</div>
+        }
+        else
+        {
+            <div class="fc-grid">
+                <section class="panel fc-limit-card">
+                    <div class="fc-section-title">
+                        <div>
+                            <p class="eyebrow">Control de consumo</p>
+                            <h2>Límite de revisiones adicionales</h2>
+                        </div>
+                        <span class="fc-current">@ResumenLimite</span>
+                    </div>
+
+                    <p class="fc-help">
+                        Este límite controla cuántas veces el técnico puede solicitar
+                        una revisión adicional de IA sobre una fotografía. No modifica
+                        la primera evaluación automática.
+                    </p>
+
+                    <label class="fc-check">
+                        <InputCheckbox @bind-Value="revisionesIlimitadas" disabled="@(!PuedeActualizar)" />
+                        <span>Permitir revisiones ilimitadas</span>
+                    </label>
+
+                    @if (!revisionesIlimitadas)
+                    {
+                        <div class="form-group fc-number">
+                            <label>Cantidad máxima (1 a 20)</label>
+                            <InputNumber class="form-control"
+                                         min="1"
+                                         max="20"
+                                         @bind-Value="maximoRevisiones"
+                                         disabled="@(!PuedeActualizar)" />
+                        </div>
+                    }
+
+                    <div class="fc-meta">
+                        <span>
+                            <i class="fa-regular fa-user"></i>
+                            @TextoUsuarioConfiguracion
+                        </span>
+                        <span>
+                            <i class="fa-regular fa-clock"></i>
+                            @FechaLocal(configuracion.FechaModificacionUtc)
+                        </span>
+                    </div>
+
+                    @if (PuedeActualizar)
+                    {
+                        <div class="fc-actions">
+                            <button class="btn-primary" @onclick="GuardarLimiteAsync" disabled="@guardando">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                Guardar límite
+                            </button>
+                        </div>
+                    }
+                </section>
+
+                <section class="panel fc-history-card">
+                    <div class="fc-section-title">
+                        <div>
+                            <p class="eyebrow">Auditoría</p>
+                            <h2>Historial del límite</h2>
+                        </div>
+                        <span>@configuracion.Historial.Count cambio(s)</span>
+                    </div>
+
+                    <div class="fc-history">
+                        @if (configuracion.Historial.Count == 0)
+                        {
+                            <p class="fc-empty">Todavía no hay cambios registrados.</p>
+                        }
+                        else
+                        {
+                            @foreach (DiagnosticoIAConfiguracionHistorialWeb item in configuracion.Historial)
+                            {
+                                <article>
+                                    <strong>@TextoVacio(item.Usuario)</strong>
+                                    <span>@TextoCambio(item)</span>
+                                    <small>@FechaLocal(item.FechaUtc)</small>
+                                </article>
+                            }
+                        }
+                    </div>
+                </section>
+            </div>
+
+            <section class="panel fc-catalog-card">
+                <div class="fc-section-title">
+                    <div>
+                        <p class="eyebrow">Catálogo operativo</p>
+                        <h2>Tipos de fotografía para la IA</h2>
+                        <p>
+                            Cada tipo define qué estructura está observando el técnico
+                            y qué detalles debe priorizar el modelo durante el análisis.
+                        </p>
+                    </div>
+                    @if (PuedeAgregar)
+                    {
+                        <button class="btn-primary" @onclick="AbrirNuevoTipo">
+                            <i class="fa-solid fa-plus"></i>
+                            Nuevo tipo
+                        </button>
+                    }
+                </div>
+
+                <div class="fc-catalog-grid">
+                    @if (tipos.Count == 0)
+                    {
+                        <div class="fc-empty">No hay tipos de fotografía configurados.</div>
+                    }
+                    else
+                    {
+                        @foreach (TipoFotografiaIAWeb tipo in tipos.OrderBy(x => x.Orden).ThenBy(x => x.Nombre))
+                        {
+                            <article class="fc-type-card @(!tipo.Activo ? "inactive" : string.Empty)">
+                                <header>
+                                    <div>
+                                        <span class="fc-code">@tipo.Codigo</span>
+                                        <h3>@tipo.Nombre</h3>
+                                    </div>
+                                    <span class="fc-status @(tipo.Activo ? "active" : "inactive")">
+                                        @(tipo.Activo ? "Activo" : "Inactivo")
+                                    </span>
+                                </header>
+                                <p>@TextoVacio(tipo.Descripcion)</p>
+                                <div class="fc-instruction">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                    <span>@TextoVacio(tipo.InstruccionIA)</span>
+                                </div>
+                                <footer>
+                                    <span>Orden @tipo.Orden</span>
+                                    <div>
+                                        @if (tipo.Activo && PuedeActualizar)
+                                        {
+                                            <button class="table-action" @onclick="() => AbrirEditarTipo(tipo)" title="Editar">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                        }
+                                        @if (tipo.Activo && PuedeEliminar && !tipo.Codigo.Equals("EVIDENCIA", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <button class="table-action danger" @onclick="() => DesactivarTipoAsync(tipo)" title="Desactivar">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        }
+                                        @if (!tipo.Activo && PuedeActualizar)
+                                        {
+                                            <button class="table-action" @onclick="() => RecuperarTipoAsync(tipo)" title="Recuperar">
+                                                <i class="fa-solid fa-rotate-left"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </footer>
+                            </article>
+                        }
+                    }
+                </div>
+            </section>
+        }
+    }
+</div>
+
+@if (mostrarTipo)
+{
+    <div class="modal-backdrop" @onclick="CerrarTipo">
+        <article class="modal-card fc-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Catálogo IA</p>
+                    <h2>@(tipoEditandoId > 0 ? "Editar tipo de fotografía" : "Nuevo tipo de fotografía")</h2>
+                </div>
+                <button class="modal-close" @onclick="CerrarTipo" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="fc-modal-body">
+                <div class="fc-form-grid">
+                    <div class="form-group">
+                        <label>Código *</label>
+                        <InputText class="form-control"
+                                   @bind-Value="tipoFormulario.Codigo"
+                                   maxlength="40"
+                                   disabled="@(tipoEditandoId > 0)" />
+                        <small>Se conserva estable cuando el registro ya existe.</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        <InputText class="form-control" @bind-Value="tipoFormulario.Nombre" maxlength="100" />
+                    </div>
+                    <div class="form-group">
+                        <label>Orden *</label>
+                        <InputNumber class="form-control" @bind-Value="tipoFormulario.Orden" min="1" max="999" />
+                    </div>
+                    <div class="form-group full">
+                        <label>Descripción *</label>
+                        <InputTextArea class="form-control" @bind-Value="tipoFormulario.Descripcion" maxlength="500" />
+                    </div>
+                    <div class="form-group full">
+                        <label>Instrucción para la IA *</label>
+                        <InputTextArea class="form-control fc-instruction-edit"
+                                       @bind-Value="tipoFormulario.InstruccionIA"
+                                       maxlength="2000" />
+                        <small>
+                            Indique qué rasgos debe priorizar el modelo para este tipo de evidencia.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary" @onclick="CerrarTipo" disabled="@guardandoTipo">Cancelar</button>
+                <button class="btn-primary" @onclick="GuardarTipoAsync" disabled="@guardandoTipo">
+                    @if (guardandoTipo)
+                    {
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-floppy-disk"></i>
+                    }
+                    Guardar
+                </button>
+            </div>
+        </article>
+    </div>
+}
+
+@code {
+    private bool cargando;
+    private bool guardando;
+    private bool guardandoTipo;
+    private bool mostrarTipo;
+    private int tipoEditandoId;
+    private int maximoRevisiones = 2;
+    private bool revisionesIlimitadas;
+    private string mensaje = string.Empty;
+    private bool mensajeError;
+
+    private DiagnosticoIAConfiguracionWeb configuracion = new();
+    private List<TipoFotografiaIAWeb> tipos = [];
+    private TipoFotografiaIAGuardarWeb tipoFormulario = new();
+
+    private bool PuedeLeer =>
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.DiagnosticoConfiguracion);
+
+    private bool PuedeAgregar =>
+        AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoConfiguracion);
+
+    private bool PuedeActualizar =>
+        AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoConfiguracion);
+
+    private bool PuedeEliminar =>
+        AuthState.TienePermisoDirectoEliminar(PermisosWeb.DiagnosticoConfiguracion);
+
+    private string ResumenLimite =>
+        revisionesIlimitadas
+            ? "Revisiones adicionales ilimitadas"
+            : $"Máximo {maximoRevisiones} revisión(es) adicional(es)";
+
+    private string TextoUsuarioConfiguracion =>
+        string.IsNullOrWhiteSpace(configuracion.UsuarioModificacion)
+            ? "Configuración inicial del sistema"
+            : configuracion.UsuarioModificacion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!PuedeLeer)
+            return;
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        if (!PuedeLeer)
+            return;
+
+        cargando = true;
+        try
+        {
+            Task<DiagnosticoIAConfiguracionWeb> configuracionTask =
+                Servicio.ObtenerConfiguracionIAAsync();
+            Task<List<TipoFotografiaIAWeb>> tiposTask =
+                Servicio.ObtenerTiposFotografiaConfiguracionAsync(true);
+
+            await Task.WhenAll(configuracionTask, tiposTask);
+            configuracion = await configuracionTask;
+            tipos = await tiposTask;
+            maximoRevisiones = Math.Clamp(configuracion.MaximoRevisionesGemini, 1, 20);
+            revisionesIlimitadas = configuracion.RevisionesIlimitadas;
+        }
+        catch (Exception ex)
+        {
+            Error(ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task GuardarLimiteAsync()
+    {
+        if (!PuedeActualizar)
+            return;
+
+        if (maximoRevisiones is < 1 or > 20)
+        {
+            Error("El máximo de revisiones debe estar entre 1 y 20.");
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            configuracion = await Servicio.GuardarConfiguracionIAAsync(
+                maximoRevisiones,
+                revisionesIlimitadas);
+            maximoRevisiones = Math.Clamp(configuracion.MaximoRevisionesGemini, 1, 20);
+            revisionesIlimitadas = configuracion.RevisionesIlimitadas;
+            Exito("La configuración de revisiones fue guardada correctamente.");
+        }
+        catch (Exception ex)
+        {
+            Error(ex.Message);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void AbrirNuevoTipo()
+    {
+        tipoEditandoId = 0;
+        tipoFormulario = new TipoFotografiaIAGuardarWeb
+        {
+            Orden = tipos.Count == 0 ? 1 : Math.Min(999, tipos.Max(x => x.Orden) + 1)
+        };
+        mostrarTipo = true;
+    }
+
+    private void AbrirEditarTipo(TipoFotografiaIAWeb tipo)
+    {
+        tipoEditandoId = tipo.TipoFotografiaIAId;
+        tipoFormulario = new TipoFotografiaIAGuardarWeb
+        {
+            Codigo = tipo.Codigo,
+            Nombre = tipo.Nombre,
+            Descripcion = tipo.Descripcion,
+            InstruccionIA = tipo.InstruccionIA,
+            Orden = tipo.Orden
+        };
+        mostrarTipo = true;
+    }
+
+    private void CerrarTipo()
+    {
+        if (guardandoTipo)
+            return;
+
+        mostrarTipo = false;
+        tipoEditandoId = 0;
+        tipoFormulario = new();
+    }
+
+    private async Task GuardarTipoAsync()
+    {
+        if (tipoEditandoId == 0 && !PuedeAgregar)
+            return;
+        if (tipoEditandoId > 0 && !PuedeActualizar)
+            return;
+
+        NormalizarTipo();
+        if (!ValidarTipo())
+            return;
+
+        guardandoTipo = true;
+        try
+        {
+            if (tipoEditandoId > 0)
+            {
+                await Servicio.ActualizarTipoFotografiaAsync(tipoEditandoId, tipoFormulario);
+                Exito("El tipo de fotografía fue actualizado correctamente.");
+            }
+            else
+            {
+                await Servicio.CrearTipoFotografiaAsync(tipoFormulario);
+                Exito("El tipo de fotografía fue creado correctamente.");
+            }
+
+            mostrarTipo = false;
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            Error(ex.Message);
+        }
+        finally
+        {
+            guardandoTipo = false;
+        }
+    }
+
+    private async Task DesactivarTipoAsync(TipoFotografiaIAWeb tipo)
+    {
+        if (!PuedeEliminar)
+            return;
+
+        try
+        {
+            await Servicio.DesactivarTipoFotografiaAsync(tipo.TipoFotografiaIAId);
+            Exito($"{tipo.Nombre} fue desactivado. Los registros históricos permanecen intactos.");
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            Error(ex.Message);
+        }
+    }
+
+    private async Task RecuperarTipoAsync(TipoFotografiaIAWeb tipo)
+    {
+        if (!PuedeActualizar)
+            return;
+
+        try
+        {
+            await Servicio.RecuperarTipoFotografiaAsync(tipo.TipoFotografiaIAId);
+            Exito($"{tipo.Nombre} fue recuperado correctamente.");
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            Error(ex.Message);
+        }
+    }
+
+    private void NormalizarTipo()
+    {
+        tipoFormulario.Codigo = (tipoFormulario.Codigo ?? string.Empty)
+            .Trim()
+            .ToUpperInvariant()
+            .Replace(' ', '_');
+        tipoFormulario.Nombre = (tipoFormulario.Nombre ?? string.Empty).Trim();
+        tipoFormulario.Descripcion = (tipoFormulario.Descripcion ?? string.Empty).Trim();
+        tipoFormulario.InstruccionIA = (tipoFormulario.InstruccionIA ?? string.Empty).Trim();
+        tipoFormulario.Orden = Math.Clamp(tipoFormulario.Orden, 1, 999);
+    }
+
+    private bool ValidarTipo()
+    {
+        if (string.IsNullOrWhiteSpace(tipoFormulario.Codigo) ||
+            string.IsNullOrWhiteSpace(tipoFormulario.Nombre) ||
+            string.IsNullOrWhiteSpace(tipoFormulario.Descripcion) ||
+            string.IsNullOrWhiteSpace(tipoFormulario.InstruccionIA))
+        {
+            Error("Complete código, nombre, descripción e instrucción para la IA.");
+            return false;
+        }
+
+        if (tipoFormulario.InstruccionIA.Length < 10)
+        {
+            Error("La instrucción para la IA debe describir con mayor detalle qué debe observar.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private string TextoCambio(DiagnosticoIAConfiguracionHistorialWeb item)
+    {
+        string anterior = item.IlimitadasAnterior
+            ? "Ilimitadas"
+            : $"Máximo {item.MaximoAnterior}";
+        string nuevo = item.IlimitadasNuevo
+            ? "Ilimitadas"
+            : $"Máximo {item.MaximoNuevo}";
+        return $"{anterior} → {nuevo}";
+    }
+
+    private static string FechaLocal(DateTime fechaUtc) =>
+        fechaUtc == default
+            ? "Sin fecha registrada"
+            : fechaUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+
+    private static string TextoVacio(string? valor) =>
+        string.IsNullOrWhiteSpace(valor) ? "No registrado" : valor.Trim();
+
+    private void Exito(string texto)
+    {
+        mensaje = texto;
+        mensajeError = false;
+    }
+
+    private void Error(string texto)
+    {
+        mensaje = string.IsNullOrWhiteSpace(texto)
+            ? "No fue posible completar la operación."
+            : texto;
+        mensajeError = true;
+    }
+
+    private void LimpiarMensaje()
+    {
+        mensaje = string.Empty;
+        mensajeError = false;
+    }
+}

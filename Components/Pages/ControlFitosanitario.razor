@@ -1,0 +1,1248 @@
+@page "/control-fitosanitario"
+@inject AuthStateService AuthState
+@inject InspeccionFitosanitariaWebService FitosanitarioService
+@inject NavigationManager Navigation
+
+<PageTitle>Control fitosanitario | CONATRADEC</PageTitle>
+
+<div class="cf-page">
+    <header class="page-header cf-header">
+        <div>
+            <p class="eyebrow">Supervisión agrícola</p>
+            <h1>Centro de Control Fitosanitario</h1>
+            <p>
+                Monitorea el flujo completo, audita decisiones y revisa el
+                rendimiento de la IA sin alterar la trazabilidad técnica.
+            </p>
+        </div>
+
+        <div class="page-header-actions">
+            <button class="btn-secondary"
+                    @onclick="ActualizarActualAsync"
+                    disabled="@cargando">
+                <i class="fa-solid fa-rotate"></i>
+                Actualizar
+            </button>
+        </div>
+    </header>
+
+    @if (!TieneAcceso)
+    {
+        <section class="panel cf-access-denied">
+            <i class="fa-solid fa-lock"></i>
+            <h2>Acceso no habilitado</h2>
+            <p>
+                Tu rol no tiene permiso de lectura para el Centro de Control
+                Fitosanitario.
+            </p>
+        </section>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <div class="cf-alert @(mensajeError ? "error" : "success")">
+                <i class="fa-solid @(mensajeError ? "fa-circle-exclamation" : "fa-circle-check")"></i>
+                <span>@mensaje</span>
+                <button type="button"
+                        @onclick="LimpiarMensaje"
+                        aria-label="Cerrar mensaje">
+                    ×
+                </button>
+            </div>
+        }
+
+        <nav class="cf-tabs" aria-label="Vistas del centro de control">
+            <button class="@(vista == "monitor" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("monitor")'>
+                <i class="fa-solid fa-gauge-high"></i>
+                Monitor general
+            </button>
+            <button class="@(vista == "auditoria" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("auditoria")'>
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                Auditoría
+            </button>
+            <button class="@(vista == "ia" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("ia")'>
+                <i class="fa-solid fa-microchip"></i>
+                Rendimiento IA
+            </button>
+        </nav>
+
+        @if (vista is "monitor" or "auditoria")
+        {
+            <section class="cf-summary-grid">
+                <article class="cf-summary-card">
+                    <span>Total inspecciones</span>
+                    <strong>@resumen.TotalInspecciones</strong>
+                    <small>@resumen.TotalFotografias fotografías</small>
+                </article>
+                <article class="cf-summary-card info">
+                    <span>Abiertas</span>
+                    <strong>@resumen.Abiertas</strong>
+                    <small>@resumen.EtapaTecnicaAbierta en etapa técnica</small>
+                </article>
+                <article class="cf-summary-card warning">
+                    <span>Pendientes de analizador</span>
+                    <strong>@resumen.PendientesAnalizador</strong>
+                    <small>@resumen.Mas48HorasAnalizador con más de 48 h</small>
+                </article>
+                <article class="cf-summary-card warning">
+                    <span>Pendientes de aprobación</span>
+                    <strong>@resumen.PendientesAprobacion</strong>
+                    <small>@resumen.Mas48HorasAprobador con más de 48 h</small>
+                </article>
+                <article class="cf-summary-card danger">
+                    <span>Errores de IA</span>
+                    <strong>@resumen.FotografiasErrorIA</strong>
+                    <small>@resumen.FotografiasProcesando procesándose</small>
+                </article>
+                <article class="cf-summary-card success">
+                    <span>Cerradas</span>
+                    <strong>@resumen.Cerradas</strong>
+                    <small>@TextoPromedioCierre</small>
+                </article>
+                <article class="cf-summary-card muted">
+                    <span>Bloqueos activos</span>
+                    <strong>@resumen.BloqueosActivos</strong>
+                    <small>Analizador y aprobador</small>
+                </article>
+                <article class="cf-summary-card success">
+                    <span>Publicadas al álbum</span>
+                    <strong>@resumen.FotografiasPublicadasAlbum</strong>
+                    <small>@resumen.FotografiasAprobadas aprobadas</small>
+                </article>
+            </section>
+
+            <section class="panel cf-filters">
+                <div class="form-group cf-search">
+                    <label>Búsqueda general</label>
+                    <InputText class="form-control"
+                               @bind-Value="buscar"
+                               placeholder="Inspección, terreno, propietario o técnico" />
+                </div>
+
+                <div class="form-group">
+                    <label>Estado</label>
+                    <InputSelect class="form-control" @bind-Value="estado">
+                        <option value="">Todos</option>
+                        <option value="BORRADOR">Borrador</option>
+                        <option value="EN_PROCESO">En proceso</option>
+                        <option value="EN_PROCESO_CON_ERRORES">Con errores</option>
+                        <option value="PENDIENTE_REVISION">Pendiente revisión</option>
+                        <option value="PENDIENTE_APROBACION">Pendiente aprobación</option>
+                        <option value="FINALIZADA">Finalizada</option>
+                        <option value="FINALIZADA_PARCIALMENTE">Finalizada parcialmente</option>
+                    </InputSelect>
+                </div>
+
+                <div class="form-group">
+                    <label>Técnico</label>
+                    <InputSelect TValue="int?"
+                                 class="form-control"
+                                 @bind-Value="tecnicoId">
+                        <option value="">Todos</option>
+                        @foreach (ControlFitosanitarioUsuarioWeb usuario in tecnicos)
+                        {
+                            <option value="@usuario.UsuarioId">
+                                @NombreUsuario(usuario)
+                            </option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="form-group">
+                    <label>Departamento</label>
+                    <InputText class="form-control"
+                               @bind-Value="departamento"
+                               placeholder="Ej. Jinotega" />
+                </div>
+
+                <div class="form-group">
+                    <label>Desde</label>
+                    <InputDate TValue="DateTime?"
+                               class="form-control"
+                               @bind-Value="fechaDesde" />
+                </div>
+
+                <div class="form-group">
+                    <label>Hasta</label>
+                    <InputDate TValue="DateTime?"
+                               class="form-control"
+                               @bind-Value="fechaHasta" />
+                </div>
+
+                <div class="cf-filter-actions">
+                    <button class="btn-primary"
+                            @onclick="AplicarFiltrosAsync"
+                            disabled="@cargando">
+                        <i class="fa-solid fa-filter"></i>
+                        Aplicar
+                    </button>
+                    <button class="btn-link"
+                            @onclick="LimpiarFiltrosAsync"
+                            disabled="@cargando">
+                        Limpiar
+                    </button>
+                </div>
+            </section>
+
+            @if (cargando)
+            {
+                <div class="cf-loading"><i class="fa-solid fa-spinner fa-spin"></i><span>Cargando control fitosanitario...</span></div>
+            }
+            else
+            {
+                <section class="panel cf-table-panel">
+                    <div class="cf-table-heading">
+                        <div>
+                            <span>@(vista == "auditoria" ? "Expedientes auditables" : "Inspecciones supervisadas")</span>
+                            <strong>@pagina.TotalRegistros registros</strong>
+                        </div>
+                        <small>
+                            Selecciona una inspección para abrir su expediente de trazabilidad.
+                        </small>
+                    </div>
+
+                    <div class="responsive-table-wrapper">
+                        <table class="data-table cf-table">
+                            <thead>
+                                <tr>
+                                    <th>Inspección</th>
+                                    <th>Terreno / propietario</th>
+                                    <th>Técnico</th>
+                                    <th>Flujo</th>
+                                    <th>Asignación</th>
+                                    <th>Bloqueos</th>
+                                    <th>Actividad</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (pagina.Items.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="8" class="table-empty">
+                                            No hay inspecciones con los filtros seleccionados.
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (ControlFitosanitarioItemWeb item in pagina.Items)
+                                    {
+                                        <tr class="@ClaseFila(item)">
+                                            <td data-label="Inspección">
+                                                <strong>@NombreInspeccion(item)</strong>
+                                                <small>#@item.InspeccionId · @FechaLocal(item.FechaRegistroSistemaUtc)</small>
+                                                <span class="cf-status @ClaseEstado(item.Estado)">
+                                                    @TextoEstado(item.Estado)
+                                                </span>
+                                            </td>
+                                            <td data-label="Terreno">
+                                                <strong>@TextoVacio(item.CodigoTerreno)</strong>
+                                                <small>@TextoVacio(item.Propietario)</small>
+                                                @if (!string.IsNullOrWhiteSpace(item.Departamento))
+                                                {
+                                                    <small>@item.Departamento</small>
+                                                }
+                                            </td>
+                                            <td data-label="Técnico">
+                                                <strong>@TextoVacio(item.Tecnico)</strong>
+                                                <small>ID @item.UsuarioTecnicoId</small>
+                                            </td>
+                                            <td data-label="Flujo">
+                                                <div class="cf-flow-numbers">
+                                                    <span><b>@item.TotalFotografias</b> fotos</span>
+                                                    <span><b>@item.Pendientes</b> pendientes</span>
+                                                    <span class="@(item.ConError > 0 ? "danger" : string.Empty)"><b>@item.ConError</b> error</span>
+                                                    <span><b>@item.Finalizadas</b> finales</span>
+                                                </div>
+                                            </td>
+                                            <td data-label="Asignación">
+                                                <span class="cf-assignment">
+                                                    <i class="fa-solid fa-microscope"></i>
+                                                    @TextoAsignado(item.Analizador)
+                                                </span>
+                                                <span class="cf-assignment">
+                                                    <i class="fa-solid fa-user-check"></i>
+                                                    @TextoAsignado(item.Aprobador)
+                                                </span>
+                                            </td>
+                                            <td data-label="Bloqueos">
+                                                @if (TieneBloqueo(item))
+                                                {
+                                                    @if (item.BloqueoAnalizadorUsuarioId is > 0)
+                                                    {
+                                                        <span class="cf-lock">
+                                                            <i class="fa-solid fa-lock"></i>
+                                                            Analizador: @TextoVacio(item.BloqueoAnalizadorUsuario)
+                                                        </span>
+                                                    }
+                                                    @if (item.BloqueoAprobadorUsuarioId is > 0)
+                                                    {
+                                                        <span class="cf-lock">
+                                                            <i class="fa-solid fa-lock"></i>
+                                                            Aprobador: @TextoVacio(item.BloqueoAprobadorUsuario)
+                                                        </span>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="cf-muted">Sin bloqueo activo</span>
+                                                }
+                                            </td>
+                                            <td data-label="Actividad">
+                                                <span>@FechaLocal(item.UltimaActividadUtc ?? item.FechaRegistroSistemaUtc)</span>
+                                                @if (EsDemorada(item))
+                                                {
+                                                    <small class="cf-overdue">
+                                                        <i class="fa-solid fa-clock"></i>
+                                                        Requiere seguimiento
+                                                    </small>
+                                                }
+                                            </td>
+                                            <td data-label="Acciones">
+                                                <div class="table-actions-group">
+                                                    <button class="table-action"
+                                                            @onclick="() => AbrirAuditoriaAsync(item.InspeccionId)"
+                                                            title="Ver trazabilidad completa">
+                                                        <i class="fa-regular fa-eye"></i>
+                                                    </button>
+                                                    <button class="table-action"
+                                                            @onclick="() => AbrirOperacion(item)"
+                                                            disabled="@(!PuedeAdministrar)"
+                                                            title="Administrar asignación o bloqueo">
+                                                        <i class="fa-solid fa-user-gear"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="pagination-bar">
+                        <button class="btn-secondary"
+                                disabled="@(pagina.Pagina <= 1 || cargando)"
+                                @onclick="PaginaAnteriorAsync">
+                            <i class="fa-solid fa-chevron-left"></i>
+                            Anterior
+                        </button>
+                        <span>
+                            Página <strong>@pagina.Pagina</strong>
+                            de <strong>@Math.Max(1, pagina.TotalPaginas)</strong>
+                        </span>
+                        <button class="btn-secondary"
+                                disabled="@(pagina.Pagina >= pagina.TotalPaginas || cargando)"
+                                @onclick="PaginaSiguienteAsync">
+                            Siguiente
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </section>
+            }
+        }
+        else if (vista == "ia")
+        {
+            <section class="panel cf-ia-filters">
+                <div class="form-group">
+                    <label>Desde</label>
+                    <InputDate TValue="DateTime?" class="form-control" @bind-Value="fechaDesde" />
+                </div>
+                <div class="form-group">
+                    <label>Hasta</label>
+                    <InputDate TValue="DateTime?" class="form-control" @bind-Value="fechaHasta" />
+                </div>
+                <div class="cf-filter-actions">
+                    <button class="btn-primary" @onclick="CargarRendimientoAsync" disabled="@cargando">
+                        <i class="fa-solid fa-chart-line"></i>
+                        Consultar
+                    </button>
+                    <button class="btn-link" @onclick="LimpiarFechasRendimientoAsync" disabled="@cargando">
+                        Todo el período
+                    </button>
+                </div>
+            </section>
+
+            @if (cargando)
+            {
+                <div class="cf-loading"><i class="fa-solid fa-spinner fa-spin"></i><span>Calculando rendimiento de la IA...</span></div>
+            }
+            else
+            {
+                <section class="cf-summary-grid cf-ia-summary">
+                    <article class="cf-summary-card">
+                        <span>Analizadas</span>
+                        <strong>@rendimiento.FotografiasAnalizadas</strong>
+                        <small>fotografías procesadas</small>
+                    </article>
+                    <article class="cf-summary-card info">
+                        <span>Con resultado final</span>
+                        <strong>@rendimiento.FotografiasConResultadoFinal</strong>
+                        <small>comparables</small>
+                    </article>
+                    <article class="cf-summary-card success">
+                        <span>Coincidencias exactas</span>
+                        <strong>@rendimiento.CoincidenciasExactas</strong>
+                        <small>@rendimiento.PorcentajeCoincidencia.ToString("0.0") % de coincidencia</small>
+                    </article>
+                    <article class="cf-summary-card warning">
+                        <span>Corregidas por humano</span>
+                        <strong>@rendimiento.CorregidasPorHumano</strong>
+                        <small>diagnóstico final diferente</small>
+                    </article>
+                    <article class="cf-summary-card muted">
+                        <span>No concluyentes</span>
+                        <strong>@rendimiento.NoConcluyentes</strong>
+                        <small>resultado final</small>
+                    </article>
+                    <article class="cf-summary-card danger">
+                        <span>Errores IA</span>
+                        <strong>@rendimiento.ErroresIA</strong>
+                        <small>@rendimiento.Rechazadas rechazadas</small>
+                    </article>
+                </section>
+
+                <section class="panel cf-model-panel">
+                    <div class="cf-table-heading">
+                        <div>
+                            <span>Rendimiento por modelo</span>
+                            <strong>@rendimiento.Modelos.Count modelo(s)</strong>
+                        </div>
+                        <small>
+                            La coincidencia compara el diagnóstico preliminar de IA con el resultado final aprobado.
+                        </small>
+                    </div>
+                    <div class="responsive-table-wrapper">
+                        <table class="data-table cf-table">
+                            <thead>
+                                <tr>
+                                    <th>Modelo</th>
+                                    <th>Analizadas</th>
+                                    <th>Comparables</th>
+                                    <th>Coincidencias</th>
+                                    <th>Corregidas</th>
+                                    <th>Precisión observada</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (rendimiento.Modelos.Count == 0)
+                                {
+                                    <tr><td colspan="6" class="table-empty">No hay datos en el período seleccionado.</td></tr>
+                                }
+                                else
+                                {
+                                    @foreach (ControlFitosanitarioModeloIAWeb modelo in rendimiento.Modelos)
+                                    {
+                                        <tr>
+                                            <td data-label="Modelo"><strong>@TextoVacio(modelo.Modelo)</strong></td>
+                                            <td data-label="Analizadas">@modelo.FotografiasAnalizadas</td>
+                                            <td data-label="Comparables">@modelo.ConResultadoFinal</td>
+                                            <td data-label="Coincidencias">@modelo.CoincidenciasExactas</td>
+                                            <td data-label="Corregidas">@modelo.CorregidasPorHumano</td>
+                                            <td data-label="Precisión">
+                                                <div class="cf-progress">
+                                                    <span style="width:@PorcentajeSeguro(modelo.PorcentajeCoincidencia)%"></span>
+                                                </div>
+                                                <strong>@modelo.PorcentajeCoincidencia.ToString("0.0") %</strong>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            }
+        }
+    }
+</div>
+
+@if (mostrandoAuditoria)
+{
+    <div class="modal-backdrop" @onclick="CerrarAuditoria">
+        <article class="modal-card cf-audit-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Expediente de trazabilidad</p>
+                    <h2>@(auditoria is null ? "Cargando..." : NombreAuditoria)</h2>
+                </div>
+                <div class="cf-modal-actions">
+                    @if (auditoria is not null)
+                    {
+                        <button class="btn-secondary" @onclick="AbrirDetalleOperativo">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            Abrir expediente
+                        </button>
+                    }
+                    <button class="modal-close" @onclick="CerrarAuditoria" aria-label="Cerrar">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            @if (cargandoAuditoria)
+            {
+                <div class="cf-loading"><i class="fa-solid fa-spinner fa-spin"></i><span>Cargando trazabilidad fitosanitaria...</span></div>
+            }
+            else if (auditoria is not null)
+            {
+                <div class="cf-audit-body">
+                    <section class="cf-audit-header-grid">
+                        <article>
+                            <span>Terreno</span>
+                            <strong>@TextoVacio(auditoria.CodigoTerreno)</strong>
+                        </article>
+                        <article>
+                            <span>Técnico</span>
+                            <strong>@TextoVacio(auditoria.Tecnico)</strong>
+                        </article>
+                        <article>
+                            <span>Analizador</span>
+                            <strong>@TextoAsignado(auditoria.Analizador)</strong>
+                        </article>
+                        <article>
+                            <span>Aprobador</span>
+                            <strong>@TextoAsignado(auditoria.Aprobador)</strong>
+                        </article>
+                        <article>
+                            <span>Estado</span>
+                            <strong>@TextoEstado(auditoria.Estado)</strong>
+                        </article>
+                        <article>
+                            <span>Cierre</span>
+                            <strong>@(auditoria.CerradaDefinitiva ? "Definitivo" : auditoria.EtapaTecnicaFinalizada ? "Etapa técnica cerrada" : "Abierta")</strong>
+                        </article>
+                    </section>
+
+                    @if (auditoria.BloqueoAnalizador is not null || auditoria.BloqueoAprobador is not null)
+                    {
+                        <section class="cf-live-locks">
+                            <h3>Bloqueos activos</h3>
+                            <div>
+                                @if (auditoria.BloqueoAnalizador is not null)
+                                {
+                                    <span><i class="fa-solid fa-lock"></i> Analizador · @auditoria.BloqueoAnalizador.Usuario · vence @FechaLocal(auditoria.BloqueoAnalizador.ExpiraUtc)</span>
+                                }
+                                @if (auditoria.BloqueoAprobador is not null)
+                                {
+                                    <span><i class="fa-solid fa-lock"></i> Aprobador · @auditoria.BloqueoAprobador.Usuario · vence @FechaLocal(auditoria.BloqueoAprobador.ExpiraUtc)</span>
+                                }
+                            </div>
+                        </section>
+                    }
+
+                    <section class="cf-audit-section">
+                        <div class="cf-section-heading">
+                            <div>
+                                <p class="eyebrow">IA vs revisión humana</p>
+                                <h3>Comparación por fotografía</h3>
+                            </div>
+                            <span>@auditoria.Fotografias.Count evidencia(s)</span>
+                        </div>
+
+                        <div class="cf-photo-comparison-grid">
+                            @foreach (ControlFitosanitarioFotoComparacionWeb foto in auditoria.Fotografias)
+                            {
+                                <article class="cf-photo-comparison">
+                                    <div class="cf-photo-preview">
+                                        @if (!string.IsNullOrWhiteSpace(foto.UrlImagen))
+                                        {
+                                            <img src="@foto.UrlImagen" alt="Fotografía fitosanitaria @foto.FotografiaId" loading="lazy" />
+                                        }
+                                        else
+                                        {
+                                            <i class="fa-regular fa-image"></i>
+                                        }
+                                        <span>#@foto.FotografiaId · @TextoCodigo(foto.TipoFotografia)</span>
+                                    </div>
+                                    <div class="cf-photo-result">
+                                        <span>IA</span>
+                                        <strong>@TextoDiagnostico(foto.DiagnosticoIA)</strong>
+                                        <small>@TextoVacio(foto.ModeloIA) · @foto.IntentosIA intento(s)</small>
+                                    </div>
+                                    <div class="cf-photo-result">
+                                        <span>Analizador</span>
+                                        <strong>@TextoDiagnostico(foto.DiagnosticoHumano)</strong>
+                                        <small>@FechaLocalNullable(foto.FechaAnalisisHumanoUtc)</small>
+                                    </div>
+                                    <div class="cf-photo-result final @(foto.CoincidenciaIAFinal ? "match" : "changed")">
+                                        <span>Resultado final</span>
+                                        <strong>@TextoDiagnostico(foto.DiagnosticoFinal)</strong>
+                                        <small>@TextoCodigo(foto.DecisionFinal)</small>
+                                    </div>
+                                    <footer>
+                                        <span class="cf-status @ClaseEstadoFoto(foto.Estado)">@TextoCodigo(foto.Estado)</span>
+                                        @if (!string.IsNullOrWhiteSpace(foto.DiagnosticoFinal))
+                                        {
+                                            <span class="cf-match @(foto.CoincidenciaIAFinal ? "yes" : "no")">
+                                                <i class="fa-solid @(foto.CoincidenciaIAFinal ? "fa-equals" : "fa-not-equal")"></i>
+                                                @(foto.CoincidenciaIAFinal ? "Coincide con IA" : "Corregido respecto a IA")
+                                            </span>
+                                        }
+                                    </footer>
+                                </article>
+                            }
+                        </div>
+                    </section>
+
+                    <section class="cf-audit-section">
+                        <div class="cf-section-heading">
+                            <div>
+                                <p class="eyebrow">Registro inalterable</p>
+                                <h3>Línea de tiempo</h3>
+                            </div>
+                            <span>@auditoria.Eventos.Count evento(s)</span>
+                        </div>
+
+                        <div class="cf-timeline">
+                            @if (auditoria.Eventos.Count == 0)
+                            {
+                                <div class="cf-empty">No hay eventos registrados.</div>
+                            }
+                            else
+                            {
+                                @foreach (ControlFitosanitarioEventoWeb evento in auditoria.Eventos)
+                                {
+                                    <article>
+                                        <div class="cf-timeline-dot"></div>
+                                        <div class="cf-timeline-content">
+                                            <header>
+                                                <strong>@TextoAccion(evento.Accion)</strong>
+                                                <time>@FechaLocal(evento.FechaUtc)</time>
+                                            </header>
+                                            <p>@TextoVacio(evento.Detalle)</p>
+                                            <footer>
+                                                <span><i class="fa-regular fa-user"></i> @TextoVacio(evento.Usuario)</span>
+                                                @if (evento.FotografiaId is > 0)
+                                                {
+                                                    <span><i class="fa-regular fa-image"></i> Foto #@evento.FotografiaId</span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(evento.EstadoNuevo))
+                                                {
+                                                    <span>@TextoCodigo(evento.EstadoAnterior) → @TextoCodigo(evento.EstadoNuevo)</span>
+                                                }
+                                            </footer>
+                                        </div>
+                                    </article>
+                                }
+                            }
+                        </div>
+                    </section>
+                </div>
+            }
+        </article>
+    </div>
+}
+
+@if (operacionItem is not null)
+{
+    <div class="modal-backdrop" @onclick="CerrarOperacion">
+        <article class="modal-card cf-operation-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Control administrativo</p>
+                    <h2>@NombreInspeccion(operacionItem)</h2>
+                </div>
+                <button class="modal-close" @onclick="CerrarOperacion" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="cf-operation-body">
+                @if (!PuedeAdministrar)
+                {
+                    <div class="cf-alert error">
+                        <i class="fa-solid fa-lock"></i>
+                        <span>Tu rol tiene permiso de lectura, pero no permiso de actualización para ejecutar acciones administrativas.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="cf-operation-note">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <p>
+                            Estas acciones no aprueban, rechazan ni saltan etapas. Solo administran responsables o bloqueos y dejan un evento permanente de auditoría.
+                        </p>
+                    </div>
+
+                    <div class="cf-operation-tabs">
+                        <button class="@(operacionEtapa == "ANALIZADOR" ? "active" : string.Empty)"
+                                @onclick='() => CambiarEtapaOperacionAsync("ANALIZADOR")'>
+                            Analizador
+                        </button>
+                        <button class="@(operacionEtapa == "APROBADOR" ? "active" : string.Empty)"
+                                @onclick='() => CambiarEtapaOperacionAsync("APROBADOR")'>
+                            Aprobador
+                        </button>
+                    </div>
+
+                    <div class="cf-operation-current">
+                        <span>Responsable actual</span>
+                        <strong>@ResponsableActualOperacion</strong>
+                        <small>@BloqueoActualOperacion</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nuevo responsable</label>
+                        <InputSelect TValue="int?"
+                                     class="form-control"
+                                     @bind-Value="usuarioNuevoId">
+                            <option value="">Seleccione usuario</option>
+                            @foreach (ControlFitosanitarioUsuarioWeb usuario in usuariosEtapa)
+                            {
+                                <option value="@usuario.UsuarioId">@NombreUsuario(usuario)</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Motivo obligatorio</label>
+                        <InputTextArea class="form-control cf-reason"
+                                       @bind-Value="motivoOperacion"
+                                       maxlength="1000"
+                                       placeholder="Explique por qué se realiza esta acción administrativa." />
+                        <small>@motivoOperacion.Length / 1000</small>
+                    </div>
+
+                    <div class="cf-operation-actions">
+                        <button class="btn-primary"
+                                @onclick="ReasignarAsync"
+                                disabled="@(operando || usuarioNuevoId is null)">
+                            <i class="fa-solid fa-user-pen"></i>
+                            Reasignar @TextoEtapa(operacionEtapa)
+                        </button>
+                        <button class="btn-danger"
+                                @onclick="LiberarBloqueoAdminAsync"
+                                disabled="@(operando || !ExisteBloqueoOperacion)">
+                            <i class="fa-solid fa-lock-open"></i>
+                            Liberar bloqueo
+                        </button>
+                    </div>
+                }
+            </div>
+        </article>
+    </div>
+}
+
+@code {
+    private string vista = "monitor";
+    private string mensaje = string.Empty;
+    private bool mensajeError;
+    private bool cargando;
+    private bool cargandoAuditoria;
+    private bool mostrandoAuditoria;
+    private bool operando;
+
+    private string buscar = string.Empty;
+    private string estado = string.Empty;
+    private string departamento = string.Empty;
+    private int? tecnicoId;
+    private DateTime? fechaDesde;
+    private DateTime? fechaHasta;
+    private int paginaActual = 1;
+    private const int TamanoPagina = 20;
+
+    private ControlFitosanitarioResumenWeb resumen = new();
+    private ControlFitosanitarioPaginaWeb pagina = new() { Pagina = 1, TotalPaginas = 1, TamanoPagina = TamanoPagina };
+    private ControlFitosanitarioRendimientoIAWeb rendimiento = new();
+    private ControlFitosanitarioAuditoriaWeb? auditoria;
+    private List<ControlFitosanitarioUsuarioWeb> tecnicos = [];
+
+    private ControlFitosanitarioItemWeb? operacionItem;
+    private string operacionEtapa = "ANALIZADOR";
+    private List<ControlFitosanitarioUsuarioWeb> usuariosEtapa = [];
+    private int? usuarioNuevoId;
+    private string motivoOperacion = string.Empty;
+
+    private bool TieneAcceso =>
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.ControlFitosanitario);
+
+    private bool PuedeAdministrar =>
+        AuthState.TienePermisoDirectoActualizar(PermisosWeb.ControlFitosanitario);
+
+    private string TextoPromedioCierre =>
+        resumen.PromedioHorasCierre.HasValue
+            ? $"{resumen.PromedioHorasCierre.Value:0.0} h promedio de cierre"
+            : "Sin cierres suficientes para promedio";
+
+    private string NombreAuditoria =>
+        auditoria is null
+            ? string.Empty
+            : string.IsNullOrWhiteSpace(auditoria.NombreInspeccion)
+                ? $"Inspección #{auditoria.InspeccionId}"
+                : auditoria.NombreInspeccion;
+
+    private string ResponsableActualOperacion =>
+        operacionItem is null
+            ? "No disponible"
+            : operacionEtapa == "ANALIZADOR"
+                ? TextoAsignado(operacionItem.Analizador)
+                : TextoAsignado(operacionItem.Aprobador);
+
+    private bool ExisteBloqueoOperacion =>
+        operacionItem is not null &&
+        (operacionEtapa == "ANALIZADOR"
+            ? operacionItem.BloqueoAnalizadorUsuarioId is > 0
+            : operacionItem.BloqueoAprobadorUsuarioId is > 0);
+
+    private string BloqueoActualOperacion
+    {
+        get
+        {
+            if (operacionItem is null)
+                return "";
+
+            if (operacionEtapa == "ANALIZADOR")
+            {
+                return operacionItem.BloqueoAnalizadorUsuarioId is > 0
+                    ? $"Bloqueo activo: {TextoVacio(operacionItem.BloqueoAnalizadorUsuario)} hasta {FechaLocalNullable(operacionItem.BloqueoAnalizadorExpiraUtc)}"
+                    : "Sin bloqueo activo en esta etapa.";
+            }
+
+            return operacionItem.BloqueoAprobadorUsuarioId is > 0
+                ? $"Bloqueo activo: {TextoVacio(operacionItem.BloqueoAprobadorUsuario)} hasta {FechaLocalNullable(operacionItem.BloqueoAprobadorExpiraUtc)}"
+                : "Sin bloqueo activo en esta etapa.";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!TieneAcceso)
+            return;
+
+        await CargarMonitorAsync();
+    }
+
+    private async Task CambiarVistaAsync(string nuevaVista)
+    {
+        vista = nuevaVista;
+        LimpiarMensaje();
+
+        if (vista == "ia")
+            await CargarRendimientoAsync();
+        else
+            await CargarMonitorAsync();
+    }
+
+    private async Task ActualizarActualAsync()
+    {
+        if (vista == "ia")
+            await CargarRendimientoAsync();
+        else
+            await CargarMonitorAsync();
+    }
+
+    private async Task CargarMonitorAsync()
+    {
+        if (!TieneAcceso)
+            return;
+
+        cargando = true;
+        try
+        {
+            Task<ControlFitosanitarioResumenWeb> resumenTask =
+                FitosanitarioService.ObtenerResumenControlAsync(fechaDesde, fechaHasta);
+
+            Task<ControlFitosanitarioPaginaWeb> paginaTask =
+                FitosanitarioService.ObtenerControlInspeccionesAsync(
+                    buscar,
+                    estado,
+                    tecnicoId,
+                    departamento,
+                    fechaDesde,
+                    fechaHasta,
+                    paginaActual,
+                    TamanoPagina);
+
+            Task<List<ControlFitosanitarioUsuarioWeb>> tecnicosTask =
+                FitosanitarioService.ObtenerUsuariosEtapaAsync("TECNICO");
+
+            await Task.WhenAll(resumenTask, paginaTask, tecnicosTask);
+
+            resumen = await resumenTask;
+            pagina = await paginaTask;
+            tecnicos = await tecnicosTask;
+
+            if (pagina.Pagina <= 0)
+                pagina.Pagina = paginaActual;
+            if (pagina.TotalPaginas <= 0)
+                pagina.TotalPaginas = 1;
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarRendimientoAsync()
+    {
+        if (!TieneAcceso)
+            return;
+
+        cargando = true;
+        try
+        {
+            rendimiento = await FitosanitarioService.ObtenerRendimientoIAAsync(
+                fechaDesde,
+                fechaHasta);
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AplicarFiltrosAsync()
+    {
+        if (!ValidarRangoFechas())
+            return;
+
+        paginaActual = 1;
+        await CargarMonitorAsync();
+    }
+
+    private async Task LimpiarFiltrosAsync()
+    {
+        buscar = string.Empty;
+        estado = string.Empty;
+        departamento = string.Empty;
+        tecnicoId = null;
+        fechaDesde = null;
+        fechaHasta = null;
+        paginaActual = 1;
+        LimpiarMensaje();
+        await CargarMonitorAsync();
+    }
+
+    private async Task LimpiarFechasRendimientoAsync()
+    {
+        fechaDesde = null;
+        fechaHasta = null;
+        await CargarRendimientoAsync();
+    }
+
+    private bool ValidarRangoFechas()
+    {
+        if (fechaDesde.HasValue && fechaHasta.HasValue &&
+            fechaDesde.Value.Date > fechaHasta.Value.Date)
+        {
+            MostrarError("La fecha inicial debe ser anterior o igual a la fecha final.");
+            return false;
+        }
+
+        if (fechaDesde?.Date > DateTime.Today || fechaHasta?.Date > DateTime.Today)
+        {
+            MostrarError("Las fechas del filtro no pueden estar en el futuro.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task PaginaAnteriorAsync()
+    {
+        if (paginaActual <= 1)
+            return;
+
+        paginaActual--;
+        await CargarMonitorAsync();
+    }
+
+    private async Task PaginaSiguienteAsync()
+    {
+        if (paginaActual >= Math.Max(1, pagina.TotalPaginas))
+            return;
+
+        paginaActual++;
+        await CargarMonitorAsync();
+    }
+
+    private async Task AbrirAuditoriaAsync(int inspeccionId)
+    {
+        mostrandoAuditoria = true;
+        cargandoAuditoria = true;
+        auditoria = null;
+
+        try
+        {
+            auditoria = await FitosanitarioService.ObtenerAuditoriaAsync(inspeccionId);
+        }
+        catch (Exception ex)
+        {
+            mostrandoAuditoria = false;
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            cargandoAuditoria = false;
+        }
+    }
+
+    private void CerrarAuditoria()
+    {
+        mostrandoAuditoria = false;
+        auditoria = null;
+    }
+
+    private void AbrirDetalleOperativo()
+    {
+        if (auditoria is null)
+            return;
+
+        Navigation.NavigateTo($"/inspeccion-fitosanitaria/{auditoria.InspeccionId}?modo=historial");
+    }
+
+    private async Task AbrirOperacion(ControlFitosanitarioItemWeb item)
+    {
+        if (!PuedeAdministrar)
+            return;
+
+        operacionItem = item;
+        operacionEtapa = "ANALIZADOR";
+        usuarioNuevoId = null;
+        motivoOperacion = string.Empty;
+        await CargarUsuariosOperacionAsync();
+    }
+
+    private void CerrarOperacion()
+    {
+        if (operando)
+            return;
+
+        operacionItem = null;
+        usuariosEtapa = [];
+        usuarioNuevoId = null;
+        motivoOperacion = string.Empty;
+    }
+
+    private async Task CambiarEtapaOperacionAsync(string etapa)
+    {
+        operacionEtapa = etapa;
+        usuarioNuevoId = null;
+        await CargarUsuariosOperacionAsync();
+    }
+
+    private async Task CargarUsuariosOperacionAsync()
+    {
+        if (operacionItem is null)
+            return;
+
+        try
+        {
+            usuariosEtapa = await FitosanitarioService.ObtenerUsuariosEtapaAsync(operacionEtapa);
+        }
+        catch (Exception ex)
+        {
+            usuariosEtapa = [];
+            MostrarError(ex.Message);
+        }
+    }
+
+    private async Task ReasignarAsync()
+    {
+        if (!PuedeAdministrar || operacionItem is null || usuarioNuevoId is not > 0)
+            return;
+
+        if (!MotivoValido())
+            return;
+
+        operando = true;
+        try
+        {
+            await FitosanitarioService.ReasignarAsync(
+                operacionItem.InspeccionId,
+                operacionEtapa,
+                usuarioNuevoId.Value,
+                motivoOperacion.Trim());
+
+            int inspeccionId = operacionItem.InspeccionId;
+            CerrarOperacionForzado();
+            MostrarExito($"La etapa de {TextoEtapa(operacionEtapa)} fue reasignada y el cambio quedó auditado.");
+            await CargarMonitorAsync();
+
+            if (mostrandoAuditoria && auditoria?.InspeccionId == inspeccionId)
+                auditoria = await FitosanitarioService.ObtenerAuditoriaAsync(inspeccionId);
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            operando = false;
+        }
+    }
+
+    private async Task LiberarBloqueoAdminAsync()
+    {
+        if (!PuedeAdministrar || operacionItem is null || !ExisteBloqueoOperacion)
+            return;
+
+        if (!MotivoValido())
+            return;
+
+        operando = true;
+        try
+        {
+            await FitosanitarioService.LiberarBloqueoAdministrativoAsync(
+                operacionItem.InspeccionId,
+                operacionEtapa,
+                motivoOperacion.Trim());
+
+            CerrarOperacionForzado();
+            MostrarExito("El bloqueo fue liberado y la acción quedó registrada en la auditoría.");
+            await CargarMonitorAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            operando = false;
+        }
+    }
+
+    private bool MotivoValido()
+    {
+        string valor = motivoOperacion.Trim();
+        if (valor.Length < 8)
+        {
+            MostrarError("El motivo administrativo debe contener al menos 8 caracteres.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void CerrarOperacionForzado()
+    {
+        operacionItem = null;
+        usuariosEtapa = [];
+        usuarioNuevoId = null;
+        motivoOperacion = string.Empty;
+    }
+
+    private void MostrarError(string texto)
+    {
+        mensaje = string.IsNullOrWhiteSpace(texto)
+            ? "No fue posible completar la operación."
+            : texto;
+        mensajeError = true;
+    }
+
+    private void MostrarExito(string texto)
+    {
+        mensaje = texto;
+        mensajeError = false;
+    }
+
+    private void LimpiarMensaje()
+    {
+        mensaje = string.Empty;
+        mensajeError = false;
+    }
+
+    private static bool TieneBloqueo(ControlFitosanitarioItemWeb item) =>
+        item.BloqueoAnalizadorUsuarioId is > 0 ||
+        item.BloqueoAprobadorUsuarioId is > 0;
+
+    private static bool EsDemorada(ControlFitosanitarioItemWeb item) =>
+        !item.CerradaDefinitiva &&
+        DateTime.UtcNow - item.FechaRegistroSistemaUtc.ToUniversalTime() > TimeSpan.FromHours(48) &&
+        item.Pendientes > 0;
+
+    private static string ClaseFila(ControlFitosanitarioItemWeb item)
+    {
+        if (item.ConError > 0)
+            return "cf-row-error";
+        if (EsDemorada(item))
+            return "cf-row-warning";
+        return string.Empty;
+    }
+
+    private static string ClaseEstado(string? valor) =>
+        (valor ?? string.Empty).ToUpperInvariant() switch
+        {
+            "FINALIZADA" => "success",
+            "FINALIZADA_PARCIALMENTE" => "muted",
+            "PENDIENTE_APROBACION" => "warning",
+            "PENDIENTE_REVISION" => "info",
+            "EN_PROCESO_CON_ERRORES" => "danger",
+            "EN_PROCESO" => "info",
+            _ => "muted"
+        };
+
+    private static string ClaseEstadoFoto(string? valor) =>
+        (valor ?? string.Empty).ToUpperInvariant() switch
+        {
+            "APROBADA" or "APROBADA_CON_CORRECCION" or "PUBLICADA_ALBUM" => "success",
+            "RECHAZADA" or "ERROR_IA" => "danger",
+            "NO_CONCLUYENTE" => "muted",
+            "PENDIENTE_APROBACION" or "PENDIENTE_ANALIZADOR" => "warning",
+            _ => "info"
+        };
+
+    private static string NombreInspeccion(ControlFitosanitarioItemWeb item) =>
+        string.IsNullOrWhiteSpace(item.NombreInspeccion)
+            ? $"Inspección #{item.InspeccionId}"
+            : item.NombreInspeccion;
+
+    private static string TextoEstado(string? valor) =>
+        TextoCodigo(valor);
+
+    private static string TextoCodigo(string? valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+            return "No registrado";
+
+        string limpio = valor.Trim().Replace('_', ' ').ToLowerInvariant();
+        return char.ToUpperInvariant(limpio[0]) + limpio[1..];
+    }
+
+    private static string TextoAccion(string? valor) =>
+        TextoCodigo(valor);
+
+    private static string TextoVacio(string? valor) =>
+        string.IsNullOrWhiteSpace(valor) ? "No registrado" : valor.Trim();
+
+    private static string TextoAsignado(string? valor) =>
+        string.IsNullOrWhiteSpace(valor) ? "Sin asignar" : valor.Trim();
+
+    private static string TextoDiagnostico(string? valor) =>
+        string.IsNullOrWhiteSpace(valor) ? "Sin diagnóstico" : valor.Trim();
+
+    private static string TextoEtapa(string etapa) =>
+        etapa == "APROBADOR" ? "aprobador" : "analizador";
+
+    private static string NombreUsuario(ControlFitosanitarioUsuarioWeb usuario) =>
+        string.IsNullOrWhiteSpace(usuario.NombreCompleto)
+            ? usuario.NombreUsuario
+            : string.IsNullOrWhiteSpace(usuario.NombreUsuario)
+                ? usuario.NombreCompleto
+                : $"{usuario.NombreCompleto} ({usuario.NombreUsuario})";
+
+    private static string FechaLocal(DateTime fechaUtc) =>
+        fechaUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+
+    private static string FechaLocalNullable(DateTime? fechaUtc) =>
+        fechaUtc.HasValue
+            ? FechaLocal(fechaUtc.Value)
+            : "Sin fecha";
+
+    private static decimal PorcentajeSeguro(decimal valor) =>
+        Math.Clamp(valor, 0m, 100m);
+}

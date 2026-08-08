@@ -58,61 +58,57 @@ else if (actual is not null)
         <div class="permission-matrix-header">
             <div>
                 <h2>@actual.Rol.NombreRol</h2>
+                <p>
+                    @Filtrados.Count interfaces visibles. El acceso se determina
+                    únicamente por los permisos guardados para este rol.
+                </p>
 
                 @if (actual.Rol.EsAdministrador)
                 {
                     <p class="protected-message">
-                        <i class="fa-solid fa-lock"></i>
-                        Este rol está protegido. Todos sus permisos
-                        permanecen habilitados y no pueden modificarse.
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        El rol Administrador sigue protegido contra edición o
+                        desactivación del rol, pero sus permisos sí se administran
+                        desde esta matriz. Evita retirar el acceso al portal o a
+                        esta matriz si no existe otro rol que pueda restaurarlo.
                     </p>
                 }
-                else
-                {
-                    <p>@Filtrados.Count interfaces visibles</p>
-                }
             </div>
 
-            @if (!actual.Rol.EsAdministrador)
-            {
-                <button class="btn-primary"
-                        disabled="@guardando"
-                        @onclick="Guardar">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    Guardar cambios
-                </button>
-            }
+            <button class="btn-primary"
+                    disabled="@guardando"
+                    @onclick="Guardar">
+                <i class="fa-solid fa-floppy-disk"></i>
+                Guardar cambios
+            </button>
         </div>
 
-        @if (!actual.Rol.EsAdministrador)
-        {
-            <div class="permission-bulk-actions">
-                <button class="btn-secondary"
-                        @onclick="() => MarcarColumna(TipoPermiso.Leer)">
-                    Marcar lectura
-                </button>
+        <div class="permission-bulk-actions">
+            <button class="btn-secondary"
+                    @onclick="() => MarcarColumna(TipoPermiso.Leer)">
+                Marcar lectura
+            </button>
 
-                <button class="btn-secondary"
-                        @onclick="() => MarcarColumna(TipoPermiso.Agregar)">
-                    Marcar agregar
-                </button>
+            <button class="btn-secondary"
+                    @onclick="() => MarcarColumna(TipoPermiso.Agregar)">
+                Marcar agregar
+            </button>
 
-                <button class="btn-secondary"
-                        @onclick="() => MarcarColumna(TipoPermiso.Actualizar)">
-                    Marcar actualizar
-                </button>
+            <button class="btn-secondary"
+                    @onclick="() => MarcarColumna(TipoPermiso.Actualizar)">
+                Marcar actualizar
+            </button>
 
-                <button class="btn-secondary"
-                        @onclick="() => MarcarColumna(TipoPermiso.Eliminar)">
-                    Marcar eliminar
-                </button>
+            <button class="btn-secondary"
+                    @onclick="() => MarcarColumna(TipoPermiso.Eliminar)">
+                Marcar eliminar
+            </button>
 
-                <button class="btn-link"
-                        @onclick="LimpiarTodo">
-                    Limpiar todo
-                </button>
-            </div>
-        }
+            <button class="btn-link"
+                    @onclick="LimpiarTodo">
+                Limpiar todo
+            </button>
+        </div>
 
         <div class="responsive-table-wrapper">
             <table class="data-table permission-matrix">
@@ -141,31 +137,26 @@ else if (actual is not null)
 
                             <td>
                                 <InputCheckbox
-                                    @bind-Value="permiso.Leer"
-                                    disabled="@actual.Rol.EsAdministrador" />
+                                    @bind-Value="permiso.Leer" />
                             </td>
 
                             <td>
                                 <InputCheckbox
-                                    @bind-Value="permiso.Agregar"
-                                    disabled="@actual.Rol.EsAdministrador" />
+                                    @bind-Value="permiso.Agregar" />
                             </td>
 
                             <td>
                                 <InputCheckbox
-                                    @bind-Value="permiso.Actualizar"
-                                    disabled="@actual.Rol.EsAdministrador" />
+                                    @bind-Value="permiso.Actualizar" />
                             </td>
 
                             <td>
                                 <InputCheckbox
-                                    @bind-Value="permiso.Eliminar"
-                                    disabled="@actual.Rol.EsAdministrador" />
+                                    @bind-Value="permiso.Eliminar" />
                             </td>
 
                             <td>
                                 <button class="table-action"
-                                        disabled="@actual.Rol.EsAdministrador"
                                         title="Alternar toda la fila"
                                         @onclick="() => AlternarFila(permiso)">
                                     <i class="fa-solid fa-check-double"></i>
@@ -246,11 +237,8 @@ else if (actual is not null)
 
     private void MarcarColumna(TipoPermiso tipo)
     {
-        if (actual == null ||
-            actual.Rol.EsAdministrador)
-        {
+        if (actual == null)
             return;
-        }
 
         foreach (InterfazPermisoWeb permiso
                  in actual.Interfaz)
@@ -279,9 +267,6 @@ else if (actual is not null)
     private void AlternarFila(
         InterfazPermisoWeb permiso)
     {
-        if (actual?.Rol.EsAdministrador == true)
-            return;
-
         bool nuevoValor =
             !(permiso.Leer &&
               permiso.Agregar &&
@@ -296,11 +281,8 @@ else if (actual is not null)
 
     private void LimpiarTodo()
     {
-        if (actual == null ||
-            actual.Rol.EsAdministrador)
-        {
+        if (actual == null)
             return;
-        }
 
         foreach (InterfazPermisoWeb permiso
                  in actual.Interfaz)
@@ -314,11 +296,8 @@ else if (actual is not null)
 
     private async Task Guardar()
     {
-        if (actual == null ||
-            actual.Rol.EsAdministrador)
-        {
+        if (actual == null)
             return;
-        }
 
         guardando = true;
 
@@ -326,7 +305,8 @@ else if (actual is not null)
         {
             await Seguridad.GuardarMatrizAsync(actual);
             mensaje =
-                "Matriz actualizada correctamente.";
+                "Matriz actualizada correctamente. " +
+                "Los usuarios afectados deben cerrar sesión e iniciar nuevamente para refrescar sus permisos.";
             esError = false;
         }
         catch (Exception ex)
