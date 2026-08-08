@@ -106,7 +106,11 @@ else
                     </button>
                 }
 
-                @if (EsModoAnalizadorEdicion && PuedeOperarAnalizador && !detalle.CerradaDefinitiva)
+                @if (EsModoAnalizadorEdicion &&
+                     PuedeOperarAnalizador &&
+                     !AsignadaAOtroAnalizador &&
+                     TieneBloqueoOperativo &&
+                     !detalle.CerradaDefinitiva)
                 {
                     <button class="fd-btn fd-secondary fd-full" @onclick="FinalizarAnalizadorAsync" disabled="@ocupado">
                         <i class="fa-solid fa-check-double"></i> Finalizar revisión disponible
@@ -187,6 +191,13 @@ else
                                         Revisión finalizada. Esta bandeja es de consulta y no requiere bloqueo de edición.
                                     </div>
                                 }
+                                else if (AsignadaAOtroAnalizador)
+                                {
+                                    <div class="fd-readonly">
+                                        <i class="fa-solid fa-user-lock"></i>
+                                        Esta etapa está asignada a otro analizador. Puede consultar el expediente, pero no modificarlo.
+                                    </div>
+                                }
                                 else if (!TieneBloqueoOperativo)
                                 {
                                     <div class="fd-readonly"><i class="fa-solid fa-lock"></i> No hay un bloqueo exclusivo activo para editar esta etapa.</div>
@@ -202,6 +213,7 @@ else
                                 }
 
                                 @if (EsModoAnalizadorEdicion &&
+                                     !AsignadaAOtroAnalizador &&
                                      fotoSeleccionada.Estado == EstadosFotoFitosanitariaWeb.EnAnalisisHumano &&
                                      TieneBloqueoOperativo)
                                 {
@@ -217,6 +229,13 @@ else
                                     <div class="fd-readonly">
                                         <i class="fa-solid fa-eye"></i>
                                         Revisión finalizada. Esta bandeja es de consulta y no requiere bloqueo de edición.
+                                    </div>
+                                }
+                                else if (AsignadaAOtroAprobador)
+                                {
+                                    <div class="fd-readonly">
+                                        <i class="fa-solid fa-user-lock"></i>
+                                        Esta etapa está asignada a otro aprobador. Puede consultar el expediente, pero no modificarlo.
                                     </div>
                                 }
                                 else if (!TieneBloqueoOperativo)
@@ -238,6 +257,7 @@ else
                                 }
 
                                 @if (EsModoAprobadorEdicion &&
+                                     !AsignadaAOtroAprobador &&
                                      detalle.PuedeCerrarInspeccion &&
                                      TieneBloqueoOperativo)
                                 {
@@ -512,6 +532,19 @@ else
     private bool EsModoAnalizador => EsModoAnalizadorEdicion || EsModoAnalizadorRevisadas;
     private bool EsModoAprobador => EsModoAprobadorEdicion || EsModoAprobadorRevisadas;
     private bool EsModoTecnico => ModoActual is "mis" or "decisiones";
+    private int UsuarioActualId => AuthState.Usuario?.UsuarioId ?? 0;
+    private bool AsignadaAOtroAnalizador =>
+        EsModoAnalizadorEdicion &&
+        detalle?.UsuarioAnalizadorAsignadoId is int analizadorAsignadoId &&
+        analizadorAsignadoId > 0 &&
+        analizadorAsignadoId != UsuarioActualId;
+    private bool AsignadaAOtroAprobador =>
+        EsModoAprobadorEdicion &&
+        detalle?.UsuarioAprobadorAsignadoId is int aprobadorAsignadoId &&
+        aprobadorAsignadoId > 0 &&
+        aprobadorAsignadoId != UsuarioActualId;
+    private bool EsConsultaPorAsignacion =>
+        AsignadaAOtroAnalizador || AsignadaAOtroAprobador;
     private bool TieneBloqueoOperativo => bloqueo?.Adquirido == true && !string.IsNullOrWhiteSpace(bloqueo.Token);
     private bool PuedeOperarAnalizador => AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAnalizador);
     private bool PuedeOperarAprobador => AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAprobador);
@@ -549,6 +582,15 @@ else
 
     private async Task PrepararBloqueoAsync()
     {
+        if (EsConsultaPorAsignacion)
+        {
+            bloqueo = null;
+            mensajeBloqueo = EsModoAnalizadorEdicion
+                ? "Esta inspección está asignada a otro analizador. Puede consultarla, pero solo el responsable asignado puede modificarla."
+                : "Esta inspección está asignada a otro aprobador. Puede consultarla, pero solo el responsable asignado puede modificarla.";
+            return;
+        }
+
         bool requiere =
             (EsModoAnalizadorEdicion && PuedeOperarAnalizador) ||
             (EsModoAprobadorEdicion && PuedeOperarAprobador);
@@ -575,6 +617,18 @@ else
         {
             bloqueo = await Servicio.AdquirirBloqueoAsync(InspeccionId, modo);
             mensajeBloqueo = string.Empty;
+
+            /*
+             * Si la etapa estaba libre, el backend la autoasigna al mismo
+             * usuario que obtuvo el bloqueo. Se recarga el detalle para que
+             * la interfaz refleje inmediatamente la nueva responsabilidad.
+             */
+            detalle = await Servicio.ObtenerDetalleAsync(InspeccionId);
+            int? fotoActualId = fotoSeleccionada?.FotografiaId;
+            fotoSeleccionada = detalle.Fotografias
+                .FirstOrDefault(x => x.FotografiaId == fotoActualId) ??
+                detalle.Fotografias.OrderBy(x => x.Orden).FirstOrDefault();
+
             IniciarRenovacionBloqueo(modo);
         }
         catch (Exception ex)
@@ -804,8 +858,22 @@ else
     }
 
     private bool PuedeProcesarFoto(InspeccionFotoWeb f) => detalle?.PuedeGestionarSolicitud == true && AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud) && !detalle.EtapaTecnicaFinalizada && f.Estado is EstadosFotoFitosanitariaWeb.Borrador or EstadosFotoFitosanitariaWeb.PendienteIA or EstadosFotoFitosanitariaWeb.ErrorIA;
-    private bool PuedeAnalizarFoto(InspeccionFotoWeb f) => PuedeOperarAnalizador && f.Estado is EstadosFotoFitosanitariaWeb.PendienteAnalizador or EstadosFotoFitosanitariaWeb.EnAnalisisHumano or EstadosFotoFitosanitariaWeb.DevueltaAnalizador;
-    private bool PuedePublicarFoto(InspeccionFotoWeb f) => AuthState.TienePermisoDirectoAgregar("albumFotosPage") && f.UltimaAprobacion?.AutorizaPublicacionAlbum == true && !f.PublicadaAlbum && f.Estado is EstadosFotoFitosanitariaWeb.Aprobada or EstadosFotoFitosanitariaWeb.AprobadaConCorreccion;
+    private bool PuedeAnalizarFoto(InspeccionFotoWeb f) =>
+        !AsignadaAOtroAnalizador &&
+        PuedeOperarAnalizador &&
+        (f.Estado is
+            EstadosFotoFitosanitariaWeb.PendienteAnalizador or
+            EstadosFotoFitosanitariaWeb.EnAnalisisHumano or
+            EstadosFotoFitosanitariaWeb.DevueltaAnalizador);
+
+    private bool PuedePublicarFoto(InspeccionFotoWeb f) =>
+        !EsConsultaPorAsignacion &&
+        AuthState.TienePermisoDirectoAgregar("albumFotosPage") &&
+        f.UltimaAprobacion?.AutorizaPublicacionAlbum == true &&
+        !f.PublicadaAlbum &&
+        (f.Estado is
+            EstadosFotoFitosanitariaWeb.Aprobada or
+            EstadosFotoFitosanitariaWeb.AprobadaConCorreccion);
 
     private static bool EsFinal(string? e) => (e ?? string.Empty).ToUpperInvariant() is "APROBADA" or "APROBADA_CON_CORRECCION" or "RECHAZADA" or "NO_CONCLUYENTE" or "DESCARTADA" or "PUBLICADA_ALBUM";
     private void CerrarFormulario() => formularioAccion = string.Empty;
