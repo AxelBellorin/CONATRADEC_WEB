@@ -123,8 +123,8 @@ public sealed class InspeccionFitosanitariaWebService
     {
         string modoNormalizado = (modo ?? "mis").Trim().ToLowerInvariant();
         bool revision = modoNormalizado is
-            "analizador" or "analizador-revisadas" or
-            "aprobador" or "aprobador-revisadas";
+            "analizador" or "analizador-disponibles" or "analizador-revisadas" or
+            "aprobador" or "aprobador-disponibles" or "aprobador-revisadas";
 
         string rutaBase = revision
             ? "api/revision-fitosanitaria/bandeja-paginada"
@@ -163,6 +163,27 @@ public sealed class InspeccionFitosanitariaWebService
                 cancellationToken);
 
         return envelope?.Data ?? new();
+    }
+
+    /// <summary>
+    /// Toma explícitamente un expediente disponible para la etapa indicada.
+    /// La API realiza la asignación de forma atómica; si otro usuario lo tomó
+    /// antes, la respuesta de conflicto se propaga al cliente.
+    /// </summary>
+    public Task TomarExpedienteAsync(
+        int inspeccionId,
+        string modo,
+        CancellationToken cancellationToken = default)
+    {
+        string etapa = (modo ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "aprobador" or "aprobador-disponibles" => "aprobador",
+            _ => "analizador"
+        };
+
+        return apiClient.PostSinContenidoAsync(
+            $"api/revision-fitosanitaria/{inspeccionId}/bloqueo/tomar?modo={Uri.EscapeDataString(etapa)}",
+            cancellationToken);
     }
 
     public async Task<InspeccionFitosanitariaDetalleWeb> ObtenerDetalleAsync(

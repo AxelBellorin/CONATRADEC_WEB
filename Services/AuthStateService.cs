@@ -63,10 +63,18 @@ public sealed class AuthStateService : IAsyncDisposable
         Usuario.UsuarioId > 0 &&
         Usuario.VersionSesion > 0;
 
+    /// <summary>
+    /// Alias de compatibilidad para vistas históricas. Ya no depende del
+    /// nombre del rol: se considera administración de seguridad únicamente
+    /// cuando la matriz real permite leer y actualizar la propia matriz de
+    /// permisos. Este alias no participa dentro de TienePermiso*.
+    /// </summary>
     public bool EsAdministrador =>
-        Usuario?.RolNombre.Contains(
-            "ADMIN",
-            StringComparison.OrdinalIgnoreCase) == true;
+        TienePermisoDirecto(
+            PermisosWeb.Matriz,
+            permiso =>
+                permiso.Leer == true &&
+                permiso.Actualizar == true);
 
     public bool PuedeEntrarPortal =>
         TienePermisoDirecto(
@@ -305,20 +313,15 @@ public sealed class AuthStateService : IAsyncDisposable
 
     private bool TienePermiso(
         string interfaz,
-        Func<PermisoInterfaz, bool> selector)
-    {
-        if (EsAdministrador)
-            return true;
-
-        return TienePermisoDirecto(
+        Func<PermisoInterfaz, bool> selector) =>
+        TienePermisoDirecto(
             interfaz,
             selector);
-    }
 
     /*
-     * Estas variantes consultan exclusivamente la matriz real del rol.
-     * El módulo fitosanitario las utiliza para que incluso el rol
-     * Administrador requiera el permiso correspondiente.
+     * Las variantes Directo se conservan para compatibilidad. Tanto estas
+     * como los métodos generales consultan exactamente la misma matriz real
+     * del rol; no existe bypass por nombre de rol.
      */
     public bool TienePermisoDirectoLectura(
         string interfaz) =>

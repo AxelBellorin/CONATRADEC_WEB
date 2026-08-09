@@ -1,6 +1,7 @@
 @page "/inspeccion-fitosanitaria/{InspeccionId:int}"
 @implements IAsyncDisposable
 @inject InspeccionFitosanitariaWebService Servicio
+@inject ApiClientService ApiClient
 @inject AuthStateService AuthState
 @inject NavigationManager Navigation
 
@@ -50,6 +51,33 @@ else
                 <i class="fa-solid fa-lock"></i>
                 <span>@mensajeBloqueo</span>
             </div>
+        }
+
+        @if (EsEtapaAsignableEdicion && asignacionEtapa is not null)
+        {
+            <section class="fd-note">
+                <i class="fa-solid fa-user-shield"></i>
+                <div class="fd-header-main">
+                    <span class="fd-kicker">@(EsModoAnalizadorEdicion ? "Analizador responsable" : "Aprobador responsable")</span>
+                    <strong style="display:block;color:#29463e;margin:2px 0 4px">@TextoResponsableAsignacion</strong>
+                    <small style="display:block;margin-bottom:8px">@TextoAyudaAsignacion</small>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px">
+                    @if (PuedeTomarEtapa)
+                    {
+                        <button class="fd-btn fd-primary" @onclick="TomarInspeccionAsync" disabled="@ocupado">
+                            <i class="fa-solid fa-hand"></i> Tomar inspección
+                        </button>
+                    }
+                    @if (PuedeAdministrarAsignacion)
+                    {
+                        <button class="fd-btn fd-secondary" @onclick="IrControlFitosanitario" disabled="@ocupado">
+                            <i class="fa-solid fa-user-gear"></i>
+                            @(asignacionEtapa.DisponibleParaTomar ? "Asignar responsable" : "Reasignar responsable")
+                        </button>
+                    }
+                    </div>
+                </div>
+            </section>
         }
 
         <section class="fd-summary">
@@ -503,6 +531,7 @@ else
     private List<MotivoDevolucionTecnicoWeb> motivosDevolucion = [];
     private List<InspeccionAlbumCategoriaWeb> catalogoAlbum = [];
     private InspeccionBloqueoWeb? bloqueo;
+    private AsignacionEtapaWeb? asignacionEtapa;
     private CancellationTokenSource? bloqueoCts;
     private Task? tareaRenovacion;
 
@@ -532,6 +561,8 @@ else
     private bool EsModoAnalizador => EsModoAnalizadorEdicion || EsModoAnalizadorRevisadas;
     private bool EsModoAprobador => EsModoAprobadorEdicion || EsModoAprobadorRevisadas;
     private bool EsModoTecnico => ModoActual is "mis" or "decisiones";
+    private bool EsEtapaAsignableEdicion => EsModoAnalizadorEdicion || EsModoAprobadorEdicion;
+    private string ModoAsignacion => EsModoAprobadorEdicion ? "aprobador" : "analizador";
     private int UsuarioActualId => AuthState.Usuario?.UsuarioId ?? 0;
     private bool AsignadaAOtroAnalizador =>
         EsModoAnalizadorEdicion &&
@@ -548,6 +579,26 @@ else
     private bool TieneBloqueoOperativo => bloqueo?.Adquirido == true && !string.IsNullOrWhiteSpace(bloqueo.Token);
     private bool PuedeOperarAnalizador => AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAnalizador);
     private bool PuedeOperarAprobador => AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAprobador);
+    private bool PuedeAdministrarAsignacion =>
+        AuthState.TienePermisoDirectoLectura(PermisosWeb.ControlFitosanitario) &&
+        AuthState.TienePermisoDirectoActualizar(PermisosWeb.ControlFitosanitario);
+    private bool PuedeTomarEtapa =>
+        EsEtapaAsignableEdicion &&
+        asignacionEtapa?.DisponibleParaTomar == true &&
+        ((EsModoAnalizadorEdicion && PuedeOperarAnalizador) ||
+         (EsModoAprobadorEdicion && PuedeOperarAprobador));
+    private string TextoResponsableAsignacion => asignacionEtapa is null || asignacionEtapa.UsuarioAsignadoId is not > 0
+        ? "Sin asignar · disponible para tomar"
+        : asignacionEtapa.AsignadaAlUsuarioActual
+            ? $"{Valor(asignacionEtapa.UsuarioAsignadoNombre)} · asignada a ti"
+            : Valor(asignacionEtapa.UsuarioAsignadoNombre);
+    private string TextoAyudaAsignacion => asignacionEtapa is null
+        ? string.Empty
+        : asignacionEtapa.DisponibleParaTomar
+            ? "Abrir el expediente no te asigna la etapa. Usa Tomar inspección para asumir la responsabilidad y comenzar a editar."
+            : asignacionEtapa.AsignadaAlUsuarioActual
+                ? "Eres el responsable de esta etapa. El bloqueo temporal solo permanece mientras trabajas en la ficha."
+                : "Puedes consultar el expediente, pero solo el responsable asignado puede modificarlo. La reasignación requiere permiso de Control Fitosanitario.";
     private bool PuedeAgregarFotos => detalle is not null && !detalle.EtapaTecnicaFinalizada && !detalle.CerradaDefinitiva && detalle.PuedeGestionarSolicitud && AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud);
     private bool PuedeFinalizarEtapaTecnica => detalle is not null && !detalle.EtapaTecnicaFinalizada && !detalle.CerradaDefinitiva && detalle.PuedeGestionarSolicitud && AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud);
     private MotivoDevolucionTecnicoWeb? MotivoSeleccionado => motivosDevolucion.FirstOrDefault(x => x.MotivoDevolucionTecnicoId == motivoDevolucionId);
@@ -566,6 +617,7 @@ else
             detalle = await Servicio.ObtenerDetalleAsync(InspeccionId);
             tiposFotografia = await Servicio.ObtenerTiposFotografiaAsync();
             fotoSeleccionada = detalle.Fotografias.OrderBy(x => x.Orden).FirstOrDefault(x => fotoSeleccionada?.FotografiaId == x.FotografiaId) ?? detalle.Fotografias.OrderBy(x => x.Orden).FirstOrDefault();
+            await CargarAsignacionEtapaAsync();
             await PrepararBloqueoAsync();
             mensaje = string.Empty;
         }
@@ -580,36 +632,62 @@ else
         }
     }
 
+    private async Task CargarAsignacionEtapaAsync()
+    {
+        asignacionEtapa = null;
+
+        if (!EsEtapaAsignableEdicion || detalle?.CerradaDefinitiva == true)
+            return;
+
+        ApiEnvelopeWeb<AsignacionEtapaWeb>? respuesta = await ApiClient.GetAsync<ApiEnvelopeWeb<AsignacionEtapaWeb>>(
+            $"api/revision-fitosanitaria/{InspeccionId}/bloqueo/asignacion?modo={Uri.EscapeDataString(ModoAsignacion)}");
+
+        if (respuesta?.Success != true || respuesta.Data is null)
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(respuesta?.Message) ? "No fue posible consultar el responsable de la etapa." : respuesta.Message);
+
+        asignacionEtapa = respuesta.Data;
+    }
+
     private async Task PrepararBloqueoAsync()
     {
-        if (EsConsultaPorAsignacion)
-        {
-            bloqueo = null;
-            mensajeBloqueo = EsModoAnalizadorEdicion
-                ? "Esta inspección está asignada a otro analizador. Puede consultarla, pero solo el responsable asignado puede modificarla."
-                : "Esta inspección está asignada a otro aprobador. Puede consultarla, pero solo el responsable asignado puede modificarla.";
-            return;
-        }
-
         bool requiere =
             (EsModoAnalizadorEdicion && PuedeOperarAnalizador) ||
             (EsModoAprobadorEdicion && PuedeOperarAprobador);
 
-        if (!requiere || detalle?.CerradaDefinitiva == true)
+        if (!requiere || detalle?.CerradaDefinitiva == true || !EsEtapaAsignableEdicion)
         {
+            bloqueo = null;
             mensajeBloqueo = string.Empty;
             return;
         }
 
-        string modo = EsModoAnalizadorEdicion
-            ? "analizador"
-            : "aprobador";
+        if (asignacionEtapa?.DisponibleParaTomar == true)
+        {
+            bloqueo = null;
+            mensajeBloqueo = "La etapa está sin asignar. Usa ‘Tomar inspección’ para asumir la responsabilidad antes de editar.";
+            return;
+        }
+
+        if (asignacionEtapa?.AsignadaAOtroUsuario == true || EsConsultaPorAsignacion)
+        {
+            bloqueo = null;
+            mensajeBloqueo = $"Esta etapa está asignada a {Valor(asignacionEtapa?.UsuarioAsignadoNombre)}. Puedes consultarla, pero solo el responsable asignado puede modificarla.";
+            return;
+        }
+
+        if (asignacionEtapa?.AsignadaAlUsuarioActual != true)
+        {
+            bloqueo = null;
+            mensajeBloqueo = "No se pudo confirmar que esta etapa esté asignada a tu usuario. Actualiza el expediente antes de editar.";
+            return;
+        }
+
+        string modo = ModoAsignacion;
 
         if (TieneBloqueoOperativo &&
-            bloqueo?.Modo.Equals(
-                modo,
-                StringComparison.OrdinalIgnoreCase) == true)
+            bloqueo?.Modo.Equals(modo, StringComparison.OrdinalIgnoreCase) == true)
         {
+            mensajeBloqueo = string.Empty;
             return;
         }
 
@@ -617,18 +695,6 @@ else
         {
             bloqueo = await Servicio.AdquirirBloqueoAsync(InspeccionId, modo);
             mensajeBloqueo = string.Empty;
-
-            /*
-             * Si la etapa estaba libre, el backend la autoasigna al mismo
-             * usuario que obtuvo el bloqueo. Se recarga el detalle para que
-             * la interfaz refleje inmediatamente la nueva responsabilidad.
-             */
-            detalle = await Servicio.ObtenerDetalleAsync(InspeccionId);
-            int? fotoActualId = fotoSeleccionada?.FotografiaId;
-            fotoSeleccionada = detalle.Fotografias
-                .FirstOrDefault(x => x.FotografiaId == fotoActualId) ??
-                detalle.Fotografias.OrderBy(x => x.Orden).FirstOrDefault();
-
             IniciarRenovacionBloqueo(modo);
         }
         catch (Exception ex)
@@ -637,6 +703,42 @@ else
             mensajeBloqueo = ex.Message;
         }
     }
+
+    private async Task TomarInspeccionAsync()
+    {
+        if (!PuedeTomarEtapa || ocupado)
+            return;
+
+        ocupado = true;
+        try
+        {
+            ApiEnvelopeWeb<AsignacionEtapaWeb>? respuesta = await ApiClient.PostAsync<object, ApiEnvelopeWeb<AsignacionEtapaWeb>>(
+                $"api/revision-fitosanitaria/{InspeccionId}/bloqueo/tomar?modo={Uri.EscapeDataString(ModoAsignacion)}",
+                new { });
+
+            if (respuesta?.Success != true || respuesta.Data is null)
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(respuesta?.Message) ? "No fue posible tomar la inspección." : respuesta.Message);
+
+            asignacionEtapa = respuesta.Data;
+            detalle = await Servicio.ObtenerDetalleAsync(InspeccionId);
+            int? fotoActualId = fotoSeleccionada?.FotografiaId;
+            fotoSeleccionada = detalle.Fotografias.FirstOrDefault(x => x.FotografiaId == fotoActualId) ?? detalle.Fotografias.OrderBy(x => x.Orden).FirstOrDefault();
+
+            await PrepararBloqueoAsync();
+            MostrarMensaje("La etapa quedó asignada a tu usuario. Ya puedes trabajar en la inspección.", false);
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+            try { await CargarAsignacionEtapaAsync(); } catch { }
+        }
+        finally
+        {
+            ocupado = false;
+        }
+    }
+
+    private void IrControlFitosanitario() => Navigation.NavigateTo("/control-fitosanitario");
 
     private void IniciarRenovacionBloqueo(string modo)
     {
@@ -885,6 +987,18 @@ else
     private static string ClaseEstado(string? e) => ClaseEstadoFoto(e);
     private static string ClaseEstadoFoto(string? e) => (e ?? string.Empty).ToUpperInvariant() switch { "APROBADA" or "APROBADA_CON_CORRECCION" or "PUBLICADA_ALBUM" or "FINALIZADA" => "ok", "RECHAZADA" or "ERROR_IA" => "danger", "NO_CONCLUYENTE" or "DEVUELTA_AL_TECNICO" or "DEVUELTA_AL_ANALIZADOR" => "warn", "PENDIENTE_APROBACION" => "purple", "PENDIENTE_ANALIZADOR" or "EN_ANALISIS_HUMANO" or "ANALIZANDO_IA" or "PENDIENTE_IA" => "blue", _ => "neutral" };
     private static DateTime Local(DateTime utc) => utc.Kind == DateTimeKind.Utc ? utc.ToLocalTime() : DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime();
+
+
+    private sealed class AsignacionEtapaWeb
+    {
+        public int InspeccionId { get; set; }
+        public string Modo { get; set; } = string.Empty;
+        public int? UsuarioAsignadoId { get; set; }
+        public string UsuarioAsignadoNombre { get; set; } = string.Empty;
+        public bool AsignadaAlUsuarioActual { get; set; }
+        public bool DisponibleParaTomar { get; set; }
+        public bool AsignadaAOtroUsuario { get; set; }
+    }
 
     public async ValueTask DisposeAsync()
     {

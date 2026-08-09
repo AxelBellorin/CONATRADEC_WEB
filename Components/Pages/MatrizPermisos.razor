@@ -44,7 +44,7 @@
         <label>Buscar interfaz</label>
         <InputText class="form-control"
                    @bind-Value="buscar"
-                   placeholder="Nombre visible" />
+                   placeholder="Nombre visible o código interno" />
     </div>
 </section>
 
@@ -184,9 +184,12 @@ else if (actual is not null)
         actual?.Interfaz
             .Where(item =>
                 string.IsNullOrWhiteSpace(buscar) ||
-                item.NombreVisible.Contains(
+                (item.NombreVisible.Contains(
                     buscar,
-                    StringComparison.OrdinalIgnoreCase))
+                    StringComparison.OrdinalIgnoreCase) ||
+                 item.NombreInterfaz.Contains(
+                    buscar,
+                    StringComparison.OrdinalIgnoreCase)))
             .OrderBy(item => item.NombreVisible)
             .ToList() ?? [];
 

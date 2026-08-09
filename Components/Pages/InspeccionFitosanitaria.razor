@@ -54,14 +54,20 @@
         {
             <button class="@(vistaActual == "analizador" ? "active" : string.Empty)"
                     @onclick='() => CambiarVistaAsync("analizador")'>
-                <i class="fa-solid fa-microscope"></i>
-                Analizador
+                <i class="fa-solid fa-briefcase"></i>
+                Analizador · Mis expedientes
+            </button>
+
+            <button class="@(vistaActual == "analizador-disponibles" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("analizador-disponibles")'>
+                <i class="fa-solid fa-inbox"></i>
+                Analizador · Disponibles
             </button>
 
             <button class="@(vistaActual == "analizador-revisadas" ? "active" : string.Empty)"
                     @onclick='() => CambiarVistaAsync("analizador-revisadas")'>
                 <i class="fa-solid fa-clock-rotate-left"></i>
-                Revisadas por analizador
+                Analizador · Revisados
             </button>
         }
 
@@ -69,14 +75,20 @@
         {
             <button class="@(vistaActual == "aprobador" ? "active" : string.Empty)"
                     @onclick='() => CambiarVistaAsync("aprobador")'>
-                <i class="fa-solid fa-stamp"></i>
-                Aprobador
+                <i class="fa-solid fa-briefcase"></i>
+                Aprobador · Mis expedientes
+            </button>
+
+            <button class="@(vistaActual == "aprobador-disponibles" ? "active" : string.Empty)"
+                    @onclick='() => CambiarVistaAsync("aprobador-disponibles")'>
+                <i class="fa-solid fa-inbox"></i>
+                Aprobador · Disponibles
             </button>
 
             <button class="@(vistaActual == "aprobador-revisadas" ? "active" : string.Empty)"
                     @onclick='() => CambiarVistaAsync("aprobador-revisadas")'>
                 <i class="fa-solid fa-box-archive"></i>
-                Revisadas por aprobador
+                Aprobador · Revisados
             </button>
         }
 
@@ -209,7 +221,20 @@
                         }
                     </div>
 
-                    <i class="fa-solid fa-chevron-right fit-open"></i>
+                    @if (EsVistaDisponible)
+                    {
+                        <button class="fit-btn fit-btn-primary"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => TomarExpedienteAsync(item)"
+                                disabled="@(!PuedeTomarVistaActual || cargando)">
+                            <i class="fa-solid fa-hand"></i>
+                            @(PuedeTomarVistaActual ? "Tomar expediente" : "Solo consulta")
+                        </button>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-chevron-right fit-open"></i>
+                    }
                 </article>
             }
         </section>
@@ -366,6 +391,22 @@
     private bool PuedeAprobador =>
         AuthState.TienePermisoDirectoLectura(PermisosWeb.DiagnosticoAprobador);
 
+    private bool PuedeTomarAnalizador =>
+        AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAnalizador);
+
+    private bool PuedeTomarAprobador =>
+        AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAprobador);
+
+    private bool EsVistaDisponible => vistaActual is
+        "analizador-disponibles" or "aprobador-disponibles";
+
+    private bool PuedeTomarVistaActual => vistaActual switch
+    {
+        "analizador-disponibles" => PuedeTomarAnalizador,
+        "aprobador-disponibles" => PuedeTomarAprobador,
+        _ => false
+    };
+
     protected override async Task OnInitializedAsync()
     {
         if (!AuthState.IsAuthenticated)
@@ -478,6 +519,50 @@
         {
             cargando = false;
         }
+    }
+
+    private async Task TomarExpedienteAsync(
+        InspeccionFitosanitariaBandejaItemWeb item)
+    {
+        if (!EsVistaDisponible || !PuedeTomarVistaActual || cargando)
+            return;
+
+        string etapa = vistaActual == "aprobador-disponibles"
+            ? "aprobador"
+            : "analizador";
+
+        bool asignado = false;
+        cargando = true;
+        try
+        {
+            await Servicio.TomarExpedienteAsync(
+                item.InspeccionId,
+                etapa);
+
+            asignado = true;
+            vistaActual = etapa;
+            MostrarMensaje(
+                $"El expediente #{item.InspeccionId} quedó asignado a tu usuario. Ahora aparece en Mis expedientes.",
+                false);
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+        finally
+        {
+            cargando = false;
+        }
+
+        /*
+         * Si hubo una carrera y otro usuario tomó primero el expediente, se
+         * refresca Disponibles. Si la operación fue exitosa, se carga la nueva
+         * bandeja personal para que la asignación sea visible inmediatamente.
+         */
+        await RecargarAsync();
+
+        if (asignado)
+            StateHasChanged();
     }
 
     private async Task AbrirNuevaInspeccion()
@@ -598,9 +683,18 @@
         }
     }
 
-    private void AbrirDetalle(InspeccionFitosanitariaBandejaItemWeb item) =>
+    private void AbrirDetalle(InspeccionFitosanitariaBandejaItemWeb item)
+    {
+        /*
+         * Disponibles se toma desde la bandeja. Abrir el expediente no debe
+         * provocar una asignación implícita ni presentar herramientas de edición.
+         */
+        if (EsVistaDisponible)
+            return;
+
         Navigation.NavigateTo(
             $"/inspeccion-fitosanitaria/{item.InspeccionId}?modo={Uri.EscapeDataString(vistaActual)}");
+    }
 
     private void MostrarMensaje(string texto, bool error)
     {
