@@ -1,0 +1,1062 @@
+@using System.Globalization
+@inject ApiClientService ApiClient
+@inject IJSRuntime JS
+
+<section class="vd-root">
+    <header class="vd-header">
+        <div>
+            <span class="vd-kicker">Validación visual</span>
+            <h3>Diagnósticos y localización IA</h3>
+            <p>@TextoFuente</p>
+        </div>
+        @if (foto is not null)
+        {
+            <span class="vd-version">@TextoRevisionVisual</span>
+        }
+    </header>
+
+    @if (cargando)
+    {
+        <div class="vd-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando valoración visual...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorCarga))
+    {
+        <div class="vd-alert error"><i class="fa-solid fa-circle-exclamation"></i><span>@errorCarga</span></div>
+    }
+    else if (foto is null)
+    {
+        <div class="vd-empty">No se encontró la fotografía dentro del expediente.</div>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <div class="vd-alert @(mensajeError ? "error" : "success")">
+                <i class="fa-solid @(mensajeError ? "fa-circle-exclamation" : "fa-circle-check")"></i>
+                <span>@mensaje</span>
+                <button type="button" @onclick="() => mensaje = string.Empty">×</button>
+            </div>
+        }
+
+        <div class="vd-viewer">
+            <div class="vd-viewer-toolbar">
+                <div class="vd-view-switch" role="group" aria-label="Vista de fotografía">
+                    <button type="button"
+                            class="@(mostrarMarcada ? string.Empty : "active")"
+                            @onclick="MostrarOriginal">
+                        <i class="fa-regular fa-image"></i> Foto limpia
+                    </button>
+                    <button type="button"
+                            class="@(mostrarMarcada ? "active" : string.Empty)"
+                            @onclick="MostrarMarcada"
+                            disabled="@(!foto.TieneImagenMarcadaIA)">
+                        <i class="fa-solid fa-location-crosshairs"></i> Marcada por IA
+                    </button>
+                </div>
+                <span class="vd-view-label">@(mostrarMarcada ? "Derivado visual IA" : "Evidencia original")</span>
+            </div>
+
+            <div class="vd-image-stage">
+                @if (!string.IsNullOrWhiteSpace(UrlImagenActual))
+                {
+                    <img src="@UrlImagenActual" alt="@(mostrarMarcada ? "Fotografía marcada por IA" : "Evidencia fitosanitaria original")" />
+                }
+                else
+                {
+                    <div class="vd-empty-image"><i class="fa-regular fa-image"></i><span>Imagen no disponible</span></div>
+                }
+            </div>
+
+            @if (!foto.TieneImagenMarcadaIA && foto.ResultadoIA is not null)
+            {
+                <div class="vd-legacy-note">
+                    <i class="fa-solid fa-circle-info"></i>
+                    Esta valoración no tiene imagen marcada disponible. La evidencia original continúa siendo válida; esto puede ocurrir en registros anteriores.
+                </div>
+            }
+        </div>
+
+        <div class="vd-summary-row">
+            <div><span>Diagnósticos</span><strong>@DiagnosticosVigentes.Count</strong></div>
+            <div><span>Regiones localizadas</span><strong>@TotalLesiones</strong></div>
+            <div><span>Principal</span><strong>@DiagnosticoPrincipalTexto</strong></div>
+        </div>
+
+        @if (DiagnosticosVigentes.Count == 0)
+        {
+            <div class="vd-empty">La valoración vigente no contiene afectaciones diferenciadas.</div>
+        }
+        else
+        {
+            <div class="vd-diagnosticos">
+                @foreach (DiagnosticoVisualLocal diagnostico in DiagnosticosVigentes)
+                {
+                    <article class="vd-diagnostico @(EsDescartado(diagnostico) ? "discarded" : string.Empty)">
+                        <span class="vd-color" style="background:@ColorSeguro(diagnostico.ColorMarcador)"></span>
+                        <div class="vd-diagnostico-main">
+                            <div class="vd-diagnostico-title">
+                                <strong>@ValorDiagnostico(diagnostico.Diagnostico)</strong>
+                                @if (diagnostico.EsPrincipal && !EsDescartado(diagnostico))
+                                {
+                                    <span class="vd-chip principal">Principal</span>
+                                }
+                                @if (EsDescartado(diagnostico))
+                                {
+                                    <span class="vd-chip descartado">Descartado por analizador</span>
+                                }
+                            </div>
+                            <div class="vd-diagnostico-meta">
+                                @if (!string.IsNullOrWhiteSpace(diagnostico.Categoria)){<span>@TextoCodigo(diagnostico.Categoria)</span>}
+                                @if (!string.IsNullOrWhiteSpace(diagnostico.Severidad)){<span>Severidad: @TextoCodigo(diagnostico.Severidad)</span>}
+                                @if (!string.IsNullOrWhiteSpace(diagnostico.NivelCerteza)){<span>Certeza: @TextoCodigo(diagnostico.NivelCerteza)</span>}
+                                <span>@diagnostico.Lesiones.Count @(diagnostico.Lesiones.Count == 1 ? "región" : "regiones")</span>
+                            </div>
+                            @if (diagnostico.DiagnosticosDiferenciales.Count > 0)
+                            {
+                                <div class="vd-differentials">
+                                    <span>Diferenciales:</span>
+                                    @foreach (string diferencial in diagnostico.DiagnosticosDiferenciales)
+                                    {
+                                        <em>@diferencial</em>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+
+        @if (EsTecnico && PuedeGestionar && PuedeMostrarRevisionTecnica)
+        {
+            <section class="vd-operation-card">
+                <header>
+                    <div>
+                        <span class="vd-kicker">Reevaluación Gemini</span>
+                        <h4>Segunda revisión de IA</h4>
+                    </div>
+                    <span class="vd-limit @(!foto.PuedeSolicitarRevisionIA ? "blocked" : string.Empty)">@TextoLimiteRevision</span>
+                </header>
+
+                @if (!foto.PuedeSolicitarRevisionIA)
+                {
+                    <div class="vd-legacy-note warning">
+                        <i class="fa-solid fa-ban"></i>
+                        Esta fotografía alcanzó el máximo configurado de reevaluaciones adicionales. El análisis inicial no se cuenta dentro de ese límite.
+                    </div>
+                }
+                else if (!mostrarRevisionIA)
+                {
+                    <button type="button" class="vd-btn secondary" @onclick="() => mostrarRevisionIA = true" disabled="@guardando">
+                        <i class="fa-solid fa-rotate"></i> Solicitar revisión IA
+                    </button>
+                }
+                else
+                {
+                    <div class="vd-form-grid single">
+                        <label class="full">
+                            <span>Retroalimentación técnica *</span>
+                            <textarea rows="4" maxlength="2000" @bind="retroalimentacionIA" placeholder="Explique qué debe revisar nuevamente la IA."></textarea>
+                        </label>
+                        <label class="full">
+                            <span>Diagnóstico propuesto (opcional)</span>
+                            <input maxlength="300" @bind="diagnosticoPropuestoIA" />
+                        </label>
+                    </div>
+                    <div class="vd-footer-actions">
+                        <button type="button" class="vd-btn ghost" @onclick="CancelarRevisionIA" disabled="@guardando">Cancelar</button>
+                        <button type="button" class="vd-btn primary" @onclick="SolicitarRevisionIAAsync" disabled="@guardando">
+                            @if (guardando){<i class="fa-solid fa-spinner fa-spin"></i>} else {<i class="fa-solid fa-paper-plane"></i>}
+                            Enviar revisión
+                        </button>
+                    </div>
+                }
+            </section>
+        }
+
+        @if (EsAnalizador && PuedeGestionar && PuedeEditarAnalizador)
+        {
+            <section class="vd-operation-card">
+                <header>
+                    <div>
+                        <span class="vd-kicker">Revisión humana</span>
+                        <h4>Validar afectaciones detectadas</h4>
+                    </div>
+                    <span class="vd-limit">Máximo 8 diagnósticos</span>
+                </header>
+
+                <p class="vd-help">
+                    Cada afectación pertenece a la misma fotografía. Confirme, corrija, descarte o agregue diagnósticos sin crear expedientes independientes.
+                </p>
+
+                <div class="vd-editor-list">
+                    @foreach (DiagnosticoVisualLocal diagnostico in diagnosticosEdicion)
+                    {
+                        bool descartado = EsDescartado(diagnostico);
+                        <article class="vd-editor-card @(descartado ? "discarded" : string.Empty)">
+                            <div class="vd-editor-head">
+                                <span class="vd-color" style="background:@ColorSeguro(diagnostico.ColorMarcador)"></span>
+                                <strong>@ValorDiagnostico(diagnostico.Diagnostico)</strong>
+                                <span>@diagnostico.Lesiones.Count @(diagnostico.Lesiones.Count == 1 ? "región" : "regiones")</span>
+                            </div>
+
+                            <div class="vd-form-grid">
+                                <label class="full">
+                                    <span>Diagnóstico *</span>
+                                    <input maxlength="300" @bind="diagnostico.Diagnostico" disabled="@descartado" />
+                                </label>
+                                <label>
+                                    <span>Categoría</span>
+                                    <select @bind="diagnostico.Categoria" disabled="@descartado">
+                                        @foreach (string categoria in CategoriasDiagnostico)
+                                        {
+                                            <option value="@categoria">@TextoCodigo(categoria)</option>
+                                        }
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Tipo de diagnóstico</span>
+                                    <input maxlength="80" @bind="diagnostico.TipoDiagnostico" disabled="@descartado" />
+                                </label>
+                                <label>
+                                    <span>Severidad</span>
+                                    <select @bind="diagnostico.Severidad" disabled="@descartado">
+                                        @foreach (string severidad in Severidades)
+                                        {
+                                            <option value="@severidad">@TextoCodigo(severidad)</option>
+                                        }
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Nivel de certeza</span>
+                                    <select @bind="diagnostico.NivelCerteza" disabled="@descartado">
+                                        @foreach (string certeza in Certezas)
+                                        {
+                                            <option value="@certeza">@TextoCodigo(certeza)</option>
+                                        }
+                                    </select>
+                                </label>
+                            </div>
+
+                            <div class="vd-card-actions">
+                                <button type="button" class="vd-mini" @onclick="() => AlternarDescarte(diagnostico)" disabled="@guardando">
+                                    <i class="fa-solid @(descartado ? "fa-rotate-left" : "fa-ban")"></i>
+                                    @(descartado ? "Restaurar" : "Descartar")
+                                </button>
+                                <button type="button" class="vd-mini" @onclick="() => HacerPrincipal(diagnostico)" disabled="@(guardando || descartado)">
+                                    <i class="fa-solid fa-star"></i>
+                                    @(diagnostico.EsPrincipal && !descartado ? "Principal ✓" : "Hacer principal")
+                                </button>
+                                @if (string.IsNullOrWhiteSpace(diagnostico.IdOrigenIA))
+                                {
+                                    <button type="button" class="vd-mini danger" @onclick="() => EliminarManual(diagnostico)" disabled="@guardando">
+                                        <i class="fa-solid fa-trash"></i> Quitar agregado
+                                    </button>
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+
+                <button type="button" class="vd-btn secondary" @onclick="AgregarDiagnosticoManual" disabled="@(guardando || diagnosticosEdicion.Count >= 8)">
+                    <i class="fa-solid fa-plus"></i> Agregar diagnóstico observado
+                </button>
+
+                <div class="vd-form-grid single">
+                    <label class="full">
+                        <span>Observaciones del analizador</span>
+                        <textarea rows="4" maxlength="3000" @bind="observacionesAnalizador"></textarea>
+                    </label>
+                </div>
+
+                <div class="vd-footer-actions">
+                    <button type="button" class="vd-btn primary" @onclick="GuardarAnalisisHumanoAsync" disabled="@guardando">
+                        @if (guardando){<i class="fa-solid fa-spinner fa-spin"></i>} else {<i class="fa-solid fa-floppy-disk"></i>}
+                        Guardar clasificación humana
+                    </button>
+                </div>
+            </section>
+        }
+
+        @if (EsAprobador && PuedeGestionar && PuedeEditarAprobador)
+        {
+            <section class="vd-operation-card">
+                <header>
+                    <div>
+                        <span class="vd-kicker">Decisión final</span>
+                        <h4>Revisar clasificación del analizador</h4>
+                    </div>
+                    <span class="vd-limit">Una decisión por fotografía</span>
+                </header>
+
+                <div class="vd-form-grid">
+                    <label>
+                        <span>Decisión *</span>
+                        <select @bind="decisionAprobador">
+                            <option value="APROBAR_SIN_CAMBIOS">Aprobar sin cambios</option>
+                            <option value="APROBAR_CON_CORRECCION">Aprobar con corrección</option>
+                            <option value="DEVOLVER_AL_ANALIZADOR">Devolver al analizador</option>
+                            <option value="RECHAZAR_DIAGNOSTICO">Rechazar diagnóstico</option>
+                            <option value="MARCAR_NO_CONCLUYENTE">Marcar no concluyente</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Observaciones</span>
+                        <textarea rows="3" maxlength="3000" @bind="observacionesAprobador"></textarea>
+                    </label>
+                </div>
+
+                <div class="vd-editor-list">
+                    @foreach (DiagnosticoVisualLocal diagnostico in diagnosticosAprobacion)
+                    {
+                        <article class="vd-editor-card">
+                            <div class="vd-editor-head">
+                                <span class="vd-color" style="background:@ColorSeguro(diagnostico.ColorMarcador)"></span>
+                                <strong>@ValorDiagnostico(diagnostico.Diagnostico)</strong>
+                                @if (diagnostico.EsPrincipal){<span class="vd-chip principal">Principal</span>}
+                            </div>
+                            <div class="vd-form-grid">
+                                <label class="full">
+                                    <span>Diagnóstico</span>
+                                    <input maxlength="300" @bind="diagnostico.Diagnostico" disabled="@(!PermiteCorreccionAprobador)" />
+                                </label>
+                                <label>
+                                    <span>Categoría</span>
+                                    <select @bind="diagnostico.Categoria" disabled="@(!PermiteCorreccionAprobador)">
+                                        @foreach (string categoria in CategoriasDiagnostico)
+                                        {
+                                            <option value="@categoria">@TextoCodigo(categoria)</option>
+                                        }
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Tipo de diagnóstico</span>
+                                    <input maxlength="80" @bind="diagnostico.TipoDiagnostico" disabled="@(!PermiteCorreccionAprobador)" />
+                                </label>
+                                <label>
+                                    <span>Severidad</span>
+                                    <select @bind="diagnostico.Severidad" disabled="@(!PermiteCorreccionAprobador)">
+                                        @foreach (string severidad in Severidades)
+                                        {
+                                            <option value="@severidad">@TextoCodigo(severidad)</option>
+                                        }
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Nivel de certeza</span>
+                                    <select @bind="diagnostico.NivelCerteza" disabled="@(!PermiteCorreccionAprobador)">
+                                        @foreach (string certeza in Certezas)
+                                        {
+                                            <option value="@certeza">@TextoCodigo(certeza)</option>
+                                        }
+                                    </select>
+                                </label>
+                            </div>
+                            @if (PermiteCorreccionAprobador)
+                            {
+                                <div class="vd-card-actions">
+                                    <button type="button" class="vd-mini" @onclick="() => HacerPrincipalAprobador(diagnostico)" disabled="@guardando">
+                                        <i class="fa-solid fa-star"></i>
+                                        @(diagnostico.EsPrincipal ? "Principal ✓" : "Hacer principal")
+                                    </button>
+                                </div>
+                            }
+                        </article>
+                    }
+                </div>
+
+                <div class="vd-legacy-note">
+                    <i class="fa-solid fa-seedling"></i>
+                    La aprobación no publica automáticamente la evidencia. La clasificación oficial y la copia al Álbum Botánico se gestionan después como una operación independiente.
+                </div>
+
+                <div class="vd-footer-actions">
+                    <button type="button" class="vd-btn primary" @onclick="RegistrarAprobacionAsync" disabled="@guardando">
+                        @if (guardando){<i class="fa-solid fa-spinner fa-spin"></i>} else {<i class="fa-solid fa-stamp"></i>}
+                        Registrar decisión
+                    </button>
+                </div>
+            </section>
+        }
+    }
+</section>
+
+@code {
+    [Parameter] public int InspeccionId { get; set; }
+    [Parameter] public int FotografiaId { get; set; }
+    [Parameter] public string Etapa { get; set; } = "CONSULTA";
+    [Parameter] public bool PuedeGestionar { get; set; }
+    [Parameter] public EventCallback OnActualizado { get; set; }
+
+    private static readonly string[] CategoriasDiagnostico =
+    [
+        "ENFERMEDAD",
+        "PLAGA",
+        "ALTERACION_NUTRICIONAL",
+        "ESTRES_ABIOTICO",
+        "DANO_MECANICO",
+        "AFECTACION_NO_DETERMINADA",
+        "NO_APLICA"
+    ];
+
+    private static readonly string[] Severidades =
+    [
+        "LEVE",
+        "MODERADA",
+        "SEVERA",
+        "NO_EVALUABLE",
+        "NO_APLICA"
+    ];
+
+    private static readonly string[] Certezas =
+    [
+        "ALTO",
+        "MEDIO",
+        "BAJO",
+        "NO_DETERMINADO"
+    ];
+
+    private static readonly string[] Colores =
+    [
+        "#E53935", "#43A047", "#FB8C00", "#8E24AA",
+        "#00897B", "#6D4C41", "#1E88E5", "#D81B60"
+    ];
+
+    private FotoVisualLocal? foto;
+    private bool cargando;
+    private bool guardando;
+    private bool mostrarMarcada;
+    private bool mostrarRevisionIA;
+    private string errorCarga = string.Empty;
+    private string mensaje = string.Empty;
+    private bool mensajeError;
+    private string retroalimentacionIA = string.Empty;
+    private string diagnosticoPropuestoIA = string.Empty;
+    private string observacionesAnalizador = string.Empty;
+    private string decisionAprobador = "APROBAR_SIN_CAMBIOS";
+    private string observacionesAprobador = string.Empty;
+    private readonly List<DiagnosticoVisualLocal> diagnosticosEdicion = [];
+    private readonly List<DiagnosticoVisualLocal> diagnosticosAprobacion = [];
+
+    private bool EsTecnico => Etapa.Equals("TECNICO", StringComparison.OrdinalIgnoreCase);
+    private bool EsAnalizador => Etapa.Equals("ANALIZADOR", StringComparison.OrdinalIgnoreCase);
+    private bool EsAprobador => Etapa.Equals("APROBADOR", StringComparison.OrdinalIgnoreCase);
+    private bool PuedeEditarAnalizador => foto?.Estado is "PENDIENTE_ANALIZADOR" or "EN_ANALISIS_HUMANO" or "DEVUELTA_AL_ANALIZADOR";
+    private bool PuedeEditarAprobador => foto?.Estado == "PENDIENTE_APROBACION";
+    private bool PuedeMostrarRevisionTecnica => foto?.Estado is "PENDIENTE_DECISION_TECNICO" or "ERROR_IA";
+    private bool PermiteCorreccionAprobador => decisionAprobador == "APROBAR_CON_CORRECCION";
+
+    private IReadOnlyList<DiagnosticoVisualLocal> DiagnosticosVigentes
+    {
+        get
+        {
+            if (foto?.UltimaAprobacion?.DiagnosticosFinales.Count > 0)
+                return foto.UltimaAprobacion.DiagnosticosFinales;
+            if (foto?.UltimoAnalisisHumano?.Diagnosticos.Count > 0)
+                return foto.UltimoAnalisisHumano.Diagnosticos;
+            return foto?.ResultadoIA?.Diagnosticos ?? [];
+        }
+    }
+
+    private int TotalLesiones => DiagnosticosVigentes.Sum(item => item.Lesiones.Count);
+    private string DiagnosticoPrincipalTexto =>
+        DiagnosticosVigentes.FirstOrDefault(item => item.EsPrincipal && !EsDescartado(item))?.Diagnostico
+        ?? DiagnosticosVigentes.FirstOrDefault(item => !EsDescartado(item))?.Diagnostico
+        ?? "Sin principal";
+
+    private string TextoFuente => foto is null
+        ? "Cargando evidencia..."
+        : foto.UltimaAprobacion?.DiagnosticosFinales.Count > 0
+            ? "Clasificación final aprobada de la fotografía."
+            : foto.UltimoAnalisisHumano?.Diagnosticos.Count > 0
+                ? "Clasificación humana vigente del analizador."
+                : foto.ResultadoIA?.Diagnosticos.Count > 0
+                    ? "Afectaciones diferenciadas detectadas por la IA."
+                    : "La evidencia todavía no contiene diagnósticos visuales diferenciados.";
+
+    private string TextoRevisionVisual => foto is null
+        ? string.Empty
+        : foto.TieneImagenMarcadaIA
+            ? $"Revisión IA {foto.VersionImagenMarcadaIA ?? foto.ResultadoIA?.VersionVisual ?? 0}"
+            : "Sin derivado marcado";
+
+    private string UrlImagenActual => foto is null
+        ? string.Empty
+        : mostrarMarcada && foto.TieneImagenMarcadaIA
+            ? foto.UrlImagenMarcadaIA
+            : foto.UrlImagen;
+
+    private string TextoLimiteRevision
+    {
+        get
+        {
+            if (foto is null)
+                return string.Empty;
+            if (foto.RevisionesIAIlimitadas)
+                return $"Ilimitadas · {foto.RevisionesIACompletadas} completadas";
+            return $"{foto.RevisionesIACompletadas}/{foto.MaximoRevisionesIA} adicionales";
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        if (InspeccionId <= 0 || FotografiaId <= 0 || guardando)
+            return;
+
+        cargando = true;
+        errorCarga = string.Empty;
+        try
+        {
+            ApiEnvelopeVisual<DetalleVisualLocal>? respuesta =
+                await ApiClient.GetAsync<ApiEnvelopeVisual<DetalleVisualLocal>>(
+                    $"api/inspecciones-fitosanitarias/{InspeccionId}");
+
+            if (respuesta?.Data is null)
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(respuesta?.Message) ? "La API no devolvió el detalle visual de la inspección." : respuesta.Message);
+
+            foto = respuesta.Data.Fotografias.FirstOrDefault(item => item.FotografiaId == FotografiaId);
+            if (foto is null)
+                throw new InvalidOperationException("La fotografía ya no se encuentra disponible dentro del expediente.");
+
+            if (mostrarMarcada && !foto.TieneImagenMarcadaIA)
+                mostrarMarcada = false;
+
+            PrepararEdiciones();
+        }
+        catch (Exception ex)
+        {
+            foto = null;
+            errorCarga = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void PrepararEdiciones()
+    {
+        diagnosticosEdicion.Clear();
+        diagnosticosAprobacion.Clear();
+
+        if (foto is null)
+            return;
+
+        IReadOnlyList<DiagnosticoVisualLocal> origenAnalizador =
+            foto.UltimoAnalisisHumano?.Diagnosticos.Count > 0
+                ? foto.UltimoAnalisisHumano.Diagnosticos
+                : foto.ResultadoIA?.Diagnosticos ?? [];
+
+        foreach (DiagnosticoVisualLocal item in origenAnalizador)
+        {
+            DiagnosticoVisualLocal copia = Copiar(item);
+            if (foto.UltimoAnalisisHumano is null ||
+                foto.UltimoAnalisisHumano.Diagnosticos.Count == 0)
+            {
+                copia.IdOrigenIA = string.IsNullOrWhiteSpace(copia.IdOrigenIA)
+                    ? copia.Id
+                    : copia.IdOrigenIA;
+                copia.AccionHumana = "CONFIRMAR";
+            }
+            diagnosticosEdicion.Add(copia);
+        }
+
+        observacionesAnalizador = foto.UltimoAnalisisHumano?.Observaciones ?? string.Empty;
+
+        IReadOnlyList<DiagnosticoVisualLocal> origenAprobador =
+            foto.UltimaAprobacion?.DiagnosticosFinales.Count > 0
+                ? foto.UltimaAprobacion.DiagnosticosFinales
+                : foto.UltimoAnalisisHumano?.Diagnosticos
+                    .Where(item => !EsDescartado(item))
+                    .ToList() ?? [];
+
+        foreach (DiagnosticoVisualLocal item in origenAprobador)
+        {
+            DiagnosticoVisualLocal copia = Copiar(item);
+            copia.AccionHumana = string.Empty;
+            diagnosticosAprobacion.Add(copia);
+        }
+
+        decisionAprobador = foto.UltimaAprobacion?.Decision ?? "APROBAR_SIN_CAMBIOS";
+        observacionesAprobador = foto.UltimaAprobacion?.Observaciones ?? string.Empty;
+    }
+
+    private void MostrarOriginal() => mostrarMarcada = false;
+    private void MostrarMarcada()
+    {
+        if (foto?.TieneImagenMarcadaIA == true)
+            mostrarMarcada = true;
+    }
+
+    private void CancelarRevisionIA()
+    {
+        mostrarRevisionIA = false;
+        retroalimentacionIA = string.Empty;
+        diagnosticoPropuestoIA = string.Empty;
+    }
+
+    private async Task SolicitarRevisionIAAsync()
+    {
+        if (foto is null || guardando)
+            return;
+        if (!foto.PuedeSolicitarRevisionIA)
+        {
+            MostrarMensaje("La fotografía ya alcanzó el máximo permitido de reevaluaciones IA.", true);
+            return;
+        }
+        if (retroalimentacionIA.Trim().Length < 8)
+        {
+            MostrarMensaje("Ingrese una retroalimentación técnica de al menos 8 caracteres.", true);
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            await ApiClient.PostAsync<object, ApiEnvelopeVisual<OperacionVisualLocal>>(
+                $"api/inspecciones-fitosanitarias/{InspeccionId}/solicitar-revision-ia",
+                new
+                {
+                    fotografiaIds = new[] { FotografiaId },
+                    retroalimentacion = retroalimentacionIA.Trim(),
+                    diagnosticoPropuesto = string.IsNullOrWhiteSpace(diagnosticoPropuestoIA) ? null : diagnosticoPropuestoIA.Trim()
+                });
+
+            CancelarRevisionIA();
+            MostrarMensaje("La reevaluación IA fue solicitada para esta fotografía.", false);
+            await CargarAsync();
+            await OnActualizado.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void AlternarDescarte(DiagnosticoVisualLocal diagnostico)
+    {
+        bool estabaDescartado = EsDescartado(diagnostico);
+        if (estabaDescartado)
+        {
+            diagnostico.AccionHumana = string.IsNullOrWhiteSpace(diagnostico.IdOrigenIA)
+                ? "AGREGAR"
+                : "CONFIRMAR";
+            return;
+        }
+
+        bool eraPrincipal = diagnostico.EsPrincipal;
+        diagnostico.AccionHumana = "DESCARTAR";
+        diagnostico.EsPrincipal = false;
+
+        if (eraPrincipal)
+            GarantizarPrincipal(diagnosticosEdicion);
+    }
+
+    private void HacerPrincipal(DiagnosticoVisualLocal diagnostico)
+    {
+        if (EsDescartado(diagnostico))
+            return;
+        foreach (DiagnosticoVisualLocal item in diagnosticosEdicion)
+            item.EsPrincipal = ReferenceEquals(item, diagnostico);
+    }
+
+    private void HacerPrincipalAprobador(DiagnosticoVisualLocal diagnostico)
+    {
+        foreach (DiagnosticoVisualLocal item in diagnosticosAprobacion)
+            item.EsPrincipal = ReferenceEquals(item, diagnostico);
+    }
+
+    private void EliminarManual(DiagnosticoVisualLocal diagnostico)
+    {
+        diagnosticosEdicion.Remove(diagnostico);
+        GarantizarPrincipal(diagnosticosEdicion);
+    }
+
+    private void AgregarDiagnosticoManual()
+    {
+        if (diagnosticosEdicion.Count >= 8)
+        {
+            MostrarMensaje("La fotografía admite como máximo 8 diagnósticos durante la revisión humana.", true);
+            return;
+        }
+
+        int consecutivo = diagnosticosEdicion.Count + 1;
+        diagnosticosEdicion.Add(new DiagnosticoVisualLocal
+        {
+            Id = $"H{consecutivo}",
+            IdOrigenIA = string.Empty,
+            AccionHumana = "AGREGAR",
+            Diagnostico = "Nueva afectación",
+            Categoria = "AFECTACION_NO_DETERMINADA",
+            Severidad = "NO_EVALUABLE",
+            NivelCerteza = "NO_DETERMINADO",
+            ColorMarcador = Colores[(consecutivo - 1) % Colores.Length],
+            EsPrincipal = diagnosticosEdicion.All(item => EsDescartado(item))
+        });
+    }
+
+    private async Task GuardarAnalisisHumanoAsync()
+    {
+        if (foto is null || guardando)
+            return;
+
+        List<DiagnosticoVisualLocal>? preparados = PrepararDiagnosticosAnalizador();
+        if (preparados is null)
+            return;
+
+        DiagnosticoVisualLocal? principal = preparados.FirstOrDefault(item => item.EsPrincipal && !EsDescartado(item))
+            ?? preparados.FirstOrDefault(item => !EsDescartado(item));
+
+        string calidad = foto.UltimoAnalisisHumano?.CalidadEvaluacion
+            ?? foto.ResultadoIA?.CalidadEvaluacion
+            ?? "EVALUABLE";
+        string estadoGeneral = principal is null
+            ? "INDETERMINADA"
+            : foto.UltimoAnalisisHumano?.EstadoGeneral
+                ?? foto.ResultadoIA?.EstadoGeneral
+                ?? "CON_AFECTACION";
+
+        guardando = true;
+        try
+        {
+            ApiEnvelopeVisual<OperacionVisualLocal>? respuesta =
+                await ApiClient.PostAsync<object, ApiEnvelopeVisual<OperacionVisualLocal>>(
+                    $"api/inspecciones-fitosanitarias-flujo/{InspeccionId}/analisis-humano-individual",
+                    new
+                    {
+                        fotografias = new[]
+                        {
+                            new
+                            {
+                                fotografiaId = FotografiaId,
+                                calidadEvaluacion = calidad,
+                                estadoGeneral,
+                                categoriaPrincipal = principal?.Categoria ?? "NO_APLICA",
+                                categoriasSecundarias = Array.Empty<string>(),
+                                diagnostico = principal?.Diagnostico ?? string.Empty,
+                                tipoDiagnostico = principal?.TipoDiagnostico ?? string.Empty,
+                                severidad = principal?.Severidad ?? "NO_EVALUABLE",
+                                nivelCerteza = principal?.NivelCerteza ?? "NO_DETERMINADO",
+                                observaciones = observacionesAnalizador.Trim(),
+                                diagnosticos = preparados
+                            }
+                        },
+                        enviarAprobacion = false
+                    });
+
+            MostrarMensaje(respuesta?.Message ?? "La clasificación humana quedó guardada como borrador.", false);
+            await CargarAsync();
+            await OnActualizado.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private List<DiagnosticoVisualLocal>? PrepararDiagnosticosAnalizador()
+    {
+        if (diagnosticosEdicion.Count > 8)
+        {
+            MostrarMensaje("La fotografía admite como máximo 8 diagnósticos.", true);
+            return null;
+        }
+
+        List<DiagnosticoVisualLocal> preparados = diagnosticosEdicion.Select(Copiar).ToList();
+        HashSet<string> nombres = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (DiagnosticoVisualLocal item in preparados)
+        {
+            if (EsDescartado(item))
+            {
+                item.EsPrincipal = false;
+                item.AccionHumana = "DESCARTAR";
+                continue;
+            }
+
+            item.Diagnostico = item.Diagnostico.Trim();
+            if (item.Diagnostico.Length == 0)
+            {
+                MostrarMensaje("Cada diagnóstico activo debe tener un nombre.", true);
+                return null;
+            }
+            if (!nombres.Add(item.Diagnostico))
+            {
+                MostrarMensaje($"El diagnóstico «{item.Diagnostico}» está repetido dentro de la misma fotografía.", true);
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(item.IdOrigenIA))
+            {
+                item.AccionHumana = "AGREGAR";
+            }
+            else
+            {
+                DiagnosticoVisualLocal? original = foto?.ResultadoIA?.Diagnosticos.FirstOrDefault(origen =>
+                    string.Equals(origen.Id, item.IdOrigenIA, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(origen.IdOrigenIA, item.IdOrigenIA, StringComparison.OrdinalIgnoreCase));
+                item.AccionHumana = original is not null && EsEquivalente(original, item)
+                    ? "CONFIRMAR"
+                    : "CORREGIR";
+            }
+        }
+
+        GarantizarPrincipal(preparados);
+        return preparados;
+    }
+
+    private async Task RegistrarAprobacionAsync()
+    {
+        if (foto is null || guardando)
+            return;
+
+        List<DiagnosticoVisualLocal> finales = diagnosticosAprobacion.Select(Copiar).ToList();
+        foreach (DiagnosticoVisualLocal item in finales)
+        {
+            item.AccionHumana = string.Empty;
+            item.Diagnostico = item.Diagnostico.Trim();
+        }
+
+        if (finales.Any(item => string.IsNullOrWhiteSpace(item.Diagnostico)))
+        {
+            MostrarMensaje("Los diagnósticos finales no pueden quedar sin nombre.", true);
+            return;
+        }
+
+        GarantizarPrincipal(finales);
+        DiagnosticoVisualLocal? principal = finales.FirstOrDefault(item => item.EsPrincipal) ?? finales.FirstOrDefault();
+
+        bool confirmar = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Registrará la decisión «{TextoCodigo(decisionAprobador)}» únicamente para esta fotografía. La publicación en el Álbum Botánico seguirá siendo una operación separada. ¿Desea continuar?");
+        if (!confirmar)
+            return;
+
+        guardando = true;
+        try
+        {
+            string calidad = foto.UltimoAnalisisHumano?.CalidadEvaluacion ?? "EVALUABLE";
+            string estadoGeneral = foto.UltimoAnalisisHumano?.EstadoGeneral ?? "INDETERMINADA";
+
+            ApiEnvelopeVisual<OperacionVisualLocal>? respuesta =
+                await ApiClient.PostAsync<object, ApiEnvelopeVisual<OperacionVisualLocal>>(
+                    $"api/inspecciones-fitosanitarias-flujo/{InspeccionId}/aprobacion-individual",
+                    new
+                    {
+                        fotografias = new[]
+                        {
+                            new
+                            {
+                                fotografiaId = FotografiaId,
+                                decision = decisionAprobador,
+                                calidadEvaluacionFinal = calidad,
+                                estadoGeneralFinal = estadoGeneral,
+                                categoriaPrincipalFinal = principal?.Categoria ?? "NO_APLICA",
+                                categoriasSecundariasFinales = Array.Empty<string>(),
+                                diagnosticoFinal = principal?.Diagnostico ?? string.Empty,
+                                tipoDiagnosticoFinal = principal?.TipoDiagnostico ?? string.Empty,
+                                severidadFinal = principal?.Severidad ?? "NO_EVALUABLE",
+                                nivelCertezaFinal = principal?.NivelCerteza ?? "NO_DETERMINADO",
+                                observaciones = observacionesAprobador.Trim(),
+                                autorizaPublicacionAlbum = false,
+                                diagnosticosFinales = finales
+                            }
+                        }
+                    });
+
+            MostrarMensaje(respuesta?.Message ?? "La decisión del aprobador fue registrada.", false);
+            await CargarAsync();
+            await OnActualizado.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private static void GarantizarPrincipal(List<DiagnosticoVisualLocal> diagnosticos)
+    {
+        List<DiagnosticoVisualLocal> activos = diagnosticos.Where(item => !EsDescartado(item)).ToList();
+        if (activos.Count == 0)
+            return;
+
+        DiagnosticoVisualLocal? principal = activos.FirstOrDefault(item => item.EsPrincipal);
+        foreach (DiagnosticoVisualLocal item in activos)
+            item.EsPrincipal = ReferenceEquals(item, principal ?? activos[0]);
+    }
+
+    private static bool EsEquivalente(DiagnosticoVisualLocal a, DiagnosticoVisualLocal b) =>
+        string.Equals(a.Diagnostico?.Trim(), b.Diagnostico?.Trim(), StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(a.Categoria?.Trim(), b.Categoria?.Trim(), StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(a.TipoDiagnostico?.Trim(), b.TipoDiagnostico?.Trim(), StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(a.Severidad?.Trim(), b.Severidad?.Trim(), StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(a.NivelCerteza?.Trim(), b.NivelCerteza?.Trim(), StringComparison.OrdinalIgnoreCase) &&
+        a.EsPrincipal == b.EsPrincipal;
+
+    private static bool EsDescartado(DiagnosticoVisualLocal diagnostico) =>
+        string.Equals(diagnostico.AccionHumana, "DESCARTAR", StringComparison.OrdinalIgnoreCase);
+
+    private static DiagnosticoVisualLocal Copiar(DiagnosticoVisualLocal origen) => new()
+    {
+        Id = origen.Id,
+        IdOrigenIA = origen.IdOrigenIA,
+        AccionHumana = origen.AccionHumana,
+        Diagnostico = origen.Diagnostico,
+        Categoria = origen.Categoria,
+        TipoDiagnostico = origen.TipoDiagnostico,
+        EsPrincipal = origen.EsPrincipal,
+        NivelCerteza = origen.NivelCerteza,
+        Severidad = origen.Severidad,
+        DiagnosticosDiferenciales = origen.DiagnosticosDiferenciales.ToList(),
+        DiferencialesLocalizados = origen.DiferencialesLocalizados.Select(Copiar).ToList(),
+        Lesiones = origen.Lesiones.Select(Copiar).ToList(),
+        ColorMarcador = origen.ColorMarcador
+    };
+
+    private static DiferencialVisualLocal Copiar(DiferencialVisualLocal origen) => new()
+    {
+        Diagnostico = origen.Diagnostico,
+        ColorMarcador = origen.ColorMarcador,
+        Lesiones = origen.Lesiones.Select(Copiar).ToList()
+    };
+
+    private static LesionVisualLocal Copiar(LesionVisualLocal origen) => new()
+    {
+        Id = origen.Id,
+        Descripcion = origen.Descripcion,
+        Box2d = origen.Box2d.ToList()
+    };
+
+    private void MostrarMensaje(string texto, bool error)
+    {
+        mensaje = texto;
+        mensajeError = error;
+    }
+
+    private static string ValorDiagnostico(string? valor) =>
+        string.IsNullOrWhiteSpace(valor) ? "Afectación sin nombre" : valor.Trim();
+
+    private static string TextoCodigo(string? valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+            return "No disponible";
+        return string.Join(' ', valor.Split('_', StringSplitOptions.RemoveEmptyEntries)
+            .Select(item => char.ToUpperInvariant(item[0]) + item[1..].ToLowerInvariant()));
+    }
+
+    private static string ColorSeguro(string? color)
+    {
+        string valor = (color ?? string.Empty).Trim();
+        return valor.StartsWith('#') && (valor.Length == 7 || valor.Length == 9)
+            ? valor
+            : "#E53935";
+    }
+
+    private sealed class ApiEnvelopeVisual<T> where T : class
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public T? Data { get; set; }
+    }
+
+    private sealed class DetalleVisualLocal
+    {
+        public List<FotoVisualLocal> Fotografias { get; set; } = [];
+    }
+
+    private sealed class FotoVisualLocal
+    {
+        public int FotografiaId { get; set; }
+        public string UrlImagen { get; set; } = string.Empty;
+        public string UrlImagenMarcadaIA { get; set; } = string.Empty;
+        public bool TieneImagenMarcadaIA { get; set; }
+        public int? VersionImagenMarcadaIA { get; set; }
+        public string Estado { get; set; } = string.Empty;
+        public int RevisionesIACompletadas { get; set; }
+        public int MaximoRevisionesIA { get; set; } = 2;
+        public bool RevisionesIAIlimitadas { get; set; }
+        public int RevisionesIARestantes { get; set; }
+        public bool PuedeSolicitarRevisionIA { get; set; } = true;
+        public ResultadoVisualIALocal? ResultadoIA { get; set; }
+        public AnalisisHumanoVisualLocal? UltimoAnalisisHumano { get; set; }
+        public AprobacionVisualLocal? UltimaAprobacion { get; set; }
+    }
+
+    private sealed class ResultadoVisualIALocal
+    {
+        public string CalidadEvaluacion { get; set; } = string.Empty;
+        public string EstadoGeneral { get; set; } = string.Empty;
+        public int? VersionVisual { get; set; }
+        public List<DiagnosticoVisualLocal> Diagnosticos { get; set; } = [];
+    }
+
+    private sealed class AnalisisHumanoVisualLocal
+    {
+        public string CalidadEvaluacion { get; set; } = string.Empty;
+        public string EstadoGeneral { get; set; } = string.Empty;
+        public string Observaciones { get; set; } = string.Empty;
+        public List<DiagnosticoVisualLocal> Diagnosticos { get; set; } = [];
+    }
+
+    private sealed class AprobacionVisualLocal
+    {
+        public string Decision { get; set; } = string.Empty;
+        public string Observaciones { get; set; } = string.Empty;
+        public List<DiagnosticoVisualLocal> DiagnosticosFinales { get; set; } = [];
+    }
+
+    private sealed class DiagnosticoVisualLocal
+    {
+        public string Id { get; set; } = string.Empty;
+        public string IdOrigenIA { get; set; } = string.Empty;
+        public string AccionHumana { get; set; } = string.Empty;
+        public string Diagnostico { get; set; } = string.Empty;
+        public string Categoria { get; set; } = string.Empty;
+        public string TipoDiagnostico { get; set; } = string.Empty;
+        public bool EsPrincipal { get; set; }
+        public string NivelCerteza { get; set; } = string.Empty;
+        public string Severidad { get; set; } = string.Empty;
+        public List<string> DiagnosticosDiferenciales { get; set; } = [];
+        public List<DiferencialVisualLocal> DiferencialesLocalizados { get; set; } = [];
+        public List<LesionVisualLocal> Lesiones { get; set; } = [];
+        public string ColorMarcador { get; set; } = "#E53935";
+    }
+
+    private sealed class DiferencialVisualLocal
+    {
+        public string Diagnostico { get; set; } = string.Empty;
+        public string ColorMarcador { get; set; } = "#1E88E5";
+        public List<LesionVisualLocal> Lesiones { get; set; } = [];
+    }
+
+    private sealed class LesionVisualLocal
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public List<int> Box2d { get; set; } = [];
+    }
+
+    private sealed class OperacionVisualLocal
+    {
+        public int FotografiaId { get; set; }
+        public string Estado { get; set; } = string.Empty;
+        public string Mensaje { get; set; } = string.Empty;
+    }
+}

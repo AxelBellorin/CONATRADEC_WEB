@@ -185,7 +185,7 @@
                                 <span class="fit-id">#@item.InspeccionId</span>
                                 <h3>@NombreInspeccion(item)</h3>
                             </div>
-                            <span class="fit-status @ClaseEstado(item.Estado)">@TextoEstado(item.Estado)</span>
+                            <span class="fit-status @ClaseEstadoBandeja(item)">@TextoEstadoBandeja(item)</span>
                         </div>
 
                         <div class="fit-meta-grid">
@@ -278,8 +278,9 @@
                 </div>
 
                 <div class="fit-field">
-                    <label>Nombre de la inspección</label>
+                    <label>Nombre de la inspección *</label>
                     <input @bind="nombreInspeccion" maxlength="150" placeholder="Ej. Monitoreo lote norte" />
+                    <small>Use entre 3 y 150 caracteres para identificar la inspección.</small>
                 </div>
 
                 <div class="fit-field full">
@@ -427,24 +428,44 @@
                 ? "analizador"
                 : "aprobador";
 
+        await CargarTiposFotografiaAsync(mostrarError: false);
+        await RecargarAsync();
+    }
+
+    private async Task<bool> CargarTiposFotografiaAsync(bool mostrarError = true)
+    {
         try
         {
-            tiposFotografia = await Servicio.ObtenerTiposFotografiaAsync();
-        }
-        catch
-        {
-            tiposFotografia =
-            [
-                new TipoFotografiaIAWeb
-                {
-                    Codigo = "EVIDENCIA",
-                    Nombre = "Evidencia",
-                    Activo = true
-                }
-            ];
-        }
+            List<TipoFotografiaIAWeb> catalogo =
+                await Servicio.ObtenerTiposFotografiaAsync();
 
-        await RecargarAsync();
+            tiposFotografia = catalogo
+                .Where(tipo =>
+                    tipo.Activo &&
+                    !string.IsNullOrWhiteSpace(tipo.Codigo))
+                .OrderBy(tipo => tipo.Orden)
+                .ThenBy(tipo => tipo.Nombre)
+                .ToList();
+
+            if (tiposFotografia.Count == 0)
+                throw new InvalidOperationException(
+                    "No existen tipos de fotografía activos disponibles para registrar evidencia.");
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            tiposFotografia = [];
+            if (mostrarError)
+            {
+                MostrarMensaje(
+                    string.IsNullOrWhiteSpace(ex.Message)
+                        ? "No fue posible cargar el catálogo oficial de tipos de fotografía."
+                        : ex.Message,
+                    true);
+            }
+            return false;
+        }
     }
 
     private async Task CambiarVistaAsync(string vista)
@@ -570,23 +591,14 @@
         if (!PuedeCrear)
             return;
 
+        if (!await CargarTiposFotografiaAsync())
+            return;
+
         codigoTerreno = string.Empty;
         nombreInspeccion = string.Empty;
         observacion = string.Empty;
         fotosNueva.Clear();
         mostrarNueva = true;
-
-        if (tiposFotografia.Count == 0)
-        {
-            try
-            {
-                tiposFotografia = await Servicio.ObtenerTiposFotografiaAsync();
-            }
-            catch (Exception ex)
-            {
-                MostrarMensaje(ex.Message, true);
-            }
-        }
     }
 
     private void CerrarNuevaInspeccion()
@@ -599,8 +611,16 @@
     {
         try
         {
+            if (tiposFotografia.Count == 0)
+            {
+                MostrarMensaje(
+                    "El catálogo oficial de tipos de fotografía no está disponible. Cierre el formulario y vuelva a intentarlo.",
+                    true);
+                return Task.CompletedTask;
+            }
+
             IReadOnlyList<IBrowserFile> archivos = e.GetMultipleFiles(40);
-            string tipoInicial = tiposFotografia.FirstOrDefault()?.Codigo ?? "EVIDENCIA";
+            string tipoInicial = tiposFotografia[0].Codigo;
 
             foreach (IBrowserFile archivo in archivos)
             {
@@ -646,9 +666,47 @@
             return;
         }
 
+        string nombre = nombreInspeccion.Trim();
+        if (nombre.Length < 3)
+        {
+            MostrarMensaje(
+                "Escriba un nombre de al menos 3 caracteres para identificar la inspección.",
+                true);
+            return;
+        }
+
+        if (nombre.Length > 150)
+        {
+            MostrarMensaje(
+                "El nombre de la inspección no puede superar 150 caracteres.",
+                true);
+            return;
+        }
+
+        if (tiposFotografia.Count == 0)
+        {
+            MostrarMensaje(
+                "El catálogo oficial de tipos de fotografía no está disponible.",
+                true);
+            return;
+        }
+
         if (fotosNueva.Count == 0)
         {
             MostrarMensaje("Debe seleccionar al menos una fotografía.", true);
+            return;
+        }
+
+        if (fotosNueva.Any(x =>
+                string.IsNullOrWhiteSpace(x.TipoFotografia) ||
+                !tiposFotografia.Any(tipo => string.Equals(
+                    tipo.Codigo,
+                    x.TipoFotografia,
+                    StringComparison.OrdinalIgnoreCase))))
+        {
+            MostrarMensaje(
+                "Una o más fotografías tienen un tipo que ya no está activo en el catálogo. Revise la selección.",
+                true);
             return;
         }
 
@@ -664,7 +722,7 @@
             InspeccionFitosanitariaDetalleWeb creada =
                 await Servicio.CrearAsync(
                     codigoTerreno,
-                    nombreInspeccion,
+                    nombre,
                     observacion,
                     fotosNueva);
 
@@ -728,6 +786,43 @@
             "" => "Sin estado",
             var texto => char.ToUpperInvariant(texto[0]) + texto[1..]
         };
+
+    private static string TextoEstadoBandeja(InspeccionFitosanitariaBandejaItemWeb item)
+    {
+        if (!item.CerradaDefinitiva && item.RequierenDecisionTecnico > 0)
+            return item.RequierenDecisionTecnico == 1
+                ? "Pendiente de decisión técnica"
+                : $"{item.RequierenDecisionTecnico} decisiones técnicas pendientes";
+
+        if (!item.CerradaDefinitiva && item.Procesando > 0)
+            return "Análisis IA en proceso";
+
+        if (!item.CerradaDefinitiva &&
+            !item.EtapaTecnicaFinalizada &&
+            item.EnviadasRevision > 0)
+        {
+            return "Pendiente de revisión";
+        }
+
+        if (string.Equals(item.Estado, "BORRADOR", StringComparison.OrdinalIgnoreCase) &&
+            item.TotalFotografias > 0)
+        {
+            return "En proceso";
+        }
+
+        return TextoEstado(item.Estado);
+    }
+
+    private static string ClaseEstadoBandeja(InspeccionFitosanitariaBandejaItemWeb item)
+    {
+        if (!item.CerradaDefinitiva && item.RequierenDecisionTecnico > 0)
+            return "warn";
+        if (!item.CerradaDefinitiva && item.ConError > 0)
+            return "danger";
+        if (!item.CerradaDefinitiva && (item.Procesando > 0 || item.EnviadasRevision > 0))
+            return "blue";
+        return ClaseEstado(item.Estado);
+    }
 
     private static string ClaseEstado(string? estado) =>
         (estado ?? string.Empty).ToUpperInvariant() switch

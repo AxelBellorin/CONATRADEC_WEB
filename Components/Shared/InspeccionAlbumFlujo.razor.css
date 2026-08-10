@@ -1,0 +1,270 @@
+.iaf-card {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+    padding: clamp(14px, 2vw, 20px);
+    border: 1px solid #d4e5de;
+    border-radius: 16px;
+    background: #fbfdfc;
+    box-shadow: 0 8px 24px rgba(38, 58, 53, .06);
+}
+
+.iaf-header,
+.iaf-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.iaf-header h3 {
+    margin: 2px 0 4px;
+    color: #263a35;
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+}
+
+.iaf-header p,
+.iaf-title-row small,
+.iaf-status-text,
+.iaf-motivo {
+    margin: 0;
+    color: #5e6b67;
+    line-height: 1.45;
+}
+
+.iaf-kicker {
+    color: #3b655b;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.iaf-spinner {
+    color: #3b655b;
+    margin-top: 6px;
+}
+
+.iaf-alert,
+.iaf-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 10px 12px;
+    border-radius: 11px;
+    font-size: .9rem;
+}
+
+.iaf-alert.ok {
+    background: #eef8f2;
+    color: #31584d;
+    border: 1px solid #b7ddc5;
+}
+
+.iaf-alert.error {
+    background: #fff1f1;
+    color: #8e2f2f;
+    border: 1px solid #f0bcbc;
+}
+
+.iaf-note {
+    background: #f4f8f6;
+    color: #4c655d;
+    border: 1px solid #d5e4de;
+}
+
+.iaf-note.warning {
+    background: #fff9e8;
+    color: #6b5710;
+    border-color: #ead69a;
+}
+
+.iaf-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.iaf-summary > div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+    padding: 11px 12px;
+    border: 1px solid #dce9e4;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.iaf-summary span,
+.iaf-grid label > span {
+    color: #6a7d76;
+    font-size: .72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.iaf-summary strong {
+    overflow-wrap: anywhere;
+    color: #263a35;
+}
+
+.iaf-summary small {
+    color: #5e6b67;
+}
+
+.iaf-motivo {
+    padding: 0 2px;
+    font-size: .88rem;
+}
+
+.iaf-form,
+.iaf-publicacion {
+    display: grid;
+    gap: 12px;
+    padding-top: 14px;
+    border-top: 1px solid #e0ebe7;
+}
+
+.iaf-title-row strong {
+    display: block;
+    color: #29463e;
+    margin-bottom: 3px;
+}
+
+.iaf-title-row small {
+    display: block;
+}
+
+.iaf-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.iaf-grid.compact {
+    align-items: end;
+}
+
+.iaf-grid label {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+
+.iaf-grid .full {
+    grid-column: 1 / -1;
+}
+
+.iaf-grid input,
+.iaf-grid select,
+.iaf-grid textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 9px 10px;
+    border: 1px solid #cddbd6;
+    border-radius: 9px;
+    background: #fff;
+    color: #263a35;
+    font: inherit;
+}
+
+.iaf-grid textarea {
+    resize: vertical;
+}
+
+.iaf-grid input:focus,
+.iaf-grid select:focus,
+.iaf-grid textarea:focus {
+    outline: 2px solid rgba(59, 101, 91, .18);
+    border-color: #3b655b;
+}
+
+.iaf-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.iaf-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 40px;
+    padding: 8px 13px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.iaf-btn:disabled {
+    opacity: .58;
+    cursor: default;
+}
+
+.iaf-btn.primary {
+    color: #fff;
+    background: #3b655b;
+    border-color: #3b655b;
+}
+
+.iaf-btn.secondary {
+    color: #31584d;
+    background: #fff;
+    border-color: #bcd3ca;
+}
+
+.iaf-btn.danger {
+    color: #a23838;
+    background: #fff1f1;
+    border-color: #efbcbc;
+}
+
+.iaf-pill {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 800;
+}
+
+.iaf-pill.published {
+    color: #31584d;
+    background: #e5f2ed;
+}
+
+.iaf-pill.pending {
+    color: #6b5710;
+    background: #fff3c9;
+}
+
+@media (max-width: 760px) {
+    .iaf-summary,
+    .iaf-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .iaf-grid .full {
+        grid-column: auto;
+    }
+
+    .iaf-header,
+    .iaf-title-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .iaf-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        justify-content: stretch;
+    }
+
+    .iaf-btn {
+        width: 100%;
+    }
+}

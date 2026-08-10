@@ -1,0 +1,778 @@
+@inject InspeccionFitosanitariaWebService Servicio
+@inject ApiClientService ApiClient
+@inject AuthStateService AuthState
+@inject IJSRuntime JS
+
+@if (Fotografia is not null && DebeMostrar)
+{
+    <section class="iaf-card">
+        <header class="iaf-header">
+            <div>
+                <span class="iaf-kicker">Álbum Botánico</span>
+                <h3>Clasificación oficial de la evidencia</h3>
+                <p>
+                    La decisión técnica, la clasificación del Álbum y la publicación
+                    son pasos independientes y conservan su propia trazabilidad.
+                </p>
+            </div>
+            @if (cargando)
+            {
+                <i class="fa-solid fa-spinner fa-spin iaf-spinner" aria-label="Cargando"></i>
+            }
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <div class="iaf-alert @(mensajeError ? "error" : "ok")">
+                <i class="fa-solid @(mensajeError ? "fa-circle-exclamation" : "fa-circle-check")"></i>
+                <span>@mensaje</span>
+            </div>
+        }
+
+        @if (jerarquia is not null && jerarquia.TieneClasificacion)
+        {
+            <div class="iaf-summary">
+                <div>
+                    <span>Categoría</span>
+                    <strong>@Valor(jerarquia.Categoria)</strong>
+                </div>
+                <div>
+                    <span>Subcategoría</span>
+                    <strong>@Valor(jerarquia.Ficha)</strong>
+                    @if (!string.IsNullOrWhiteSpace(jerarquia.NombreCientifico))
+                    {
+                        <small><em>@jerarquia.NombreCientifico</em></small>
+                    }
+                </div>
+                <div>
+                    <span>Estado</span>
+                    <strong>@TextoEstadoJerarquia</strong>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(jerarquia.Motivo))
+            {
+                <p class="iaf-motivo">@jerarquia.Motivo</p>
+            }
+        }
+        else if (!cargando)
+        {
+            <div class="iaf-note">
+                <i class="fa-solid fa-seedling"></i>
+                <span>Esta fotografía todavía no tiene una clasificación preparada para el Álbum Botánico.</span>
+            </div>
+        }
+
+        @if (PuedeEditarClasificacion)
+        {
+            <div class="iaf-form">
+                <div class="iaf-title-row">
+                    <div>
+                        <strong>@(EsAprobador ? "Confirmar clasificación oficial" : "Preparar clasificación para el aprobador")</strong>
+                        <small>
+                            @(EsAprobador
+                                ? "La categoría debe existir. Puede confirmar una subcategoría existente o convertir una propuesta en una nueva subcategoría oficial."
+                                : "Seleccione una categoría existente y una subcategoría del catálogo. Si falta únicamente la subcategoría, puede proponerla para revisión.")
+                        </small>
+                    </div>
+                </div>
+
+                <div class="iaf-grid">
+                    <label>
+                        <span>Categoría *</span>
+                        <select value="@categoriaId" @onchange="CambiarCategoria">
+                            <option value="0">Seleccione...</option>
+                            @foreach (CategoriaAlbumFlujoWeb categoria in catalogo)
+                            {
+                                <option value="@categoria.CategoriaAlbumBotanicoId">@categoria.Nombre</option>
+                            }
+                        </select>
+                    </label>
+
+                    @if (!proponerSubcategoria)
+                    {
+                        <label>
+                            <span>Subcategoría *</span>
+                            <select @bind="subcategoriaId">
+                                <option value="0">Seleccione...</option>
+                                @foreach (InspeccionAlbumFichaWeb ficha in FichasCategoria)
+                                {
+                                    <option value="@ficha.AlbumBotanicoCafeId">@ficha.Titulo</option>
+                                }
+                            </select>
+                        </label>
+                    }
+                    else
+                    {
+                        <label>
+                            <span>Nueva subcategoría *</span>
+                            <input maxlength="200" @bind="subcategoriaPropuesta" placeholder="Nombre específico" />
+                        </label>
+
+                        <label>
+                            <span>Nombre científico</span>
+                            <input maxlength="200" @bind="nombreCientifico" placeholder="Opcional" />
+                        </label>
+                    }
+
+                    @if (!EsAprobador)
+                    {
+                        <label class="full">
+                            <span>Motivo de la clasificación *</span>
+                            <textarea rows="3" maxlength="1200" @bind="motivo"
+                                      placeholder="Explique por qué esta clasificación representa la fotografía"></textarea>
+                        </label>
+                    }
+                    else if (proponerSubcategoria)
+                    {
+                        <label class="full">
+                            <span>Descripción de la nueva subcategoría *</span>
+                            <textarea rows="3" maxlength="4000" @bind="descripcion"
+                                      placeholder="Descripción técnica para el registro oficial"></textarea>
+                        </label>
+
+                        <label class="full">
+                            <span>Síntomas</span>
+                            <textarea rows="3" maxlength="4000" @bind="sintomas"
+                                      placeholder="Síntomas principales observados"></textarea>
+                        </label>
+                    }
+                </div>
+
+                <div class="iaf-actions">
+                    <button type="button" class="iaf-btn secondary" @onclick="AlternarPropuesta" disabled="@ocupado">
+                        <i class="fa-solid @(proponerSubcategoria ? "fa-list" : "fa-plus")"></i>
+                        @(proponerSubcategoria ? "Usar subcategoría existente" : "Proponer nueva subcategoría")
+                    </button>
+                    <button type="button" class="iaf-btn primary" @onclick="GuardarClasificacionAsync" disabled="@ocupado">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        @(EsAprobador ? "Confirmar clasificación" : "Guardar clasificación")
+                    </button>
+                </div>
+            </div>
+        }
+        else if (EsAprobador && EsAprobacionPositiva && !ClasificacionOficial)
+        {
+            <div class="iaf-note warning">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>
+                    La fotografía está aprobada, pero la clasificación oficial del Álbum todavía está pendiente.
+                    @(PuedeGestionar ? "Revise los permisos disponibles para completar este paso." : "Abra el expediente con permisos de edición para confirmarla.")
+                </span>
+            </div>
+        }
+
+        @if (EsAprobador && ClasificacionOficial)
+        {
+            <div class="iaf-publicacion">
+                <div class="iaf-title-row">
+                    <div>
+                        <strong>Publicación en el Álbum Botánico</strong>
+                        <small>Publicar o retirar la copia no modifica la aprobación ni la clasificación oficial.</small>
+                    </div>
+                    @if (estadoPublicacion is not null)
+                    {
+                        <span class="iaf-pill @(estadoPublicacion.PublicadaActiva ? "published" : "pending")">
+                            @(estadoPublicacion.PublicadaActiva ? "Publicada" : estadoPublicacion.TuvoPublicacion ? "Retirada" : "No publicada")
+                        </span>
+                    }
+                </div>
+
+                @if (estadoPublicacion is not null && !string.IsNullOrWhiteSpace(estadoPublicacion.Mensaje))
+                {
+                    <p class="iaf-status-text">@estadoPublicacion.Mensaje</p>
+                }
+
+                @if (estadoPublicacion?.PublicadaActiva == true)
+                {
+                    @if (PuedeRetirar)
+                    {
+                        <div class="iaf-actions">
+                            <button type="button" class="iaf-btn danger" @onclick="RetirarPublicacionAsync" disabled="@ocupado">
+                                <i class="fa-solid fa-eye-slash"></i>
+                                Retirar copia del Álbum
+                            </button>
+                        </div>
+                    }
+                }
+                else if (PuedePublicar)
+                {
+                    <div class="iaf-grid compact">
+                        <label class="full">
+                            <span>Descripción de la fotografía</span>
+                            <textarea rows="3" maxlength="500" @bind="descripcionPublicacion"></textarea>
+                        </label>
+                    </div>
+                    <div class="iaf-actions">
+                        <button type="button" class="iaf-btn primary" @onclick="PublicarAsync" disabled="@ocupado">
+                            <i class="fa-solid fa-seedling"></i>
+                            Publicar copia en Álbum
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="iaf-note">
+                        <i class="fa-solid fa-lock"></i>
+                        <span>La clasificación está confirmada. Su usuario no tiene permiso para publicar esta copia en el Álbum Botánico.</span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public int InspeccionId { get; set; }
+    [Parameter] public InspeccionFotoWeb? Fotografia { get; set; }
+    [Parameter] public string Etapa { get; set; } = "APROBADOR";
+    [Parameter] public bool PuedeGestionar { get; set; }
+    [Parameter] public EventCallback OnActualizado { get; set; }
+
+    private bool cargando;
+    private bool ocupado;
+    private string firmaCarga = string.Empty;
+    private string mensaje = string.Empty;
+    private bool mensajeError;
+    private JerarquiaDiagnosticoFotoWeb? jerarquia;
+    private EstadoAlbumFotografiaWeb? estadoPublicacion;
+    private List<CategoriaAlbumFlujoWeb> catalogo = [];
+    private int categoriaId;
+    private int subcategoriaId;
+    private bool proponerSubcategoria;
+    private string subcategoriaPropuesta = string.Empty;
+    private string nombreCientifico = string.Empty;
+    private string motivo = string.Empty;
+    private string descripcion = string.Empty;
+    private string sintomas = string.Empty;
+    private string descripcionPublicacion = string.Empty;
+
+    private bool EsAprobador =>
+        string.Equals(Etapa, "APROBADOR", StringComparison.OrdinalIgnoreCase);
+
+    private bool EsAnalizador => !EsAprobador;
+
+    private bool EsAprobacionPositiva => Fotografia?.Estado is
+        EstadosFotoFitosanitariaWeb.Aprobada or
+        EstadosFotoFitosanitariaWeb.AprobadaConCorreccion or
+        EstadosFotoFitosanitariaWeb.PublicadaAlbum;
+
+    private bool EstadoPermiteAnalizador => Fotografia?.Estado is
+        EstadosFotoFitosanitariaWeb.PendienteAnalizador or
+        EstadosFotoFitosanitariaWeb.EnAnalisisHumano or
+        EstadosFotoFitosanitariaWeb.DevueltaAnalizador;
+
+    private bool ClasificacionOficial =>
+        string.Equals(
+            jerarquia?.Estado,
+            "RESUELTA_APROBADOR",
+            StringComparison.OrdinalIgnoreCase) &&
+        jerarquia?.CategoriaAlbumBotanicoId is > 0 &&
+        jerarquia.AlbumBotanicoCafeId is > 0;
+
+    private bool PuedeEditarClasificacion =>
+        PuedeGestionar &&
+        PuedeActualizarEtapa &&
+        !ClasificacionOficial &&
+        (EsAprobador ? EsAprobacionPositiva : EstadoPermiteAnalizador);
+
+    private bool PuedeActualizarEtapa => EsAprobador
+        ? AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAprobador)
+        : AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAnalizador);
+
+    private bool PuedePublicar =>
+        AuthState.TienePermisoDirectoAgregar("albumFotosPage") &&
+        AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAprobador);
+
+    private bool PuedeRetirar =>
+        AuthState.TienePermisoDirectoEliminar("albumFotosPage") &&
+        AuthState.TienePermisoDirectoActualizar(PermisosWeb.DiagnosticoAprobador);
+
+    private bool PuedeCrearSubcategoria =>
+        AuthState.TienePermisoDirectoAgregar("albumFotosPage");
+
+    private bool DebeMostrar =>
+        EsAprobador ||
+        EstadoPermiteAnalizador ||
+        jerarquia?.TieneClasificacion == true;
+
+    private IEnumerable<InspeccionAlbumFichaWeb> FichasCategoria =>
+        catalogo
+            .FirstOrDefault(item =>
+                item.CategoriaAlbumBotanicoId == categoriaId)?
+            .Fichas ?? [];
+
+    private string TextoEstadoJerarquia => (jerarquia?.Estado ?? string.Empty).ToUpperInvariant() switch
+    {
+        "RESUELTA_APROBADOR" => "Oficial · confirmada por aprobador",
+        "RESUELTA_ANALIZADOR" => "Preparada por analizador",
+        "PROPUESTA_ANALIZADOR" => "Propuesta para decisión del aprobador",
+        _ => "Clasificación preparada"
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Fotografia is null)
+            return;
+
+        string firma = string.Join(
+            ':',
+            InspeccionId,
+            Fotografia.FotografiaId,
+            Fotografia.Estado,
+            Fotografia.UltimaAprobacion?.AprobacionId ?? 0,
+            Fotografia.PublicadaAlbum,
+            EsAprobador ? "APROBADOR" : "ANALIZADOR");
+
+        if (firma == firmaCarga)
+            return;
+
+        firmaCarga = firma;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        if (Fotografia is null)
+            return;
+
+        cargando = true;
+        mensaje = string.Empty;
+        mensajeError = false;
+
+        try
+        {
+            await CargarCatalogoAsync();
+
+            ApiEnvelopeWeb<List<JerarquiaDiagnosticoFotoWeb>>? respuesta =
+                await ApiClient.GetAsync<ApiEnvelopeWeb<List<JerarquiaDiagnosticoFotoWeb>>>(
+                    $"api/album-jerarquia/diagnosticos/{InspeccionId}");
+
+            jerarquia = respuesta?.Data?
+                .FirstOrDefault(item =>
+                    item.FotografiaId == Fotografia.FotografiaId);
+
+            PrepararFormularioDesdeJerarquia();
+
+            if (EsAprobador && EsAprobacionPositiva)
+                await CargarEstadoPublicacionAsync();
+            else
+                estadoPublicacion = null;
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarCatalogoAsync()
+    {
+        ApiEnvelopeWeb<List<CategoriaAlbumFuenteWeb>>? categoriasRespuesta =
+            await ApiClient.GetAsync<ApiEnvelopeWeb<List<CategoriaAlbumFuenteWeb>>>(
+                "api/categoria-album-botanico/listar");
+
+        ApiEnvelopeWeb<List<SubcategoriaAlbumFuenteWeb>>? subcategoriasRespuesta =
+            await ApiClient.GetAsync<ApiEnvelopeWeb<List<SubcategoriaAlbumFuenteWeb>>>(
+                "api/album-jerarquia/registros?incluirInactivos=false");
+
+        List<SubcategoriaAlbumFuenteWeb> subcategorias =
+            subcategoriasRespuesta?.Data?
+                .Where(item => item.Activo)
+                .ToList() ?? [];
+
+        catalogo = (categoriasRespuesta?.Data ?? [])
+            .Where(item => item.Activo)
+            .OrderBy(item => item.NombreCategoria)
+            .Select(item => new CategoriaAlbumFlujoWeb
+            {
+                CategoriaAlbumBotanicoId = item.CategoriaAlbumBotanicoId,
+                Nombre = item.NombreCategoria,
+                Fichas = subcategorias
+                    .Where(ficha =>
+                        ficha.CategoriaAlbumBotanicoId ==
+                            item.CategoriaAlbumBotanicoId)
+                    .OrderBy(ficha => ficha.Titulo)
+                    .Select(ficha => new InspeccionAlbumFichaWeb
+                    {
+                        AlbumBotanicoCafeId = ficha.AlbumBotanicoCafeId,
+                        Titulo = ficha.Titulo,
+                        NombreCientifico = ficha.NombreCientifico ?? string.Empty
+                    })
+                    .ToList()
+            })
+            .ToList();
+
+        if (catalogo.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "No existen categorías activas disponibles en el Álbum Botánico.");
+        }
+    }
+
+    private void PrepararFormularioDesdeJerarquia()
+    {
+        categoriaId = jerarquia?.CategoriaAlbumBotanicoId ?? 0;
+        subcategoriaId = jerarquia?.AlbumBotanicoCafeId ?? 0;
+        subcategoriaPropuesta = PrimerTexto(
+            jerarquia?.Ficha,
+            Fotografia?.ResultadoIA?.DiagnosticoProbable);
+        nombreCientifico = jerarquia?.NombreCientifico ?? string.Empty;
+        motivo = string.IsNullOrWhiteSpace(jerarquia?.Motivo)
+            ? "Clasificación revisada a partir de la evidencia y el resultado técnico disponible."
+            : jerarquia.Motivo;
+        descripcion = Fotografia?.ResultadoIA?.ResumenImagen ?? string.Empty;
+        sintomas = string.Join(
+            Environment.NewLine,
+            Fotografia?.ResultadoIA?.SintomasVisibles ?? []);
+
+        proponerSubcategoria =
+            jerarquia?.FichaEsPropuesta == true ||
+            jerarquia?.SubcategoriaEsPropuesta == true;
+
+        if (categoriaId > 0 &&
+            subcategoriaId > 0 &&
+            !FichasCategoria.Any(item =>
+                item.AlbumBotanicoCafeId == subcategoriaId))
+        {
+            subcategoriaId = 0;
+        }
+    }
+
+    private async Task CargarEstadoPublicacionAsync()
+    {
+        if (Fotografia is null)
+            return;
+
+        try
+        {
+            ApiEnvelopeWeb<EstadoAlbumFotografiaWeb>? respuesta =
+                await ApiClient.GetAsync<ApiEnvelopeWeb<EstadoAlbumFotografiaWeb>>(
+                    $"api/publicaciones-album-fitosanitarias/{InspeccionId}/fotografias/{Fotografia.FotografiaId}/estado");
+            estadoPublicacion = respuesta?.Data;
+        }
+        catch
+        {
+            /*
+             * La clasificación puede consultarse aunque el usuario no tenga
+             * permiso de lectura sobre la publicación. No se bloquea el resto
+             * del flujo por esta consulta secundaria.
+             */
+            estadoPublicacion = null;
+        }
+    }
+
+    private void CambiarCategoria(ChangeEventArgs e)
+    {
+        categoriaId = int.TryParse(
+            Convert.ToString(e.Value),
+            out int id)
+                ? id
+                : 0;
+
+        subcategoriaId = FichasCategoria
+            .FirstOrDefault()?.AlbumBotanicoCafeId ?? 0;
+    }
+
+    private void AlternarPropuesta()
+    {
+        if (ocupado)
+            return;
+
+        if (!proponerSubcategoria && EsAprobador && !PuedeCrearSubcategoria)
+        {
+            MostrarMensaje(
+                "Su usuario no tiene permiso para crear una nueva subcategoría del Álbum Botánico. Seleccione una existente.",
+                true);
+            return;
+        }
+
+        proponerSubcategoria = !proponerSubcategoria;
+
+        if (proponerSubcategoria)
+        {
+            subcategoriaId = 0;
+            if (string.IsNullOrWhiteSpace(subcategoriaPropuesta))
+                subcategoriaPropuesta = Fotografia?.ResultadoIA?.DiagnosticoProbable ?? string.Empty;
+        }
+        else
+        {
+            subcategoriaId = FichasCategoria
+                .FirstOrDefault()?.AlbumBotanicoCafeId ?? 0;
+        }
+    }
+
+    private async Task GuardarClasificacionAsync()
+    {
+        if (Fotografia is null || ocupado)
+            return;
+
+        if (categoriaId <= 0)
+        {
+            MostrarMensaje("Seleccione una categoría existente del Álbum Botánico.", true);
+            return;
+        }
+
+        if (proponerSubcategoria)
+        {
+            if (subcategoriaPropuesta.Trim().Length < 3)
+            {
+                MostrarMensaje("Ingrese el nombre de la subcategoría propuesta.", true);
+                return;
+            }
+
+            if (EsAprobador && !PuedeCrearSubcategoria)
+            {
+                MostrarMensaje(
+                    "No tiene permiso para convertir esta propuesta en una nueva subcategoría oficial.",
+                    true);
+                return;
+            }
+
+            if (EsAprobador && descripcion.Trim().Length < 8)
+            {
+                MostrarMensaje(
+                    "Ingrese una descripción de al menos 8 caracteres para crear la subcategoría oficial.",
+                    true);
+                return;
+            }
+        }
+        else if (subcategoriaId <= 0)
+        {
+            MostrarMensaje(
+                "Seleccione una subcategoría existente o use la opción para proponer una nueva.",
+                true);
+            return;
+        }
+
+        if (EsAnalizador && motivo.Trim().Length < 8)
+        {
+            MostrarMensaje(
+                "Explique la clasificación con al menos 8 caracteres.",
+                true);
+            return;
+        }
+
+        string textoConfirmacion = EsAprobador
+            ? proponerSubcategoria
+                ? "La propuesta se convertirá en una subcategoría oficial y esta clasificación no podrá sobrescribirse desde el flujo normal. ¿Desea continuar?"
+                : "Esta categoría y subcategoría quedarán como clasificación oficial de la fotografía y no podrán sobrescribirse desde el flujo normal. ¿Desea continuar?"
+            : proponerSubcategoria
+                ? "La nueva subcategoría quedará como propuesta para que el aprobador la revise. ¿Desea continuar?"
+                : "La fotografía quedará vinculada con esta subcategoría para revisión del aprobador. ¿Desea continuar?";
+
+        if (!await JS.InvokeAsync<bool>("confirm", textoConfirmacion))
+            return;
+
+        ocupado = true;
+        try
+        {
+            int? subcategoriaFinal = proponerSubcategoria
+                ? null
+                : subcategoriaId;
+
+            var request = new
+            {
+                etapa = EsAprobador ? "APROBADOR" : "ANALIZADOR",
+                categoriaAlbumBotanicoId = categoriaId,
+                subcategoriaAlbumBotanicoId = subcategoriaFinal,
+                albumBotanicoCafeId = subcategoriaFinal,
+                proponerCategoria = false,
+                proponerSubcategoria,
+                proponerFicha = false,
+                categoriaPropuesta = string.Empty,
+                subcategoriaPropuesta = proponerSubcategoria
+                    ? subcategoriaPropuesta.Trim()
+                    : string.Empty,
+                fichaPropuesta = proponerSubcategoria
+                    ? subcategoriaPropuesta.Trim()
+                    : string.Empty,
+                nombreCientifico = nombreCientifico.Trim(),
+                descripcion = descripcion.Trim(),
+                sintomas = sintomas.Trim(),
+                motivo = motivo.Trim()
+            };
+
+            ApiEnvelopeWeb<object>? respuesta =
+                await ApiClient.PostAsync<object, ApiEnvelopeWeb<object>>(
+                    $"api/album-jerarquia/diagnosticos/{InspeccionId}/fotografias/{Fotografia.FotografiaId}/resolver",
+                    request);
+
+            MostrarMensaje(
+                string.IsNullOrWhiteSpace(respuesta?.Message)
+                    ? "La clasificación fue actualizada correctamente."
+                    : respuesta.Message,
+                false);
+
+            firmaCarga = string.Empty;
+            await CargarAsync();
+            await OnActualizado.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+        finally
+        {
+            ocupado = false;
+        }
+    }
+
+    private async Task PublicarAsync()
+    {
+        if (Fotografia is null || jerarquia is null || ocupado)
+            return;
+
+        if (!ClasificacionOficial ||
+            jerarquia.CategoriaAlbumBotanicoId is not > 0 ||
+            jerarquia.AlbumBotanicoCafeId is not > 0)
+        {
+            MostrarMensaje(
+                "Primero debe confirmarse la categoría y subcategoría oficiales de esta fotografía.",
+                true);
+            return;
+        }
+
+        if (!await JS.InvokeAsync<bool>(
+                "confirm",
+                "Se copiará la fotografía al Álbum Botánico utilizando exactamente su clasificación oficial. El expediente original no será modificado. ¿Desea continuar?"))
+        {
+            return;
+        }
+
+        ocupado = true;
+        try
+        {
+            await Servicio.PublicarAlbumAsync(
+                InspeccionId,
+                Fotografia.FotografiaId,
+                jerarquia.CategoriaAlbumBotanicoId.Value,
+                jerarquia.AlbumBotanicoCafeId.Value,
+                descripcionPublicacion.Trim(),
+                false,
+                1);
+
+            MostrarMensaje(
+                "La evidencia fue copiada al Álbum Botánico sin alterar la aprobación ni la clasificación oficial.",
+                false);
+            await CargarEstadoPublicacionAsync();
+            await OnActualizado.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+        finally
+        {
+            ocupado = false;
+        }
+    }
+
+    private async Task RetirarPublicacionAsync()
+    {
+        if (Fotografia is null || ocupado)
+            return;
+
+        if (!await JS.InvokeAsync<bool>(
+                "confirm",
+                "Se retirará únicamente la copia visible en el Álbum Botánico. La aprobación y la clasificación oficial permanecerán intactas. ¿Desea continuar?"))
+        {
+            return;
+        }
+
+        ocupado = true;
+        try
+        {
+            await ApiClient.PatchSinContenidoAsync(
+                $"api/publicaciones-album-fitosanitarias/{InspeccionId}/fotografias/{Fotografia.FotografiaId}/publicacion/retirar");
+
+            MostrarMensaje(
+                "La copia fue retirada del Álbum Botánico. La clasificación oficial se conserva.",
+                false);
+            await CargarEstadoPublicacionAsync();
+            await OnActualizado.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje(ex.Message, true);
+        }
+        finally
+        {
+            ocupado = false;
+        }
+    }
+
+    private void MostrarMensaje(string texto, bool error)
+    {
+        mensaje = texto;
+        mensajeError = error;
+    }
+
+    private static string Valor(string? texto) =>
+        string.IsNullOrWhiteSpace(texto)
+            ? "No disponible"
+            : texto;
+
+    private static string PrimerTexto(params string?[] textos) =>
+        textos.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item))?.Trim()
+        ?? string.Empty;
+
+    private sealed class CategoriaAlbumFlujoWeb
+    {
+        public int CategoriaAlbumBotanicoId { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public List<InspeccionAlbumFichaWeb> Fichas { get; set; } = [];
+    }
+
+    private sealed class CategoriaAlbumFuenteWeb
+    {
+        public int CategoriaAlbumBotanicoId { get; set; }
+        public string NombreCategoria { get; set; } = string.Empty;
+        public bool Activo { get; set; }
+    }
+
+    private sealed class SubcategoriaAlbumFuenteWeb
+    {
+        public int AlbumBotanicoCafeId { get; set; }
+        public int CategoriaAlbumBotanicoId { get; set; }
+        public string Titulo { get; set; } = string.Empty;
+        public string NombreCientifico { get; set; } = string.Empty;
+        public bool Activo { get; set; }
+    }
+
+    private sealed class JerarquiaDiagnosticoFotoWeb
+    {
+        public int FotografiaId { get; set; }
+        public int Orden { get; set; }
+        public bool TieneClasificacion { get; set; }
+        public int? CategoriaAlbumBotanicoId { get; set; }
+        public int? SubcategoriaAlbumBotanicoId { get; set; }
+        public int? AlbumBotanicoCafeId { get; set; }
+        public string Categoria { get; set; } = string.Empty;
+        public string Subcategoria { get; set; } = string.Empty;
+        public string Ficha { get; set; } = string.Empty;
+        public string NombreCientifico { get; set; } = string.Empty;
+        public string Motivo { get; set; } = string.Empty;
+        public bool CategoriaEsPropuesta { get; set; }
+        public bool SubcategoriaEsPropuesta { get; set; }
+        public bool FichaEsPropuesta { get; set; }
+        public string Estado { get; set; } = string.Empty;
+    }
+
+    private sealed class EstadoAlbumFotografiaWeb
+    {
+        public int FotografiaId { get; set; }
+        public bool Aprobada { get; set; }
+        public bool Autorizada { get; set; }
+        public bool PublicadaActiva { get; set; }
+        public bool TuvoPublicacion { get; set; }
+        public int? CategoriaAlbumBotanicoId { get; set; }
+        public int? AlbumBotanicoCafeId { get; set; }
+        public int? AlbumBotanicoCafeFotoId { get; set; }
+        public string EstadoEvidencia { get; set; } = string.Empty;
+        public string Mensaje { get; set; } = string.Empty;
+    }
+}

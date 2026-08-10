@@ -178,5 +178,7 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scop
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Pages\InspeccionFitosanitaria.razor.rz.scp.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Pages\InspeccionFitosanitariaDetalle.razor.rz.scp.css
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\n8s6gkoues-{0}-n9i2csh4xm-n9i2csh4xm.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\722bys1tf3-{0}-2nr4hng0x4-2nr4hng0x4.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\bh50ruxdel-{0}-2nr4hng0x4-2nr4hng0x4.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Shared\InspeccionAlbumFlujo.razor.rz.scp.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Shared\InspeccionDiagnosticosVisuales.razor.rz.scp.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\722bys1tf3-{0}-xfbw5wrx87-xfbw5wrx87.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\bh50ruxdel-{0}-xfbw5wrx87-xfbw5wrx87.gz

@@ -279,6 +279,14 @@ build_metadata.AdditionalFiles.CssScope = b-lpi1jl8s9q
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xVbmlkYWRlc0NvbnZlcnNpb25lcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-68850rmr3t
 
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Shared/InspeccionAlbumFlujo.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcSW5zcGVjY2lvbkFsYnVtRmx1am8ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-4bfjcog0k9
+
+[C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Shared/InspeccionDiagnosticosVisuales.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcSW5zcGVjY2lvbkRpYWdub3N0aWNvc1Zpc3VhbGVzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = b-bgw3htsqjg
+
 [C:/Users/AXEL BELLORIN/Desktop/CONATRADEC/CONATRADEC_WEB/Components/Shared/Paginador.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcUGFnaW5hZG9yLnJhem9y
 build_metadata.AdditionalFiles.CssScope = b-506vrsgfhd
