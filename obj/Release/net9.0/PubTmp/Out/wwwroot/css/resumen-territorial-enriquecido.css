@@ -1,0 +1,322 @@
+.geo-summary-enriched {
+    display: grid;
+    gap: .7rem;
+    margin-top: .75rem;
+}
+
+.geo-summary-extra {
+    border-top: 1px solid #e2e8f0;
+    padding-top: .65rem;
+}
+
+.geo-summary-extra > header {
+    align-items: center;
+    display: flex;
+    gap: .42rem;
+    margin-bottom: .5rem;
+}
+
+.geo-summary-extra > header > i {
+    align-items: center;
+    background: #e8f2ee;
+    border-radius: 7px;
+    color: #315f54;
+    display: inline-flex;
+    height: 27px;
+    justify-content: center;
+    width: 27px;
+}
+
+.geo-summary-extra > header strong {
+    color: #294c44;
+    font-size: .77rem;
+}
+
+.geo-summary-extra > header small {
+    color: #64748b;
+    font-size: .62rem;
+    margin-left: auto;
+    text-align: right;
+}
+
+.geo-summary-extra p,
+.geo-summary-extra-loading {
+    color: #64748b;
+    font-size: .68rem;
+    margin: 0;
+}
+
+.geo-summary-extra-loading {
+    align-items: center;
+    display: flex;
+    gap: .4rem;
+}
+
+.geo-summary-extra-grid {
+    display: grid;
+    gap: .42rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.geo-summary-extra-grid > span {
+    background: #f6f9f8;
+    border: 1px solid #e5eeeb;
+    border-radius: 8px;
+    min-width: 0;
+    padding: .48rem .52rem;
+}
+
+.geo-summary-extra-grid > span > i {
+    color: #3b655b;
+    font-size: .72rem;
+}
+
+.geo-summary-extra-grid small,
+.geo-summary-extra-grid strong {
+    display: block;
+}
+
+.geo-summary-extra-grid small {
+    color: #64748b;
+    font-size: .61rem;
+    margin-top: .2rem;
+}
+
+.geo-summary-extra-grid strong {
+    color: #294c44;
+    font-size: .78rem;
+    margin-top: .1rem;
+    overflow-wrap: anywhere;
+}
+
+.geo-summary-nutrients-grid {
+    display: grid;
+    gap: .38rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.geo-summary-nutrient {
+    background: #f8faf9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    display: grid;
+    gap: .08rem;
+    min-width: 0;
+    padding: .42rem .48rem;
+    position: relative;
+}
+
+.geo-summary-nutrient.low {
+    background: #fff7ed;
+    border-color: #fed7aa;
+}
+
+.geo-summary-nutrient b {
+    color: #315f54;
+    font-size: .72rem;
+}
+
+.geo-summary-nutrient strong {
+    color: #334155;
+    font-size: .67rem;
+    overflow-wrap: anywhere;
+}
+
+.geo-summary-nutrient small {
+    color: #64748b;
+    font-size: .58rem;
+}
+
+.geo-summary-nutrient em {
+    color: #c2410c;
+    font-size: .58rem;
+    font-style: normal;
+    font-weight: 700;
+}
+
+.geo-summary-geology-list {
+    background: #faf8f4;
+    border-radius: 8px;
+    display: grid;
+    gap: .18rem;
+    margin-top: .42rem;
+    padding: .45rem .52rem;
+}
+
+.geo-summary-geology-list strong {
+    color: #8a4b2a;
+    font-size: .65rem;
+}
+
+.geo-summary-geology-list span {
+    color: #64748b;
+    font-size: .62rem;
+    line-height: 1.35;
+}
+
+.geo-summary-source-note {
+    color: #94a3b8;
+    display: block;
+    font-size: .56rem;
+    line-height: 1.35;
+    margin-top: .42rem;
+}
+
+@media (max-width: 680px) {
+    .geo-summary-extra-grid,
+    .geo-summary-nutrients-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Ficha territorial compacta con secciones desplegables. */
+.geo-summary-map-popup[data-acordeones-aplicados="true"] {
+    min-width: 330px;
+}
+
+.geo-summary-map-popup[data-acordeones-aplicados="true"] > header {
+    margin-bottom: .5rem;
+}
+
+.geo-summary-accordion {
+    background: #ffffff;
+    border: 1px solid #dfe8e5;
+    border-radius: 10px;
+    margin-top: .5rem;
+    overflow: hidden;
+}
+
+.geo-summary-accordion > summary {
+    align-items: center;
+    cursor: pointer;
+    display: grid;
+    gap: .28rem .45rem;
+    grid-template-columns: minmax(0, 1fr) auto 14px;
+    list-style: none;
+    min-height: 42px;
+    padding: .55rem .62rem;
+    user-select: none;
+}
+
+.geo-summary-accordion > summary::-webkit-details-marker {
+    display: none;
+}
+
+.geo-summary-accordion > summary:hover {
+    background: #f6faf8;
+}
+
+.geo-summary-accordion[open] > summary {
+    background: #edf5f2;
+    border-bottom: 1px solid #dfe8e5;
+}
+
+.geo-summary-accordion-title {
+    align-items: center;
+    display: flex;
+    gap: .45rem;
+    min-width: 0;
+}
+
+.geo-summary-accordion-title > i {
+    align-items: center;
+    background: #deece7;
+    border-radius: 7px;
+    color: #315f54;
+    display: inline-flex;
+    flex: 0 0 auto;
+    height: 27px;
+    justify-content: center;
+    width: 27px;
+}
+
+.geo-summary-accordion-title > strong {
+    color: #294c44;
+    font-size: .76rem;
+    line-height: 1.2;
+}
+
+.geo-summary-accordion > summary > small {
+    color: #718096;
+    font-size: .59rem;
+    line-height: 1.2;
+    max-width: 125px;
+    text-align: right;
+}
+
+.geo-summary-accordion-chevron {
+    color: #64748b;
+    font-size: .66rem;
+    transition: transform .18s ease;
+}
+
+.geo-summary-accordion[open] .geo-summary-accordion-chevron {
+    transform: rotate(180deg);
+}
+
+.geo-summary-accordion-body {
+    padding: .62rem;
+}
+
+.geo-summary-accordion-body > :first-child {
+    margin-top: 0;
+}
+
+.geo-summary-accordion-body > :last-child {
+    margin-bottom: 0;
+}
+
+.geo-summary-accordion-note {
+    color: #64748b;
+    display: block;
+    font-size: .61rem;
+    margin-bottom: .48rem;
+}
+
+.geo-summary-accordion .geo-summary-main-grid,
+.geo-summary-accordion .geo-summary-soil-grid {
+    margin: 0;
+}
+
+.geo-summary-accordion .geo-summary-coverage {
+    margin: .58rem 0 0;
+}
+
+.geo-summary-accordion .geo-summary-deficiencies {
+    margin-top: .6rem;
+    padding-top: .55rem;
+}
+
+.geo-summary-accordion .geo-summary-sample-warning {
+    margin-top: .55rem;
+}
+
+.geo-summary-enriched {
+    gap: 0;
+    margin-top: 0;
+}
+
+.geo-summary-enriched > .geo-summary-accordion {
+    margin-top: .5rem;
+}
+
+.geo-summary-accordion p,
+.geo-summary-accordion .geo-summary-extra-loading {
+    color: #64748b;
+    font-size: .68rem;
+    margin: 0;
+}
+
+@media (max-width: 680px) {
+    .geo-summary-map-popup[data-acordeones-aplicados="true"] {
+        min-width: 255px;
+    }
+
+    .geo-summary-accordion > summary {
+        grid-template-columns: minmax(0, 1fr) 14px;
+    }
+
+    .geo-summary-accordion > summary > small {
+        display: none;
+    }
+}

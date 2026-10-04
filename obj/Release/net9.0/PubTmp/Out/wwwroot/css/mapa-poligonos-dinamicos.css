@@ -1,0 +1,32 @@
+/*
+ * CONATRADEC - capa independiente de delimitaciones de terrenos.
+ */
+.geo-polygons-dynamic-layer .geo-polygons-loading {
+    display: none;
+    margin-left: auto;
+    color: #3B655B;
+}
+
+.geo-polygons-dynamic-layer.is-loading .geo-polygons-loading {
+    display: inline-flex;
+}
+
+.geo-polygons-dynamic-layer.is-loading .geo-switch {
+    opacity: 0.55;
+}
+
+.geo-polygons-dynamic-layer.is-warning .geo-layer-copy small {
+    color: #9B552C;
+}
+
+.geo-polygons-dynamic-layer .geo-layer-copy small {
+    line-height: 1.25;
+}
+
+.geo-polygons-dynamic-layer input:checked ~ .geo-switch {
+    box-shadow: 0 0 0 3px rgba(59, 101, 91, 0.10);
+}
+
+.leaflet-pane.geo-terrain-polygons-low-detail {
+    pointer-events: none;
+}

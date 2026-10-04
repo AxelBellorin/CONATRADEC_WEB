@@ -1,0 +1,529 @@
+/*
+ * CONATRADEC
+ * Pantalla completa y paneles movibles del Centro Geoespacial.
+ */
+
+/* ================================================================
+   PANTALLA COMPLETA: EL WORKSPACE COMPLETO ENTRA EN FULLSCREEN
+   ================================================================ */
+
+.geo-workspace:fullscreen,
+.geo-workspace.geo-fullscreen-workspace {
+    background: #12211c;
+    border: 0;
+    border-radius: 0;
+    display: block;
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+    width: 100vw;
+}
+
+.geo-workspace:fullscreen .geo-map-stage,
+.geo-workspace.geo-fullscreen-workspace .geo-map-stage,
+.geo-workspace:fullscreen .geo-map-stage.is-fullscreen,
+.geo-workspace.geo-fullscreen-workspace .geo-map-stage.is-fullscreen {
+    height: 100vh !important;
+    min-height: 100vh !important;
+    width: 100% !important;
+}
+
+.geo-workspace:fullscreen .geo-national-map,
+.geo-workspace.geo-fullscreen-workspace .geo-national-map {
+    height: 100vh !important;
+    min-height: 100vh !important;
+}
+
+/*
+ * En escritorio los filtros pasan a ser una ventana flotante. De esta manera
+ * siguen disponibles sin reducir permanentemente el ancho del mapa.
+ */
+@media (min-width: 901px) {
+    .geo-workspace:fullscreen .geo-control-panel,
+    .geo-workspace.geo-fullscreen-workspace .geo-control-panel {
+        background: rgba(255, 255, 255, .98);
+        border: 1px solid rgba(255, 255, 255, .78);
+        border-radius: 17px;
+        bottom: 14px;
+        box-shadow: 0 22px 60px rgba(15, 38, 29, .30);
+        left: 14px;
+        max-height: calc(100vh - 28px);
+        overflow: hidden;
+        position: absolute;
+        right: auto;
+        top: 14px;
+        transform: translate3d(
+            var(--geo-panel-x, 0),
+            var(--geo-panel-y, 0),
+            0) !important;
+        transition: none;
+        width: min(345px, calc(100vw - 28px));
+        z-index: 1600;
+    }
+}
+
+/*
+ * En móvil conserva el botón existente que abre/cierra los filtros.
+ * El panel queda dentro del elemento fullscreen, no detrás de él.
+ */
+@media (max-width: 900px) {
+    .geo-workspace:fullscreen .geo-control-panel,
+    .geo-workspace.geo-fullscreen-workspace .geo-control-panel {
+        bottom: 0;
+        position: absolute;
+        top: 0;
+        z-index: 1800;
+    }
+
+    .geo-workspace:fullscreen .geo-control-panel.open,
+    .geo-workspace.geo-fullscreen-workspace .geo-control-panel.open {
+        transform: translateX(0);
+    }
+}
+
+/* ================================================================
+   ENCABEZADOS MOVIBLES
+   ================================================================ */
+
+.geo-movable-heading {
+    cursor: grab;
+    position: relative;
+    touch-action: none;
+    user-select: none;
+}
+
+.geo-movable-heading::before {
+    color: rgba(59, 101, 91, .48);
+    content: "•••";
+    font-size: 9px;
+    left: 50%;
+    letter-spacing: 2px;
+    line-height: 1;
+    position: absolute;
+    top: 4px;
+    transform: translateX(-50%);
+}
+
+.geo-movable-heading:active {
+    cursor: grabbing;
+}
+
+.geo-panel-is-dragging,
+.geo-panel-is-dragging * {
+    cursor: grabbing !important;
+    user-select: none !important;
+}
+
+/* El panel de filtros solo se mueve cuando está en pantalla completa. */
+.geo-movable-control-panel {
+    will-change: transform;
+}
+
+/* Ficha territorial derecha: movible en modo normal y fullscreen. */
+.geo-movable-detail-panel {
+    animation: none !important;
+    transform: translate3d(
+        var(--geo-panel-x, 0),
+        var(--geo-panel-y, 0),
+        0) !important;
+    transition: none !important;
+    will-change: transform;
+}
+
+/* ================================================================
+   POPUP DE LEAFLET MOVIBLE
+   ================================================================ */
+
+.geo-movable-leaflet-popup {
+    --geo-popup-x: 0px;
+    --geo-popup-y: 0px;
+}
+
+/*
+ * Leaflet controla la posición del contenedor padre. La traslación se aplica
+ * a sus hijos para no interferir con el reposicionamiento durante zoom o pan.
+ */
+.geo-movable-leaflet-popup .leaflet-popup-content-wrapper,
+.geo-movable-leaflet-popup .leaflet-popup-tip-container,
+.geo-movable-leaflet-popup .leaflet-popup-close-button {
+    transform: translate3d(
+        var(--geo-popup-x),
+        var(--geo-popup-y),
+        0);
+    transition: none !important;
+    will-change: transform;
+}
+
+.geo-popup-drag-handle {
+    align-items: center;
+    background: #edf4f1;
+    border: 0;
+    border-bottom: 1px solid #dce7e2;
+    border-radius: 15px 15px 0 0;
+    color: #47675f;
+    cursor: grab;
+    display: flex;
+    font-family: inherit;
+    font-size: 8px;
+    font-weight: 800;
+    gap: 6px;
+    justify-content: center;
+    letter-spacing: .04em;
+    min-height: 25px;
+    padding: 4px 10px;
+    text-transform: uppercase;
+    touch-action: none;
+    user-select: none;
+    width: 100%;
+}
+
+.geo-popup-drag-handle:hover {
+    background: #e3efea;
+    color: #315f54;
+}
+
+.geo-popup-drag-handle:active {
+    cursor: grabbing;
+}
+
+.geo-movable-leaflet-popup .leaflet-popup-content {
+    margin-top: 8px;
+}
+
+/* Mantener la tarjeta visible dentro de una pantalla pequeña. */
+@media (max-width: 680px) {
+    .geo-popup-drag-handle {
+        display: none;
+    }
+
+    .geo-movable-leaflet-popup .leaflet-popup-content-wrapper,
+    .geo-movable-leaflet-popup .leaflet-popup-tip-container,
+    .geo-movable-leaflet-popup .leaflet-popup-close-button {
+        transform: none;
+    }
+
+    .geo-movable-detail-panel {
+        transform: none !important;
+    }
+}
+
+
+/* ================================================================
+   PANELES MINIMIZABLES
+   ================================================================ */
+
+.geo-panel-minimize-button {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+
+.geo-panel-heading > .geo-panel-minimize-button {
+    /*
+     * En la vista normal el panel de filtros forma parte de la cuadrícula.
+     * Se muestra únicamente cuando el workspace está en pantalla completa.
+     */
+    display: none;
+}
+
+.geo-workspace:fullscreen
+    .geo-panel-heading
+    > .geo-panel-minimize-button,
+.geo-workspace.geo-fullscreen-workspace
+    .geo-panel-heading
+    > .geo-panel-minimize-button {
+    display: grid;
+}
+
+/*
+ * El panel minimizado conserva únicamente el encabezado. Sigue siendo
+ * arrastrable para colocarlo donde no tape información.
+ */
+.geo-movable-control-panel.geo-panel-minimized
+    > :not(.geo-panel-heading),
+.geo-movable-detail-panel.geo-panel-minimized
+    > :not(.geo-detail-heading) {
+    display: none !important;
+}
+
+.geo-workspace:fullscreen
+    .geo-movable-control-panel.geo-panel-minimized,
+.geo-workspace.geo-fullscreen-workspace
+    .geo-movable-control-panel.geo-panel-minimized {
+    bottom: auto;
+    height: auto;
+    max-height: 72px;
+    min-height: 0;
+    width: min(285px, calc(100vw - 28px));
+}
+
+.geo-movable-detail-panel.geo-panel-minimized {
+    bottom: auto;
+    height: auto;
+    max-height: 70px;
+    min-height: 0;
+    overflow: visible;
+    width: min(310px, calc(100% - 32px));
+}
+
+.geo-panel-minimized .geo-panel-heading,
+.geo-panel-minimized .geo-detail-heading {
+    border-bottom: 0;
+    min-height: 58px;
+}
+
+.geo-panel-minimized .geo-movable-heading::before {
+    opacity: .72;
+}
+
+.geo-panel-minimized {
+    box-shadow: 0 12px 34px rgba(15, 38, 29, .24) !important;
+}
+
+/*
+ * Evita que el botón de minimizar empuje el botón de cerrar fuera de la
+ * ficha territorial.
+ */
+.geo-detail-heading
+    .geo-panel-minimize-button {
+    margin-left: auto;
+}
+
+.geo-detail-heading
+    .geo-panel-minimize-button
+    + .geo-icon-button {
+    margin-left: 0;
+}
+
+@media (max-width: 680px) {
+    .geo-panel-minimize-button {
+        display: none !important;
+    }
+}
+
+
+/* ================================================================
+   FICHA CENTRAL DE LEAFLET MINIMIZABLE
+   ================================================================ */
+
+.geo-popup-toolbar {
+    align-items: stretch;
+    background: #edf4f1;
+    border-bottom: 1px solid #dce7e2;
+    border-radius: 15px 15px 0 0;
+    display: flex;
+    min-height: 28px;
+    overflow: hidden;
+}
+
+.geo-popup-toolbar .geo-popup-drag-handle {
+    border-bottom: 0;
+    border-radius: 0;
+    flex: 1;
+    min-width: 0;
+    width: auto;
+}
+
+.geo-popup-minimize-button {
+    align-items: center;
+    background: #edf4f1;
+    border: 0;
+    border-left: 1px solid #d5e2dc;
+    color: #47675f;
+    cursor: pointer;
+    display: flex;
+    flex: 0 0 34px;
+    justify-content: center;
+    width: 34px;
+}
+
+.geo-popup-minimize-button:hover {
+    background: #dfece6;
+    color: #294c44;
+}
+
+.geo-movable-leaflet-popup.geo-popup-minimized
+    .leaflet-popup-content {
+    display: none !important;
+}
+
+.geo-movable-leaflet-popup.geo-popup-minimized
+    .leaflet-popup-content-wrapper {
+    min-width: 210px;
+    overflow: hidden;
+}
+
+.geo-movable-leaflet-popup.geo-popup-minimized
+    .geo-popup-toolbar {
+    border-bottom: 0;
+}
+
+.geo-movable-leaflet-popup.geo-popup-minimized
+    .leaflet-popup-tip-container {
+    display: none;
+}
+
+@media (max-width: 680px) {
+    .geo-popup-toolbar {
+        display: none;
+    }
+
+    .geo-movable-leaflet-popup.geo-popup-minimized
+        .leaflet-popup-content {
+        display: block !important;
+    }
+
+    .geo-movable-leaflet-popup.geo-popup-minimized
+        .leaflet-popup-tip-container {
+        display: block;
+    }
+}
+
+
+/* ================================================================
+   CENTRO GEOESPACIAL RESPONSIVO A PANTALLAS GRANDES
+   ================================================================ */
+
+/*
+ * El resto del portal conserva su ancho máximo. Solamente /mapa elimina
+ * esa restricción para utilizar todo el espacio posterior al menú lateral.
+ */
+body.geo-map-page-active .content-shell {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+}
+
+body.geo-map-page-active .content-shell,
+body.geo-map-page-active .geo-page-header,
+body.geo-map-page-active .geo-summary-grid,
+body.geo-map-page-active .geo-workspace {
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+body.geo-map-page-active .geo-page-header,
+body.geo-map-page-active .geo-summary-grid,
+body.geo-map-page-active .geo-workspace {
+    max-width: none;
+    width: 100%;
+}
+
+/*
+ * En escritorio la altura crece con la ventana. El mínimo conserva la
+ * legibilidad en portátiles; al reducir el zoom del navegador el mapa
+ * aprovecha el nuevo espacio CSS en lugar de quedarse en 760px.
+ */
+@media (min-width: 901px) {
+    body.geo-map-page-active .geo-workspace {
+        height: calc(100dvh - 315px);
+        min-height: 680px;
+    }
+
+    body.geo-map-page-active .geo-map-stage {
+        height: 100% !important;
+        min-height: 0 !important;
+    }
+
+    body.geo-map-page-active .geo-national-map {
+        height: 100% !important;
+        min-height: 100% !important;
+    }
+
+    body.geo-map-page-active .geo-control-panel {
+        min-height: 0;
+    }
+}
+
+/*
+ * En monitores ultraanchos se aumenta moderadamente el panel de filtros
+ * para conservar proporción sin robarle demasiado espacio al mapa.
+ */
+@media (min-width: 1800px) {
+    body.geo-map-page-active .geo-workspace {
+        grid-template-columns:
+            clamp(345px, 19vw, 410px)
+            minmax(0, 1fr);
+    }
+}
+
+/*
+ * En móvil y tableta se mantiene la altura controlada del diseño original.
+ */
+@media (max-width: 900px) {
+    body.geo-map-page-active .content-shell {
+        width: 100% !important;
+    }
+
+    body.geo-map-page-active .geo-workspace,
+    body.geo-map-page-active .geo-map-stage,
+    body.geo-map-page-active .geo-national-map {
+        height: 690px;
+        min-height: 690px;
+    }
+}
+
+@media (max-width: 680px) {
+    body.geo-map-page-active .geo-workspace,
+    body.geo-map-page-active .geo-map-stage,
+    body.geo-map-page-active .geo-national-map {
+        height: 620px;
+        min-height: 620px;
+    }
+}
+
+
+/* ================================================================
+   CORRECCIÓN DEFINITIVA DEL ANCHO DEL CENTRO GEOESPACIAL
+   ================================================================ */
+
+/*
+ * app.css limita todas las páginas con:
+ *
+ * .page-content {
+ *     width: min(1500px, 100%);
+ *     margin: 0 auto;
+ * }
+ *
+ * Al reducir el zoom o utilizar un monitor grande, ese máximo deja un gran
+ * espacio vacío. MainLayout agrega map-page-content únicamente en /mapa.
+ */
+.page-content.map-page-content {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+}
+
+.page-content.map-page-content > .geo-page-header,
+.page-content.map-page-content > .geo-summary-grid,
+.page-content.map-page-content > .geo-workspace {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: none !important;
+    width: 100% !important;
+}
+
+.page-content.map-page-content .geo-workspace {
+    box-sizing: border-box;
+}
+
+/*
+ * Aprovecha mejor monitores grandes sin afectar portátiles ni las demás
+ * pantallas administrativas.
+ */
+@media (min-width: 1600px) {
+    .page-content.map-page-content {
+        padding-left: clamp(20px, 1.6vw, 36px);
+        padding-right: clamp(20px, 1.6vw, 36px);
+    }
+}
+
+@media (min-width: 2200px) {
+    .page-content.map-page-content .geo-workspace {
+        grid-template-columns:
+            clamp(360px, 17vw, 430px)
+            minmax(0, 1fr);
+    }
+}

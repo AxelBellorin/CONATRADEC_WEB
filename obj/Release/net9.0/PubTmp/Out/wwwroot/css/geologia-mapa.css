@@ -1,0 +1,1065 @@
+.geo-geology-control {
+    width: min(370px, calc(100vw - 34px));
+    margin-top: 68px !important;
+    border: 1px solid rgba(59, 101, 91, 0.24) !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+    color: #1f2937;
+    backdrop-filter: blur(12px);
+}
+
+.geo-geology-toggle {
+    width: 100%;
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 13px;
+    border: 0;
+    background: linear-gradient(135deg, #31584f, #3b655b);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+}
+
+.geo-geology-toggle > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+
+.geo-geology-toggle > i {
+    font-size: 0.78rem;
+    opacity: 0.84;
+}
+
+.geo-geology-body {
+    display: none;
+    max-height: min(76vh, 720px);
+    overflow: auto;
+    padding: 13px;
+}
+
+.geo-geology-control.is-open .geo-geology-body {
+    display: block;
+}
+
+.geo-geology-intro {
+    margin: 0 0 11px;
+    color: #52606d;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.geo-geology-layer {
+    position: relative;
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) 38px;
+    align-items: center;
+    gap: 9px;
+    min-height: 58px;
+    margin-bottom: 8px;
+    padding: 9px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.geo-geology-layer:hover {
+    border-color: rgba(59, 101, 91, 0.42);
+    box-shadow: 0 7px 18px rgba(15, 23, 42, 0.07);
+}
+
+.geo-geology-layer > span:nth-child(2) {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.geo-geology-layer strong {
+    color: #263b35;
+    font-size: 0.82rem;
+}
+
+.geo-geology-layer small {
+    color: #64748b;
+    font-size: 0.68rem;
+    line-height: 1.3;
+}
+
+.geo-geology-layer input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.geo-geology-symbol {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+}
+
+.geo-geology-symbol.fault {
+    position: relative;
+    background: #fff1eb;
+}
+
+.geo-geology-symbol.fault::before,
+.geo-geology-symbol.fault::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 2px;
+    border-radius: 999px;
+    background: #c2410c;
+    transform: rotate(-28deg);
+}
+
+.geo-geology-symbol.fault::after {
+    width: 9px;
+    transform: translate(4px, 4px) rotate(-28deg);
+    opacity: 0.65;
+}
+
+.geo-geology-symbol.volcano {
+    background: #fff7d6;
+    color: #9b552c;
+    font-size: 0.94rem;
+}
+
+.geo-geology-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    transition: background 0.18s ease;
+}
+
+.geo-geology-switch::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.28);
+    transition: transform 0.18s ease;
+}
+
+.geo-geology-layer input:checked + .geo-geology-switch {
+    background: #3b655b;
+}
+
+.geo-geology-layer input:checked + .geo-geology-switch::after {
+    transform: translateX(16px);
+}
+
+.geo-geology-terrain {
+    margin-top: 12px;
+    padding-top: 11px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.geo-geology-terrain > label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 750;
+}
+
+.geo-geology-terrain select {
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 9px;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    background: #fff;
+    color: #1f2937;
+    font: inherit;
+    font-size: 0.76rem;
+    outline: none;
+}
+
+.geo-geology-terrain select:focus {
+    border-color: #3b655b;
+    box-shadow: 0 0 0 3px rgba(59, 101, 91, 0.12);
+}
+
+.geo-geology-result {
+    margin-top: 9px;
+    padding: 10px;
+    border: 1px solid #dbe4e1;
+    border-radius: 11px;
+    background: #f8fbfa;
+}
+
+.geo-geology-result .empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 40px;
+    color: #64748b;
+    font-size: 0.72rem;
+    text-align: center;
+}
+
+.geo-geology-result .empty.error {
+    color: #b42318;
+}
+
+.geo-geology-result-heading {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 8px;
+    color: #31584f;
+    font-size: 0.8rem;
+}
+
+.geo-geology-distance {
+    display: grid;
+    grid-template-columns: 25px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-top: 1px solid #e2e8f0;
+}
+
+.geo-geology-distance > i {
+    color: #9b552c;
+    text-align: center;
+}
+
+.geo-geology-distance > span {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.geo-geology-distance small {
+    color: #64748b;
+    font-size: 0.63rem;
+}
+
+.geo-geology-distance strong {
+    overflow: hidden;
+    color: #263b35;
+    font-size: 0.72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.geo-geology-distance b {
+    color: #31584f;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.geo-geology-distance.unavailable {
+    opacity: 0.72;
+}
+
+.geo-geology-distance-note {
+    display: block;
+    margin-top: 7px;
+    color: #64748b;
+    font-size: 0.61rem;
+    line-height: 1.4;
+}
+
+.geo-geology-status {
+    display: none;
+    margin-top: 8px;
+    padding: 7px 9px;
+    border-radius: 8px;
+    background: #eef6f3;
+    color: #31584f;
+    font-size: 0.68rem;
+}
+
+.geo-geology-status.visible {
+    display: block;
+}
+
+.geo-geology-status.error {
+    background: #fff1f0;
+    color: #b42318;
+}
+
+.geo-geology-disclaimer {
+    display: block;
+    margin-top: 10px;
+    padding: 8px 9px;
+    border-left: 3px solid #f2c94c;
+    border-radius: 5px;
+    background: #fffbea;
+    color: #5f531f;
+    font-size: 0.63rem;
+    line-height: 1.42;
+}
+
+.geo-geology-sources {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 8px;
+    color: #7b8794;
+    font-size: 0.58rem;
+}
+
+.geo-volcano-marker-wrapper {
+    background: transparent;
+    border: 0;
+}
+
+.geo-volcano-marker {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid #fff;
+    border-radius: 50% 50% 50% 10%;
+    background: linear-gradient(145deg, #b91c1c, #f97316 58%, #fbbf24);
+    color: #fff;
+    box-shadow:
+        0 0 0 2px rgba(15, 23, 42, 0.78),
+        0 8px 20px rgba(15, 23, 42, 0.46);
+    transform: rotate(-45deg);
+}
+
+.geo-volcano-marker i {
+    font-size: 1.12rem;
+    transform: rotate(45deg);
+}
+
+.geo-geology-tooltip {
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(31, 41, 55, 0.94);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.geo-geology-popup {
+    min-width: 245px;
+    color: #27352f;
+}
+
+.geo-geology-popup > span {
+    color: #9b552c;
+    font-size: 0.67rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.geo-geology-popup h3 {
+    margin: 4px 0 9px;
+    color: #263b35;
+    font-size: 1rem;
+}
+
+.geo-geology-popup dl {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 9px;
+}
+
+.geo-geology-popup dl div {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 8px;
+}
+
+.geo-geology-popup dt {
+    color: #64748b;
+    font-size: 0.67rem;
+}
+
+.geo-geology-popup dd {
+    margin: 0;
+    color: #263b35;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.geo-geology-popup > small {
+    display: block;
+    padding-top: 8px;
+    border-top: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 0.63rem;
+    line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+    .geo-geology-control {
+        margin-top: 58px !important;
+    }
+
+    .geo-geology-control:not(.is-open) {
+        width: auto;
+    }
+
+    .geo-geology-control:not(.is-open) .geo-geology-toggle {
+        width: 46px;
+        justify-content: center;
+    }
+
+    .geo-geology-control:not(.is-open) .geo-geology-toggle span span,
+    .geo-geology-control:not(.is-open) .geo-geology-toggle > i {
+        display: none;
+    }
+}
+
+@media (max-width: 620px) {
+    .geo-geology-control {
+        width: min(316px, calc(100vw - 28px));
+        margin-left: 7px !important;
+    }
+
+    .geo-geology-body {
+        max-height: 64vh;
+    }
+}
+
+
+/* Controles de proximidad geológica */
+.geo-geology-radius-card {
+    margin: 9px 0;
+    padding: 10px;
+    border: 1px solid #dfe7e4;
+    border-radius: 12px;
+    background: #f8fbfa;
+    transition: opacity 0.18s ease, border-color 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.geo-geology-radius-card.is-inactive {
+    opacity: 0.68;
+}
+
+.geo-geology-radius-card.is-active {
+    border-color: rgba(59, 101, 91, 0.42);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+}
+
+.geo-geology-radius-card.volcano.is-active {
+    border-color: rgba(155, 85, 44, 0.40);
+}
+
+.geo-geology-radius-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.geo-geology-radius-heading > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.geo-geology-radius-card.fault .geo-geology-radius-heading i {
+    color: #c2410c;
+}
+
+.geo-geology-radius-card.volcano .geo-geology-radius-heading i {
+    color: #9b552c;
+}
+
+.geo-geology-radius-heading output {
+    min-width: 54px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: #31584f;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-align: center;
+}
+
+.geo-geology-radius-card.volcano .geo-geology-radius-heading output {
+    background: #9b552c;
+}
+
+.geo-geology-radius-incrementor {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    align-items: center;
+    gap: 7px;
+}
+
+.geo-geology-radius-incrementor > button {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #31584f;
+    cursor: pointer;
+}
+
+.geo-geology-radius-incrementor > button:hover {
+    border-color: #3b655b;
+    background: #eef6f3;
+}
+
+.geo-geology-radius-incrementor input[type="range"] {
+    width: 100%;
+    accent-color: #3b655b;
+    cursor: pointer;
+}
+
+.geo-geology-radius-card.volcano
+.geo-geology-radius-incrementor input[type="range"] {
+    accent-color: #9b552c;
+}
+
+.geo-geology-radius-quick {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: 8px;
+}
+
+.geo-geology-radius-quick button {
+    min-height: 27px;
+    padding: 4px 3px;
+    border: 1px solid #dbe3e0;
+    border-radius: 7px;
+    background: #fff;
+    color: #52606d;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.62rem;
+    font-weight: 750;
+}
+
+.geo-geology-radius-quick button:hover,
+.geo-geology-radius-quick button.active {
+    border-color: #3b655b;
+    background: #e8f2ef;
+    color: #31584f;
+}
+
+.geo-geology-radius-card.volcano
+.geo-geology-radius-quick button:hover,
+.geo-geology-radius-card.volcano
+.geo-geology-radius-quick button.active {
+    border-color: #9b552c;
+    background: #fff3eb;
+    color: #81451f;
+}
+
+.geo-geology-radius-summary {
+    display: grid;
+    gap: 6px;
+    margin: 10px 0 2px;
+    padding: 9px;
+    border: 1px solid #e2e8f0;
+    border-radius: 11px;
+    background: #fff;
+    color: #64748b;
+    font-size: 0.67rem;
+}
+
+.geo-geology-radius-summary-item {
+    display: grid;
+    grid-template-columns: 25px minmax(0, 1fr);
+    align-items: center;
+    gap: 7px;
+}
+
+.geo-geology-radius-summary-item > i {
+    width: 25px;
+    height: 25px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #f1f5f9;
+}
+
+.geo-geology-radius-summary-item.fallas.active > i {
+    background: #fff1eb;
+    color: #c2410c;
+}
+
+.geo-geology-radius-summary-item.volcanes.active > i {
+    background: #fff7d6;
+    color: #9b552c;
+}
+
+.geo-geology-radius-summary-item > span {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.geo-geology-radius-summary-item small {
+    color: #64748b;
+    font-size: 0.60rem;
+}
+
+.geo-geology-radius-summary-item strong {
+    color: #334155;
+    font-size: 0.69rem;
+}
+
+.geo-geology-radius-summary-item.inactive {
+    opacity: 0.62;
+}
+
+.geo-geology-radius-badge {
+    width: fit-content;
+    margin-top: 4px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 0.56rem;
+    font-style: normal;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.geo-geology-radius-badge.inside {
+    background: #e6f4ef;
+    color: #23624f;
+}
+
+.geo-geology-radius-badge.outside {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+@media (max-width: 620px) {
+    .geo-geology-control {
+        width: min(340px, calc(100vw - 28px));
+    }
+
+    .geo-geology-radius-quick {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+
+/* Alta visibilidad para geología sobre mapas de calles o satélite. */
+.geo-fault-path {
+    filter:
+        drop-shadow(0 0 1px #ffffff)
+        drop-shadow(0 0 3px rgba(15, 23, 42, 0.95));
+}
+
+.geo-volcano-label {
+    padding: 5px 8px;
+    border: 2px solid #ffffff;
+    border-radius: 7px;
+    background: rgba(127, 29, 29, 0.94);
+    color: #ffffff;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.42);
+    font-size: 0.68rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.geo-volcano-label::before {
+    border-right-color: #ffffff !important;
+}
+
+.geo-geology-map-legend {
+    display: grid;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid #dfe7e4;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.67rem;
+}
+
+.geo-geology-map-legend strong {
+    color: #263b35;
+    font-size: 0.72rem;
+}
+
+.geo-geology-map-legend span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.geo-geology-map-legend i {
+    position: relative;
+    width: 29px;
+    min-width: 29px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.geo-geology-map-legend .fault-line::after {
+    content: "";
+    width: 28px;
+    height: 4px;
+    border-radius: 4px;
+    background: #dc2626;
+    box-shadow: 0 0 0 1px #ffffff, 0 0 3px #0f172a;
+}
+
+.geo-geology-map-legend .fault-radius {
+    border: 1px solid #dc2626;
+    border-radius: 6px;
+    background: rgba(249, 115, 22, 0.20);
+}
+
+.geo-geology-map-legend .volcano-point b {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    background: #b91c1c;
+    color: #ffffff;
+    box-shadow: 0 0 0 1px #0f172a;
+    font-size: 0.68rem;
+}
+
+.geo-geology-map-legend .volcano-radius {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    margin-left: 5px;
+    border: 2px solid #b45309;
+    border-radius: 50%;
+    background: rgba(251, 191, 36, 0.17);
+}
+
+
+/* Integración de Geología como quinta pestaña del panel principal. */
+.geo-global-filter-tabs,
+.owner-filter-tabs {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+
+.geo-global-filter-tabs .geo-geology-main-tab,
+.owner-filter-tabs .geo-geology-main-tab {
+    min-width: 0;
+}
+
+.geo-global-filter-tabs .geo-geology-main-tab span,
+.owner-filter-tabs .geo-geology-main-tab span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.geo-geology-control.geo-geology-integrated {
+    position: relative !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    overflow: hidden;
+}
+
+.geo-geology-control.geo-geology-integrated[hidden] {
+    display: none !important;
+}
+
+.geo-geology-control.geo-geology-integrated.is-panel-active {
+    display: flex !important;
+    flex-direction: column;
+}
+
+.geo-geology-control.geo-geology-integrated .geo-geology-toggle {
+    display: none !important;
+}
+
+.geo-geology-control.geo-geology-integrated .geo-geology-body {
+    display: block !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    padding: 12px;
+    scrollbar-gutter: stable;
+}
+
+.geo-control-panel.geo-geology-panel-active,
+.owner-control-panel.geo-geology-panel-active {
+    display: flex;
+    flex-direction: column;
+}
+
+.geo-control-panel.geo-geology-panel-active > .geo-geology-integrated,
+.owner-control-panel.geo-geology-panel-active > .geo-geology-integrated {
+    min-height: 0;
+}
+
+/* El área invisible amplía el clic de las fallas sin alterar su grosor. */
+.geo-fault-hit {
+    cursor: pointer;
+}
+
+.geo-volcano-marker-wrapper {
+    cursor: pointer;
+}
+
+.geo-volcano-label {
+    pointer-events: none !important;
+}
+
+@media (max-width: 520px) {
+    .geo-global-filter-tabs,
+    .owner-filter-tabs {
+        gap: 2px !important;
+    }
+
+    .geo-global-filter-tabs > button,
+    .owner-filter-tabs > button {
+        padding-inline: 3px !important;
+        font-size: 0.58rem !important;
+    }
+}
+
+
+/* Corrección 1.4.0: las capas geológicas deben recibir clics por encima
+   de polígonos territoriales y otras capas del mapa. */
+.leaflet-geoGeology-pane,
+.leaflet-geoVolcano-pane {
+    pointer-events: auto !important;
+}
+
+.leaflet-geoGeologyRadius-pane,
+.leaflet-geoGeologyHighlight-pane {
+    pointer-events: none !important;
+}
+
+.geo-fault-hit {
+    cursor: pointer !important;
+    pointer-events: stroke !important;
+    stroke-opacity: 0.01 !important;
+}
+
+.geo-volcano-marker-wrapper,
+.geo-volcano-marker {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+.geo-geology-leaflet-popup .leaflet-popup-content {
+    margin: 14px 16px;
+}
+
+
+/* Banderas e historial eruptivo Smithsonian GVP 1.5.0. */
+.geo-volcano-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: -2px 0 10px;
+}
+
+.geo-volcano-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 7px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 0.58rem;
+    font-weight: 850;
+    line-height: 1.25;
+    text-transform: uppercase;
+}
+
+.geo-volcano-flag.holocene {
+    border-color: #fca5a5;
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.geo-volcano-flag.pleistocene {
+    border-color: #d6b28c;
+    background: #f5e8dc;
+    color: #7c2d12;
+}
+
+.geo-volcano-flag.recorded {
+    border-color: #fbbf24;
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.geo-volcano-flag.no-record,
+.geo-volcano-flag.neutral {
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.geo-volcano-flag.recent {
+    border-color: #93c5fd;
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.geo-volcano-flag.ongoing {
+    border-color: #ef4444;
+    background: #b91c1c;
+    color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.16);
+}
+
+.geo-volcano-history {
+    margin: 10px 0;
+    padding: 9px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    background: #f8fafc;
+}
+
+.geo-volcano-history > strong {
+    display: block;
+    margin-bottom: 6px;
+    color: #334155;
+    font-size: 0.69rem;
+}
+
+.geo-volcano-history ul {
+    display: grid;
+    gap: 5px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.geo-volcano-history li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding-top: 5px;
+    border-top: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 0.62rem;
+}
+
+.geo-volcano-history li:first-child {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.geo-volcano-history li span {
+    display: grid;
+    gap: 1px;
+}
+
+.geo-volcano-history li span:last-child {
+    text-align: right;
+}
+
+.geo-volcano-history small,
+.geo-volcano-history.empty span {
+    color: #64748b;
+    font-size: 0.57rem;
+}
+
+.geo-volcano-source-link {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 0 9px;
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    color: #315f53;
+    font-size: 0.63rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.geo-volcano-source-link:hover {
+    background: #ecf4f1;
+}
+
+.geo-volcano-marker-wrapper.pleistocene .geo-volcano-marker {
+    background: linear-gradient(145deg, #7c2d12, #c2410c 60%, #fb923c);
+}
+
+.geo-volcano-marker-wrapper.ongoing .geo-volcano-marker {
+    background: linear-gradient(145deg, #7f1d1d, #dc2626 55%, #fbbf24);
+    animation: geo-volcano-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes geo-volcano-pulse {
+    0%, 100% { box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(220, 38, 38, 0.34), 0 5px 13px rgba(15, 23, 42, 0.38); }
+    50% { box-shadow: 0 0 0 2px #ffffff, 0 0 0 9px rgba(220, 38, 38, 0.08), 0 5px 13px rgba(15, 23, 42, 0.38); }
+}
+
+/* ================================================================
+   Compatibilidad con el resumen territorial
+   Mantiene libre la esquina superior izquierda, donde se encuentran
+   los botones de centrar, pantalla completa y descarga.
+   ================================================================ */
+.geo-map-stage .geo-summary-map-status {
+    left: auto !important;
+    right: 1rem !important;
+    top: 1rem !important;
+    max-width: min(390px, calc(100% - 8rem));
+    pointer-events: none;
+}
+
+/* La ficha continúa visible en pantalla completa, pero nunca intercepta
+   clics destinados al mapa o a sus controles. */
+.geo-map-stage.is-fullscreen .geo-summary-map-status,
+.geo-map-stage:fullscreen .geo-summary-map-status {
+    left: auto !important;
+    right: 1rem !important;
+    top: 1rem !important;
+}
+
+@media (max-width: 680px) {
+    .geo-map-stage .geo-summary-map-status {
+        left: .65rem !important;
+        right: .65rem !important;
+        top: 4.35rem !important;
+        max-width: none;
+    }
+}
