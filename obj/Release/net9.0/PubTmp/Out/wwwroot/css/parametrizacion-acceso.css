@@ -254,3 +254,606 @@
         flex-direction: column;
     }
 }
+
+/* Gestión de cobertura territorial centrada en un usuario. */
+.coverage-title {
+    align-items: flex-start;
+}
+
+.coverage-title p {
+    max-width: 760px;
+    margin: 6px 0 0;
+    color: #66746f;
+    font-size: 14px;
+}
+
+.coverage-user-picker {
+    display: grid;
+    gap: 8px;
+    max-width: 720px;
+    margin-bottom: 18px;
+}
+
+.coverage-user-picker label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #355a51;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.coverage-empty-state {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 130px;
+    padding: 22px;
+    border: 1px dashed #b9cec7;
+    border-radius: 14px;
+    background: #f8fbfa;
+    color: #58736b;
+}
+
+.coverage-empty-state.compact {
+    min-height: 94px;
+}
+
+.coverage-empty-state > i {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #e8f2ee;
+    color: #315f55;
+    font-size: 18px;
+}
+
+.coverage-empty-state > div,
+.coverage-user-summary > div,
+.coverage-inline-warning > div,
+.coverage-current-header > div,
+.coverage-section-heading > div {
+    display: grid;
+    gap: 3px;
+}
+
+.coverage-empty-state span,
+.coverage-user-summary small,
+.coverage-inline-warning span {
+    color: #6c7d77;
+    font-size: 13px;
+}
+
+.coverage-user-summary {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    border: 1px solid #dce8e3;
+    border-radius: 14px;
+    background: #fbfdfc;
+}
+
+.coverage-count {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #eaf3ef;
+    color: #315f55;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.coverage-inline-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    border: 1px solid #ead9b7;
+    border-radius: 12px;
+    background: #fffaf0;
+    color: #775a22;
+}
+
+.coverage-inline-warning.duplicate {
+    border-color: #efcaca;
+    background: #fff5f5;
+    color: #9b3434;
+}
+
+.coverage-inline-warning > i {
+    margin-top: 2px;
+}
+
+.coverage-inline-warning span {
+    color: inherit;
+}
+
+.coverage-form-card {
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #dfe8e4;
+    border-radius: 14px;
+    background: #f8fbfa;
+}
+
+.coverage-section-heading,
+.coverage-current-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.coverage-section-heading span,
+.coverage-current-header span {
+    color: #7c8b86;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.coverage-section-heading strong,
+.coverage-current-header strong {
+    color: #263e37;
+}
+
+.coverage-current-header b {
+    display: grid;
+    place-items: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: #315f55;
+    color: #fff;
+}
+
+.access-form-grid.coverage-form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-items: stretch;
+    margin-bottom: 0;
+}
+
+.coverage-add-button {
+    min-height: 42px;
+}
+
+.coverage-add-button:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.coverage-scope-cell {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.coverage-duplicate-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #fff0f0;
+    color: #b43e3e;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.coverage-table td:last-child,
+.coverage-table th:last-child {
+    width: 56px;
+    text-align: center;
+}
+
+@media (max-width: 640px) {
+    .access-form-grid.coverage-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .coverage-user-summary {
+        grid-template-columns: auto 1fr;
+    }
+
+    .coverage-count {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+}
+
+/* Selector buscable de usuario para cobertura territorial. */
+.coverage-user-combobox,
+.access-entity-combobox {
+    position: relative;
+    width: 100%;
+}
+
+.coverage-user-search-box,
+.access-entity-search-box {
+    position: relative;
+}
+
+.coverage-user-search-box > i,
+.access-entity-search-box > i {
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    z-index: 2;
+    transform: translateY(-50%);
+    color: #71817c;
+    pointer-events: none;
+}
+
+.coverage-user-search-box .form-control,
+.access-entity-search-box .form-control {
+    padding-left: 42px;
+    padding-right: 44px;
+}
+
+.coverage-user-clear,
+.access-entity-clear {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #6d7b77;
+    cursor: pointer;
+}
+
+.coverage-user-clear:hover,
+.access-entity-clear:hover {
+    background: #edf4f1;
+    color: #315f55;
+}
+
+.coverage-user-options,
+.access-entity-options {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 60;
+    display: none;
+    max-height: 330px;
+    overflow-y: auto;
+    padding: 6px;
+    border: 1px solid #d6e2dd;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(23, 48, 41, .16);
+}
+
+.coverage-user-combobox:focus-within .coverage-user-options,
+.access-entity-combobox:focus-within .access-entity-options {
+    display: block;
+}
+
+.coverage-user-option,
+.access-entity-option {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    width: 100%;
+    gap: 10px;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #243b35;
+    text-align: left;
+    cursor: pointer;
+}
+
+.coverage-user-option:hover,
+.coverage-user-option.selected,
+.access-entity-option:hover,
+.access-entity-option.selected {
+    background: #eef5f2;
+}
+
+.coverage-user-option.selected,
+.access-entity-option.selected {
+    color: #28584c;
+}
+
+.coverage-user-option .access-avatar,
+.access-entity-option .access-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 11px;
+}
+
+.coverage-user-option-text,
+.access-entity-option-text {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.coverage-user-option-text strong,
+.coverage-user-option-text small,
+.access-entity-option-text strong,
+.access-entity-option-text small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.coverage-user-option-text strong,
+.access-entity-option-text strong {
+    font-size: 13px;
+}
+
+.coverage-user-option-text small,
+.access-entity-option-text small {
+    color: #71817c;
+    font-size: 11px;
+}
+
+.coverage-user-selected-icon,
+.access-entity-selected-icon {
+    color: #315f55;
+}
+
+.coverage-user-no-results,
+.coverage-user-more-results,
+.access-entity-no-results,
+.access-entity-more-results {
+    padding: 12px;
+    color: #6d7b77;
+    font-size: 12px;
+    text-align: center;
+}
+
+.coverage-user-no-results,
+.access-entity-no-results {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.coverage-user-search-help,
+.access-picker-help {
+    color: #73827d;
+    font-size: 12px;
+}
+
+/* Selector buscable reutilizable para usuarios, propietarios y terrenos. */
+.access-picker-section {
+    display: grid;
+    gap: 8px;
+    max-width: 760px;
+    margin-bottom: 18px;
+}
+
+.access-picker-section.compact {
+    max-width: none;
+    margin-bottom: 12px;
+}
+
+.access-picker-section > label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #355a51;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.access-current-relation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    border: 1px solid #dce8e3;
+    border-radius: 14px;
+    background: #f8fbfa;
+}
+
+.access-current-relation > div {
+    display: grid;
+    gap: 3px;
+}
+
+.access-current-relation small {
+    color: #7c8b86;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.access-current-relation span {
+    color: #71817c;
+    font-size: 13px;
+}
+
+.access-danger-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid #efcaca;
+    border-radius: 10px;
+    background: #fff5f5;
+    color: #a93636;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.access-action-card {
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #dfe8e4;
+    border-radius: 14px;
+    background: #f8fbfa;
+}
+
+.access-action-submit {
+    min-height: 42px;
+}
+
+.owner-terrain-linker {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 16px;
+}
+
+.owner-terrain-submit {
+    min-height: 42px;
+    margin-bottom: 12px;
+}
+
+.assignment-form-grid {
+    display: grid;
+    grid-template-columns: minmax(180px, .7fr) minmax(280px, 1.4fr) auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.assignment-form-grid .form-group {
+    margin: 0;
+}
+
+.assignment-form-grid .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    color: #355a51;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.assignment-check {
+    min-height: 42px;
+    margin: 0;
+    padding-bottom: 2px;
+}
+
+.assignment-submit {
+    min-height: 42px;
+}
+
+@media (max-width: 1050px) {
+    .assignment-form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .assignment-observation {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 640px) {
+    .owner-terrain-linker {
+        grid-template-columns: 1fr;
+
+        display: grid;
+    }
+
+    .owner-terrain-submit {
+        width: 100%;
+        margin-bottom: 0;
+    }
+
+    .assignment-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .assignment-observation {
+        grid-column: auto;
+    }
+    .access-current-relation {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* Resumen de acceso a terrenos del propietario. */
+.assignment-status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 0 16px;
+}
+
+.assignment-status-card {
+    display: grid;
+    gap: 4px;
+    padding: 14px 16px;
+    border: 1px solid #dfe8e4;
+    border-radius: 14px;
+    background: #fbfdfc;
+}
+
+.assignment-status-card span {
+    color: #667a74;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.assignment-status-card strong {
+    color: #234c42;
+    font-size: 24px;
+    line-height: 1.1;
+}
+
+.assignment-status-card small {
+    color: #6c7d77;
+    line-height: 1.35;
+}
+
+.assignment-status-card.enabled {
+    background: #f2f8f5;
+}
+
+.assignment-status-card.pending {
+    background: #fffaf1;
+    border-color: #eadfca;
+}
+
+.assignment-form-grid {
+    grid-template-columns: minmax(280px, 1fr) auto;
+}
+
+@media (max-width: 900px) {
+    .assignment-status-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .assignment-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .assignment-submit {
+        width: 100%;
+    }
+}

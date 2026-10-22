@@ -181,5 +181,7 @@ C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\comp
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\wcrf99ln33-{0}-ebvpguk0th-ebvpguk0th.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\oh2t8dvrmh-{0}-l1728t9kzi-l1728t9kzi.gz
 C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\d7v4kv848a-{0}-9ydngmdo85-9ydngmdo85.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\722bys1tf3-{0}-zfhjhrlo7r-zfhjhrlo7r.gz
-C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\bh50ruxdel-{0}-zfhjhrlo7r-zfhjhrlo7r.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\scopedcss\Components\Pages\ReportesAvanzados.razor.rz.scp.css
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\hyb267wpl4-{0}-ez0d0jvjhx-ez0d0jvjhx.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\722bys1tf3-{0}-jphalar9xf-jphalar9xf.gz
+C:\Users\AXEL BELLORIN\Desktop\CONATRADEC\CONATRADEC_WEB\obj\Release\net9.0\compressed\bh50ruxdel-{0}-jphalar9xf-jphalar9xf.gz

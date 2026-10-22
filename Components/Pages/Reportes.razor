@@ -8,7 +8,6 @@
 @inject IJSRuntime JS
 
 <PageTitle>Centro de reportes | CONATRADEC</PageTitle>
-
 <div class="page-header">
     <div>
         <p class="eyebrow">Información ejecutiva</p>
@@ -27,7 +26,6 @@
         <span>@mensaje</span>
     </div>
 }
-
 @if (!string.IsNullOrWhiteSpace(error))
 {
     <div class="alert alert-error">
@@ -35,7 +33,6 @@
         <span>@error</span>
     </div>
 }
-
 @if (!PuedeLeer)
 {
     <section class="panel empty-state compact-empty">
@@ -52,6 +49,12 @@ else if (cargando)
 }
 else
 {
+    <ReportesAvanzados />
+    <section class="report-alert-section-heading">
+        <p class="eyebrow">Seguimiento agrícola</p>
+        <h2>Alertas agrícolas</h2>
+        <p>Consulta el estado de las alertas y conserva las descargas existentes.</p>
+    </section>
     <section class="report-summary-grid">
         <article>
             <span>Total</span>
@@ -74,7 +77,6 @@ else
             <strong>@resumen.Criticas</strong>
         </article>
     </section>
-
     <section class="report-options-grid">
         <article class="report-option-card">
             <i class="fa-solid fa-file-pdf"></i>
@@ -85,7 +87,6 @@ else
                     alertas agrícolas.
                 </p>
             </div>
-
             <button class="btn-primary"
                     disabled="@descargando"
                     @onclick='() => DescargarAsync(
@@ -98,7 +99,6 @@ else
                 Descargar PDF
             </button>
         </article>
-
         <article class="report-option-card">
             <i class="fa-solid fa-file-excel"></i>
             <div>
@@ -107,7 +107,6 @@ else
                     Archivo editable con todos los casos, estados y fechas.
                 </p>
             </div>
-
             <button class="btn-primary"
                     disabled="@descargando"
                     @onclick='() => DescargarAsync(
@@ -122,7 +121,6 @@ else
         </article>
     </section>
 }
-
 @code {
     private const string CodigoPermiso =
         "reportesPage";
@@ -139,7 +137,6 @@ else
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
             CodigoPermiso);
-
     protected override async Task OnAfterRenderAsync(
         bool firstRender)
     {
@@ -162,7 +159,6 @@ else
         await CargarResumenAsync();
         StateHasChanged();
     }
-
     private async Task CargarResumenAsync()
     {
         cargando = true;
@@ -183,7 +179,6 @@ else
             cargando = false;
         }
     }
-
     private async Task DescargarAsync(
         string ruta,
         string contentTypePredeterminado,
@@ -199,7 +194,6 @@ else
         {
             string? token =
                 AuthState.Usuario?.Token;
-
             if (string.IsNullOrWhiteSpace(token))
             {
                 throw new UnauthorizedAccessException(
@@ -214,7 +208,6 @@ else
                 new HttpRequestMessage(
                     HttpMethod.Get,
                     ruta);
-
             request.Headers.Authorization =
                 new AuthenticationHeaderValue(
                     "Bearer",
@@ -227,7 +220,6 @@ else
             request.Headers.TryAddWithoutValidation(
                 "X-Actividad-Usuario",
                 "true");
-
             using HttpResponseMessage response =
                 await client.SendAsync(
                     request,
@@ -237,7 +229,6 @@ else
             {
                 string detalle =
                     await response.Content.ReadAsStringAsync();
-
                 if (response.StatusCode is
                     HttpStatusCode.Unauthorized or
                     HttpStatusCode.Forbidden)
@@ -251,7 +242,6 @@ else
                     null,
                     response.StatusCode);
             }
-
             byte[] contenido =
                 await response.Content.ReadAsByteArrayAsync();
 
@@ -265,7 +255,6 @@ else
                 ObtenerNombreArchivo(
                     response,
                     nombrePredeterminado);
-
             string contentType =
                 response.Content.Headers.ContentType?
                     .MediaType ??
@@ -276,7 +265,6 @@ else
                 nombre,
                 contentType,
                 Convert.ToBase64String(contenido));
-
             mensaje =
                 $"El archivo {nombre} fue generado correctamente.";
         }
@@ -296,7 +284,6 @@ else
     {
         ContentDispositionHeaderValue? disposition =
             response.Content.Headers.ContentDisposition;
-
         string? nombre =
             disposition?.FileNameStar ??
             disposition?.FileName;
@@ -318,7 +305,6 @@ else
             (contenido ?? string.Empty)
                 .Trim()
                 .Trim('"');
-
         return string.IsNullOrWhiteSpace(mensaje)
             ? "No fue posible completar la descarga."
             : mensaje;

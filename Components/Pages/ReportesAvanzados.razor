@@ -1,0 +1,506 @@
+@using System.Globalization
+@using CONATRADEC.AdminWeb.Models
+@using CONATRADEC.AdminWeb.Services
+@inject AuthStateService AuthState
+@inject ApiClientService Api
+@inject ParametrizacionAccesoService Acceso
+@inject IJSRuntime JS
+
+<HeadContent>
+    <link rel="stylesheet" href="css/reportes-print.css" />
+</HeadContent>
+
+<section class="panel report-advanced-panel">
+    <div class="report-advanced-heading">
+        <div>
+            <p class="eyebrow">Datos para tomar decisiones</p>
+            <h2>Informes de gestión</h2>
+            <p>Visualiza indicadores, identifica concentraciones y exporta informes completos con sus filtros.</p>
+        </div>
+        <span class="report-advanced-edition"><i class="fa-solid fa-chart-column"></i> Vista ejecutiva</span>
+    </div>
+
+    @if (OpcionesDisponibles.Count == 0)
+    {
+        <p class="report-advanced-note">Tu perfil no tiene permisos de lectura sobre los reportes detallados.</p>
+    }
+    else
+    {
+        <div class="report-selector-grid" role="group" aria-label="Seleccionar área de reporte">
+            @foreach (OpcionReporte opcion in OpcionesDisponibles)
+            {
+                <button type="button" class="report-selector @(tipoSeleccionado == opcion.Codigo ? "is-selected" : "")"
+                        aria-pressed="@(tipoSeleccionado == opcion.Codigo)" disabled="@procesando"
+                        @onclick="() => SeleccionarReporte(opcion.Codigo)">
+                    <i class="fa-solid @(opcion.Codigo switch { "propietarios" => "fa-users", "terrenos" => "fa-seedling", "asignaciones" => "fa-user-check", _ => "fa-map-location-dot" })"></i>
+                    <span>@opcion.Nombre</span>
+                </button>
+            }
+        </div>
+
+        <div class="report-advanced-filters">
+            <div class="form-group">
+                <label for="reporte-buscar">Buscar en registros</label>
+                <input id="reporte-buscar" class="form-control" placeholder="Nombre, código o ubicación" @bind="busqueda" @bind:event="oninput" />
+            </div>
+            <div class="form-group">
+                <label for="reporte-desde">Fecha inicial</label>
+                <input id="reporte-desde" class="form-control" type="date" @bind="fechaDesde" @bind:format="yyyy-MM-dd" />
+            </div>
+            <div class="form-group">
+                <label for="reporte-hasta">Fecha final</label>
+                <input id="reporte-hasta" class="form-control" type="date" @bind="fechaHasta" @bind:format="yyyy-MM-dd" />
+            </div>
+            @if (tipoSeleccionado == "terrenos")
+            {
+                <div class="form-group">
+                    <label for="reporte-departamento">Departamento</label>
+                    <select id="reporte-departamento" class="form-control" @bind="departamentoSeleccionado">
+                        <option value="">Todos</option>
+                        @foreach (DepartamentoAccesoCatalogo dep in departamentos.OrderBy(x => x.Nombre))
+                        {
+                            <option value="@dep.DepartamentoId">@dep.Nombre</option>
+                        }
+                    </select>
+                </div>
+            }
+            @if (tipoSeleccionado == "propietarios")
+            {
+                <div class="form-group report-check-filter">
+                    <label for="reporte-inactivos">Registros</label>
+                    <label class="report-checkbox" for="reporte-inactivos">
+                        <input id="reporte-inactivos" type="checkbox" @bind="incluirInactivos" />
+                        Incluir propietarios inactivos
+                    </label>
+                </div>
+            }
+        </div>
+        <div class="report-advanced-actions">
+            <button type="button" class="btn-primary" disabled="@procesando" @onclick="ConsultarAsync">
+                <i class="fa-solid @(procesando ? "fa-spinner fa-spin" : "fa-chart-pie")"></i>
+                @(procesando ? "Preparando informe..." : "Generar informe")
+            </button>
+            <button type="button" class="btn-secondary" disabled="@(procesando || filas.Count == 0 || !Vigente)" @onclick="ExportarExcelAsync">
+                <i class="fa-solid fa-file-excel"></i>
+                Descargar Excel completo
+            </button>
+            <button type="button" class="btn-secondary" disabled="@(procesando || !Vigente)" @onclick="ImprimirResumenAsync">
+                <i class="fa-solid fa-print"></i>
+                Imprimir resumen / PDF
+            </button>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-error"><i class="fa-solid fa-circle-exclamation"></i> @error</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <div class="alert alert-success-custom"><i class="fa-solid fa-circle-check"></i> @mensaje</div>
+        }
+        @if (consultado && !Vigente)
+        {
+            <p class="report-advanced-note report-change-note">Modificaste los filtros. Pulsa «Generar informe» para actualizar las cifras y habilitar la descarga.</p>
+        }
+        @if (Vigente && analisis is not null)
+        {
+            <div class="reportes-imprimible">
+                <header class="report-result-head">
+                    <div>
+                        <span class="report-overline">CONATRADEC · Informe de gestión</span>
+                        <h3>@nombreConsultado</h3>
+                        <p>Período: @(fechaDesde?.ToString("dd/MM/yyyy") ?? "Inicio") — @(fechaHasta?.ToString("dd/MM/yyyy") ?? "Actualidad")</p>
+                    </div>
+                    <div class="report-result-count"><strong>@filas.Count.ToString("N0")</strong><span>registros filtrados</span></div>
+                </header>
+                @if (filas.Count == 0)
+                {
+                    <div class="report-empty"><i class="fa-solid fa-magnifying-glass"></i> No se encontraron registros con los filtros indicados.</div>
+                }
+                else
+                {
+                    <div class="report-kpi-grid">
+                        @foreach (ReportesAnaliticaService.Indicador indicador in analisis.Indicadores)
+                        {
+                            <article class="report-kpi">
+                                <span>@indicador.Etiqueta</span>
+                                <strong>@indicador.Valor</strong>
+                                <small>@indicador.Aclaracion</small>
+                            </article>
+                        }
+                    </div>
+                    <div class="report-insight">
+                        <i class="fa-solid fa-lightbulb"></i>
+                        <div><strong>Lectura del informe</strong><p>@analisis.Hallazgo</p></div>
+                    </div>
+                    <div class="report-viz-grid">
+                        <article class="report-viz-card">
+                            <h4>@analisis.TituloPrimario</h4>
+                            @foreach (ReportesAnaliticaService.Categoria categoria in analisis.Primario)
+                            {
+                                <div class="report-bar-row">
+                                    <div class="report-bar-label"><span title="@categoria.Etiqueta">@categoria.Etiqueta</span><b>@categoria.Cantidad.ToString("N0") · @categoria.Porcentaje.ToString("N1")%</b></div>
+                                    <div class="report-bar-track"><div class="report-bar-fill" style="@AnchoCategoria(categoria.Porcentaje)"></div></div>
+                                </div>
+                            }
+                        </article>
+                        <article class="report-viz-card">
+                            <h4>@analisis.TituloSecundario</h4>
+                            @foreach (ReportesAnaliticaService.Categoria categoria in analisis.Secundario)
+                            {
+                                <div class="report-bar-row">
+                                    <div class="report-bar-label"><span title="@categoria.Etiqueta">@categoria.Etiqueta</span><b>@categoria.Cantidad.ToString("N0") · @categoria.Porcentaje.ToString("N1")%</b></div>
+                                    <div class="report-bar-track secondary"><div class="report-bar-fill" style="@AnchoCategoria(categoria.Porcentaje)"></div></div>
+                                </div>
+                            }
+                        </article>
+                    </div>
+                    @if (analisis.Evolucion.Count > 0)
+                    {
+                        <article class="report-viz-card report-timeline">
+                            <div class="report-timeline-heading"><h4>Registros por mes</h4><span>Últimos seis meses hasta la fecha del registro más reciente</span></div>
+                            <div class="report-timeline-grid">
+                                @foreach (ReportesAnaliticaService.Mes mes in analisis.Evolucion)
+                                {
+                                    <div class="report-timeline-bar">
+                                        <span>@mes.Cantidad</span>
+                                        <div class="report-timeline-column"><div style="@AlturaMes(mes.Cantidad)"></div></div>
+                                        <small>@mes.Etiqueta</small>
+                                    </div>
+                                }
+                            </div>
+                        </article>
+                    }
+                    <p class="report-advanced-note report-metric-note">@analisis.Nota Los porcentajes y totales se calculan sobre los registros incluidos en este informe.</p>
+                }
+                <footer class="report-print-footer">CONATRADEC · Generado el @DateTime.Now.ToString("dd/MM/yyyy HH:mm") · Fuente: registros autorizados de la plataforma</footer>
+            </div>
+            @if (filas.Count > 0)
+            {
+                <div class="report-detail-panel">
+                    <div class="report-table-title"><div><h4>Detalle de registros</h4><p>Consulta en pantalla; el Excel contiene el detalle completo.</p></div><span>@paginaVista de @TotalPaginasVista</span></div>
+                    <div class="report-advanced-table-scroll">
+                        <table class="report-advanced-table">
+                            <thead><tr>@foreach (string encabezado in encabezados) { <th scope="col">@encabezado</th> }</tr></thead>
+                            <tbody>
+                                @foreach (ReportesAnaliticaService.Registro fila in FilasVista)
+                                {
+                                    <tr>@foreach (string valor in fila.Columnas) { <td>@valor</td> }</tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="report-pagination">
+                        <span>Mostrando @((paginaVista - 1) * FilasPorPagina + 1)–@Math.Min(paginaVista * FilasPorPagina, filas.Count) de @filas.Count.ToString("N0")</span>
+                        <div>
+                            <button type="button" class="btn-secondary" disabled="@(paginaVista <= 1)" @onclick="() => MoverPagina(paginaVista - 1)">Anterior</button>
+                            <button type="button" class="btn-secondary" disabled="@(paginaVista >= TotalPaginasVista)" @onclick="() => MoverPagina(paginaVista + 1)">Siguiente</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</section>
+
+@code {
+    private static string AnchoCategoria(decimal porcentaje) =>
+        $"width: {Math.Clamp(porcentaje, 0m, 100m).ToString("0.##", CultureInfo.InvariantCulture)}%;";
+
+    private string AlturaMes(int cantidad)
+    {
+        int maximo = analisis?.Evolucion.Max(x => x.Cantidad) ?? 0;
+        decimal altura = maximo == 0 || cantidad == 0 ? 0 : Math.Max(6m, 100m * cantidad / maximo);
+        return $"height: {altura.ToString("0.##", CultureInfo.InvariantCulture)}%;";
+    }
+
+    private const int MaximoRegistros = 20000;
+    private const int TamanoPagina = 100;
+    private static readonly OpcionReporte[] Opciones =
+    [
+        new("propietarios", "Propietarios", PermisosWeb.Propietarios),
+        new("terrenos", "Terrenos", "terrenoPage"),
+        new("asignaciones", "Asignaciones a terrenos", PermisosWeb.AsignacionTerreno),
+        new("coberturas", "Cobertura territorial", PermisosWeb.CoberturaTerritorial)
+    ];
+
+    private List<DepartamentoAccesoCatalogo> departamentos = [];
+    private List<ReportesAnaliticaService.Registro> filas = [];
+    private ReportesAnaliticaService.Analisis? analisis;
+    private bool incluirInactivos;
+    private int paginaVista = 1;
+    private const int FilasPorPagina = 15;
+    private string[] encabezados = [];
+    private string tipoSeleccionado = "";
+    private string busqueda = "";
+    private string departamentoSeleccionado = "";
+    private DateTime? fechaDesde;
+    private DateTime? fechaHasta;
+    private string? filtrosConsultados;
+    private string nombreConsultado = "";
+    private string? error;
+    private string? mensaje;
+    private bool procesando;
+    private bool consultado;
+
+    private IReadOnlyList<OpcionReporte> OpcionesDisponibles =>
+        Opciones.Where(x => PuedeConsultar(x)).ToArray();
+
+    private bool PuedeConsultar(OpcionReporte opcion) =>
+        AuthState.IsAuthenticated &&
+        (AuthState.EsAdministrador ||
+         AuthState.TienePermisoLectura(opcion.Permiso) ||
+         (opcion.Codigo == "terrenos" && AuthState.TienePermisoLectura("TerrenoPage")));
+
+    private string FiltrosActuales =>
+        $"{tipoSeleccionado}|{busqueda.Trim()}|{fechaDesde:yyyy-MM-dd}|{fechaHasta:yyyy-MM-dd}|{(tipoSeleccionado == "terrenos" ? departamentoSeleccionado : "")}|{incluirInactivos}";
+
+    private bool Vigente => consultado && filtrosConsultados == FiltrosActuales;
+    private int TotalPaginasVista => Math.Max(1, (int)Math.Ceiling(filas.Count / (double)FilasPorPagina));
+    private IEnumerable<ReportesAnaliticaService.Registro> FilasVista =>
+        filas.Skip((paginaVista - 1) * FilasPorPagina).Take(FilasPorPagina);
+
+    private void SeleccionarReporte(string codigo)
+    {
+        if (tipoSeleccionado == codigo) return;
+        tipoSeleccionado = codigo;
+        consultado = false;
+        analisis = null;
+        filas = [];
+        paginaVista = 1;
+        filtrosConsultados = null;
+        error = null;
+        mensaje = null;
+    }
+
+    private void MoverPagina(int numero) => paginaVista = Math.Clamp(numero, 1, TotalPaginasVista);
+
+    protected override async Task OnInitializedAsync()
+    {
+        tipoSeleccionado = OpcionesDisponibles.FirstOrDefault()?.Codigo ?? "";
+        if (OpcionesDisponibles.Any(x => x.Codigo == "terrenos"))
+        {
+            try
+            {
+                departamentos = await Acceso.ListarDepartamentosAsync() ?? [];
+            }
+            catch (Exception)
+            {
+                // La consulta por texto y los reportes continúan disponibles.
+                departamentos = [];
+            }
+        }
+    }
+
+    private async Task ConsultarAsync()
+    {
+        if (procesando)
+            return;
+        OpcionReporte? opcion = OpcionesDisponibles.FirstOrDefault(x => x.Codigo == tipoSeleccionado);
+        if (opcion is null)
+        {
+            error = "No tienes permiso para consultar el reporte seleccionado.";
+            return;
+        }
+        if (fechaDesde.HasValue && fechaHasta.HasValue && fechaDesde.Value.Date > fechaHasta.Value.Date)
+        {
+            error = "La fecha inicial no puede ser posterior a la fecha final.";
+            return;
+        }
+
+        procesando = true;
+        consultado = false;
+        error = null;
+        mensaje = null;
+        filtrosConsultados = null;
+        filas = [];
+        analisis = null;
+        paginaVista = 1;
+        try
+        {
+            List<ReportesAnaliticaService.Registro> resultado = tipoSeleccionado switch
+            {
+                "propietarios" => await ObtenerPropietariosAsync(),
+                "terrenos" => await ObtenerTerrenosAsync(),
+                "asignaciones" => await ObtenerAsignacionesAsync(),
+                "coberturas" => await ObtenerCoberturasAsync(),
+                _ => throw new InvalidOperationException("Reporte no disponible.")
+            };
+            encabezados = Encabezados(tipoSeleccionado);
+            string filtro = busqueda.Trim();
+            filas = resultado.Where(fila =>
+                (!fechaDesde.HasValue || (fila.Fecha.HasValue && fila.Fecha.Value.Date >= fechaDesde.Value.Date)) &&
+                (!fechaHasta.HasValue || (fila.Fecha.HasValue && fila.Fecha.Value.Date <= fechaHasta.Value.Date)) &&
+                (filtro.Length == 0 || fila.Columnas.Any(x => x.Contains(filtro, StringComparison.OrdinalIgnoreCase))))
+                .ToList();
+            nombreConsultado = opcion.Nombre;
+            analisis = ReportesAnaliticaService.Crear(tipoSeleccionado, filas);
+            filtrosConsultados = FiltrosActuales;
+            consultado = true;
+        }
+        catch (Exception ex)
+        {
+            error = ex is UnauthorizedAccessException
+                ? "No tienes autorización para consultar esta información. Verifica los permisos de tu cuenta."
+                : ex is InvalidOperationException ? ex.Message
+                : "No fue posible obtener el reporte. Intenta nuevamente.";
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task<List<ReportesAnaliticaService.Registro>> ObtenerPropietariosAsync()
+    {
+        var registros = new List<ReportesAnaliticaService.Registro>();
+        for (int numero = 1; ; numero++)
+        {
+            ResultadoPaginado<PropietarioAccesoItem> pagina =
+                await Acceso.ListarPropietariosPaginadoAsync(numero, TamanoPagina, incluirInactivos: incluirInactivos);
+            ValidarCantidad(pagina.TotalRegistros);
+            foreach (PropietarioAccesoItem item in pagina.Items)
+            {
+                registros.Add(new([
+                    item.NombreCompleto, item.Identificacion, item.Telefono ?? "",
+                    item.Correo ?? "", item.TotalTerrenos.ToString(CultureInfo.InvariantCulture),
+                    item.FechaRegistroUtc.ToString("dd/MM/yyyy"), item.Activo ? "Activo" : "Inactivo"
+                ], item.FechaRegistroUtc));
+            }
+            ValidarCantidad(registros.Count);
+            if (pagina.Items.Count == 0 || numero >= pagina.TotalPaginas)
+                break;
+        }
+        return registros;
+    }
+
+    private async Task<List<ReportesAnaliticaService.Registro>> ObtenerTerrenosAsync()
+    {
+        var registros = new List<ReportesAnaliticaService.Registro>();
+        string departamento = int.TryParse(departamentoSeleccionado, out int id)
+            ? $"&departamentoId={id}" : "";
+        for (int numero = 1; ; numero++)
+        {
+            string ruta = $"api/terreno/buscar?page={numero}&pageSize={TamanoPagina}" +
+                          "&ordenarPor=codigo&descendente=false" + departamento;
+            TerrenoAdminPagina pagina = await Api.GetAsync<TerrenoAdminPagina>(ruta) ?? new();
+            ValidarCantidad(pagina.Total);
+            foreach (TerrenoAdminItem item in pagina.Data)
+            {
+                DateTime? fecha = ConvertirFecha(item.FechaIngresoTerreno);
+                registros.Add(new([
+                    item.CodigoTerreno, item.PropietarioNombre, item.UbicacionTexto,
+                    item.DireccionTerreno,
+                    item.ExtensionManzanaTerreno.ToString("N2", CultureInfo.GetCultureInfo("es-NI")),
+                    item.CantidadPlantasTerreno.ToString(CultureInfo.InvariantCulture),
+                    fecha?.ToString("dd/MM/yyyy") ?? ""
+                ], fecha));
+            }
+            ValidarCantidad(registros.Count);
+            if (pagina.Data.Count == 0 || numero >= pagina.TotalPages)
+                break;
+        }
+        return registros;
+    }
+
+    private async Task<List<ReportesAnaliticaService.Registro>> ObtenerAsignacionesAsync()
+    {
+        List<AsignacionTerrenoItem> resultado = await Acceso.ListarAsignacionesAsync() ?? [];
+        ValidarCantidad(resultado.Count);
+        return resultado.Select(item => new ReportesAnaliticaService.Registro([
+            item.NombreCompletoUsuario, item.CodigoTerreno, item.Propietario,
+            item.TipoAsignacion, item.EsResponsablePrincipal ? "Sí" : "No",
+            item.FechaInicioUtc.ToString("dd/MM/yyyy")
+        ], item.FechaInicioUtc)).ToList();
+    }
+
+    private async Task<List<ReportesAnaliticaService.Registro>> ObtenerCoberturasAsync()
+    {
+        List<CoberturaTerritorialItem> resultado = await Acceso.ListarCoberturasAsync() ?? [];
+        ValidarCantidad(resultado.Count);
+        return resultado.Select(item => new ReportesAnaliticaService.Registro([
+            item.NombreCompletoUsuario, item.TipoCobertura,
+            item.Departamento ?? "", item.Municipio ?? "",
+            item.FechaInicioUtc.ToString("dd/MM/yyyy")
+        ], item.FechaInicioUtc)).ToList();
+    }
+
+    private static DateTime? ConvertirFecha(object? valor) => valor switch
+    {
+        DateTime fecha => fecha,
+        DateOnly fecha => fecha.ToDateTime(TimeOnly.MinValue),
+        DateTimeOffset fecha => fecha.DateTime,
+        _ => DateTime.TryParse(valor?.ToString(), out DateTime fechaParseada) ? fechaParseada : null
+    };
+
+    private static string[] Encabezados(string tipo) => tipo switch
+    {
+        "propietarios" => ["Propietario", "Identificación", "Teléfono", "Correo", "Terrenos", "Fecha de registro", "Estado"],
+        "terrenos" => ["Código", "Propietario", "Ubicación", "Dirección", "Extensión (mz)", "Plantas", "Fecha de ingreso"],
+        "asignaciones" => ["Usuario", "Terreno", "Propietario", "Tipo", "Responsable principal", "Fecha de inicio"],
+        "coberturas" => ["Usuario", "Tipo de cobertura", "Departamento", "Municipio", "Fecha de inicio"],
+        _ => []
+    };
+
+    private static void ValidarCantidad(int cantidad)
+    {
+        if (cantidad > MaximoRegistros)
+            throw new InvalidOperationException("El reporte supera los 20,000 registros. Reduce los datos de origen o solicita una exportación administrada; no se generarán archivos incompletos.");
+    }
+
+    private async Task ExportarExcelAsync()
+    {
+        if (procesando || filas.Count == 0 || !Vigente || analisis is null ||
+            !OpcionesDisponibles.Any(x => x.Codigo == tipoSeleccionado))
+            return;
+        procesando = true;
+        error = null;
+        mensaje = null;
+        try
+        {
+            string periodo = fechaDesde.HasValue || fechaHasta.HasValue
+                ? $"Desde: {fechaDesde:dd/MM/yyyy} | Hasta: {fechaHasta:dd/MM/yyyy}"
+                : "Período: todos los registros disponibles";
+            string filtros = $"{periodo} | Búsqueda: {(string.IsNullOrWhiteSpace(busqueda) ? "Todas" : busqueda.Trim())}";
+            if (tipoSeleccionado == "terrenos" && !string.IsNullOrWhiteSpace(departamentoSeleccionado))
+                filtros += $" | Departamento (ID): {departamentoSeleccionado}";
+            if (tipoSeleccionado == "propietarios")
+                filtros += incluirInactivos ? " | Incluye inactivos" : " | Solo activos";
+            var numeros = tipoSeleccionado switch
+            {
+                "propietarios" => new HashSet<int> { 4 },
+                "terrenos" => new HashSet<int> { 4, 5 },
+                _ => new HashSet<int>()
+            };
+            byte[] archivo = ReportesExcelService.GenerarEjecutivo(nombreConsultado,
+                filtros, analisis.Indicadores.Select(x => (x.Etiqueta, x.Valor)).ToList(),
+                analisis.TituloPrimario,
+                analisis.Primario.Select(x => (x.Etiqueta, x.Cantidad)).ToList(),
+                analisis.TituloSecundario,
+                analisis.Secundario.Select(x => (x.Etiqueta, x.Cantidad)).ToList(),
+                analisis.Evolucion.Select(x => (x.Etiqueta, x.Cantidad)).ToList(),
+                encabezados, filas.Select(x => x.Columnas).ToList(), numeros);
+            string nombre = $"CONATRADEC_{tipoSeleccionado}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            await JS.InvokeVoidAsync("conatradecFiles.downloadFromBase64", nombre,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                Convert.ToBase64String(archivo));
+            mensaje = $"Se descargó el informe de {filas.Count:N0} registros con resumen, distribuciones y detalle.";
+        }
+        catch (Exception)
+        {
+            error = "No fue posible generar el archivo Excel. Intenta nuevamente.";
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task ImprimirResumenAsync()
+    {
+        if (!Vigente || analisis is null || !OpcionesDisponibles.Any(x => x.Codigo == tipoSeleccionado))
+            return;
+        await JS.InvokeVoidAsync("print");
+    }
+
+    private sealed record OpcionReporte(string Codigo, string Nombre, string Permiso);
+}

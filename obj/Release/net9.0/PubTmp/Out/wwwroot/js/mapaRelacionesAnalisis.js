@@ -897,7 +897,7 @@ window.conatradecMapaRelacionesAnalisis =
                 case "INFORMACION":
                     return "Informativo";
                 case "OFFLINE":
-                    return "Sincronización offline";
+                    return "Registro sin conexión";
                 case "ADVERTENCIA":
                     return "Requiere revisión";
                 case "INACTIVO":

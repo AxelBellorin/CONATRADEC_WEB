@@ -1,0 +1,32 @@
+/* Solo para la impresión del resumen ejecutivo desde Centro de reportes.
+   Evita imprimir navegación, filtros y tablas de miles de filas. */
+@media print {
+    @page { size: A4; margin: 13mm; }
+    body * { visibility: hidden !important; }
+    .reportes-imprimible,
+    .reportes-imprimible * { visibility: visible !important; }
+    .reportes-imprimible {
+        position: absolute !important;
+        top: 0 !important; left: 0 !important;
+        width: 100% !important;
+        margin: 0 !important; padding: 0 !important;
+        color: #1c3340 !important;
+        font-family: Arial, sans-serif !important;
+    }
+    .report-result-head { color: #102f40 !important; border: 1px solid #9bb4c1 !important; background: #fff !important; }
+    .report-result-head h3 { color: #102f40 !important; }
+    .report-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+    .report-viz-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .report-viz-card, .report-kpi, .report-timeline { break-inside: avoid !important; }
+    .reportes-imprimible .report-print-footer {
+        display: block !important; margin-top: 1rem; border-top: 1px solid #bdcbd3;
+        font-size: 10px; color: #567; padding-top: .5rem;
+    }
+    .reportes-imprimible .report-bar-track,
+    .reportes-imprimible .report-timeline-column,
+    .reportes-imprimible .report-bar-fill,
+    .reportes-imprimible .report-timeline-column > div {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}

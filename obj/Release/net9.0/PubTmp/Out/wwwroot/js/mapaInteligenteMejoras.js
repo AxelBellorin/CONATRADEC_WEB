@@ -352,6 +352,10 @@ window.conatradecMapaInteligenteMejoras = (() => {
         pane,
         resaltado) {
         const base = estilo || {};
+        // Respetar el ocultamiento del territorio que la cuenta no tiene asignado.
+        if (base.conatradecFueraCobertura) {
+            return { ...base, opacity: 0, fillOpacity: 0, weight: 0 };
+        }
         const esResumen =
             pane === "geoTerritorialSummaryPane";
 
