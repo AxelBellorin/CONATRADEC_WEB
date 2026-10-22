@@ -77,7 +77,7 @@ public sealed class UsuarioService
 
         return creado ??
                throw new InvalidOperationException(
-                   "La API no devolvió el usuario creado.");
+                   "No fue posible obtener el usuario creado.");
     }
 
     public async Task<UsuarioListadoItem> ActualizarAsync(
@@ -96,7 +96,7 @@ public sealed class UsuarioService
 
         return actualizado ??
                throw new InvalidOperationException(
-                   "La API no devolvió el usuario actualizado.");
+                   "No fue posible obtener el usuario actualizado.");
     }
 
     public async Task DesactivarAsync(

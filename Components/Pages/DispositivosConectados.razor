@@ -11,8 +11,8 @@
         <p class="eyebrow">Monitoreo</p>
         <h1>Dispositivos conectados</h1>
         <p>
-            Monitorea los equipos Android, Windows y navegadores Web
-            que reportan conexión a la API.
+            Monitorea los equipos Android, Windows y navegadores web
+            que se encuentran conectados al sistema.
         </p>
     </div>
 
@@ -100,7 +100,7 @@
 
         <InputText class="form-control"
                    @bind-Value="filtro.Buscar"
-                   placeholder="Usuario, correo, dispositivo, modelo, IP o instalación" />
+                   placeholder="Usuario, correo, dispositivo, modelo, dirección o instalación" />
     </div>
 
     <div class="form-group">
@@ -211,7 +211,7 @@ else if (vistaActual == "mapa")
 
                 <p>
                     Los navegadores Web pueden estar conectados aunque no
-                    aparezcan en este mapa, porque el latido no solicita
+                    aparezcan en este mapa, porque la comprobación de conexión no solicita
                     ubicación GPS. Puedes verlos en el listado general.
                 </p>
 
@@ -266,7 +266,7 @@ else
                         <th>Plataforma</th>
                         <th>Versión</th>
                         <th>Conexión</th>
-                        <th>Último latido</th>
+                        <th>Última conexión</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -311,7 +311,7 @@ else
 
                                 <td data-label="Versión">
                                     <strong>@Texto(item.VersionApp)</strong>
-                                    <small>Build @Texto(item.BuildApp)</small>
+                                    <small>Versión interna @Texto(item.BuildApp)</small>
                                 </td>
 
                                 <td data-label="Conexión">
@@ -319,7 +319,7 @@ else
                                     <small>@Texto(item.DireccionIp)</small>
                                 </td>
 
-                                <td data-label="Último latido">
+                                <td data-label="Última conexión">
                                     <strong>@FechaLocal(item.UltimoLatidoUtc)</strong>
                                     <small>
                                         Hace @TiempoTranscurrido(
@@ -420,14 +420,14 @@ else
 
                 <DetailItem
                     Etiqueta="Versión de app"
-                    Valor="@($"{detalle.VersionApp} · Build {detalle.BuildApp}")" />
+                    Valor="@($"{detalle.VersionApp} · Versión interna {detalle.BuildApp}")" />
 
                 <DetailItem
                     Etiqueta="Tipo de conexión"
                     Valor="@detalle.TipoConexion" />
 
                 <DetailItem
-                    Etiqueta="Dirección IP"
+                    Etiqueta="Dirección de conexión"
                     Valor="@detalle.DireccionIp" />
 
                 <DetailItem
@@ -443,7 +443,7 @@ else
                     Valor="@FechaLocal(detalle.FechaInicioSesionUtc)" />
 
                 <DetailItem
-                    Etiqueta="Último latido"
+                    Etiqueta="Última conexión"
                     Valor="@FechaLocal(detalle.UltimoLatidoUtc)" />
             </div>
 

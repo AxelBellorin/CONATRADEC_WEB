@@ -22,7 +22,7 @@ public sealed class DescargasPublicasService
         new Uri(
             httpClient.BaseAddress
                 ?? throw new InvalidOperationException(
-                    "La URL base de la API no está configurada."),
+                    "El servicio de descargas no está disponible en este momento."),
             "api/actualizaciones/descargas/validar-formulario")
         .AbsoluteUri;
 
@@ -121,7 +121,7 @@ public sealed class DescargasPublicasService
     private static string ExtraerMensaje(string contenido)
     {
         if (string.IsNullOrWhiteSpace(contenido))
-            return "La API no devolvió detalles del error.";
+            return "No fue posible completar la operación.";
 
         try
         {

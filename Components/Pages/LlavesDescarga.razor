@@ -5,12 +5,12 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<PageTitle>Llaves de descarga | CONATRADEC</PageTitle>
+<PageTitle>Códigos de descarga | CONATRADEC</PageTitle>
 
 <div class="page-header keys-header">
     <div>
         <p class="eyebrow">Distribución controlada</p>
-        <h1>Llaves de descarga</h1>
+        <h1>Códigos de descarga</h1>
         <p>
             Genere accesos temporales para instalaciones nuevas y revise cada
             validación realizada desde el portal público.
@@ -55,7 +55,7 @@
         </div>
         <div class="generated-key-content">
             <p class="eyebrow">Mostrar una sola vez</p>
-            <h2>Copie esta llave ahora</h2>
+            <h2>Copie este código ahora</h2>
             <div class="generated-key-row">
                 <code>@llaveCreada.Llave</code>
                 <button class="btn-primary" @onclick="CopiarLlaveAsync">
@@ -106,15 +106,14 @@
         <div class="section-heading">
             <div>
                 <p class="eyebrow">Nuevo acceso</p>
-                <h2>Generar llave</h2>
+                <h2>Generar código</h2>
                 <p>
-                    La llave completa no se guarda en la base de datos y solo
-                    aparecerá una vez después de generarla.
+                    El código completo solo aparecerá una vez después de generarlo.
                 </p>
             </div>
             <span class="security-pill">
                 <i class="fa-solid fa-shield-halved"></i>
-                SHA-256 y aleatoriedad segura
+                Código de acceso protegido
             </span>
         </div>
 
@@ -192,7 +191,7 @@
                         class="btn-primary"
                         disabled="@ocupado">
                     <i class="fa-solid fa-key"></i>
-                    @(generando ? "Generando..." : "Generar llave")
+                    @(generando ? "Generando..." : "Generar código")
                 </button>
                 <button type="button"
                         class="btn-secondary"
@@ -251,7 +250,7 @@
     <div class="section-heading compact">
         <div>
             <p class="eyebrow">Control de accesos</p>
-            <h2>Llaves generadas</h2>
+            <h2>Códigos generados</h2>
         </div>
         <span>@llaves.Count registro(s)</span>
     </div>
@@ -260,14 +259,14 @@
     {
         <div class="empty-state">
             <i class="fa-solid fa-spinner fa-spin"></i>
-            <p>Cargando llaves...</p>
+            <p>Cargando códigos...</p>
         </div>
     }
     else if (llaves.Count == 0)
     {
         <div class="empty-state">
             <i class="fa-solid fa-key"></i>
-            <p>No existen llaves con los filtros seleccionados.</p>
+            <p>No existen códigos con los filtros seleccionados.</p>
         </div>
     }
     else
@@ -276,7 +275,7 @@
             <table class="keys-table">
                 <thead>
                     <tr>
-                        <th>Llave</th>
+                        <th>Código</th>
                         <th>Destino</th>
                         <th>Responsable</th>
                         <th>Uso</th>
@@ -332,7 +331,7 @@
                                 else if (PuedeActualizar && llave.Estado == "BLOQUEADA")
                                 {
                                     <button class="btn-secondary"
-                                            title="Reactivar llave"
+                                            title="Reactivar código"
                                             @onclick="() => ReactivarAsync(llave)"
                                             disabled="@ocupado">
                                         <i class="fa-solid fa-lock-open"></i>
@@ -391,10 +390,10 @@
                     <p>@evento.Detalle</p>
                     <dl>
                         <div><dt>Destinatario</dt><dd>@Valor(evento.Destinatario)</dd></div>
-                        <div><dt>IP</dt><dd>@Valor(evento.IpCliente)</dd></div>
+                        <div><dt>Dirección de conexión</dt><dd>@Valor(evento.IpCliente)</dd></div>
                         <div><dt>Dispositivo</dt><dd>@evento.TipoDispositivo / @evento.SistemaOperativo</dd></div>
                         <div><dt>Navegador</dt><dd>@Valor(evento.Navegador)</dd></div>
-                        <div><dt>ID web</dt><dd class="mono">@Valor(evento.IdentificadorDispositivoWeb)</dd></div>
+                        <div><dt>Código del navegador</dt><dd class="mono">@Valor(evento.IdentificadorDispositivoWeb)</dd></div>
                     </dl>
                 </article>
             }
@@ -528,9 +527,9 @@
                 solicitud);
 
             if (llaveCreada == null)
-                throw new InvalidOperationException("La API no devolvió la llave generada.");
+                throw new InvalidOperationException("No fue posible obtener el código de descarga generado.");
 
-            mensajeExito = "La llave se generó correctamente.";
+            mensajeExito = "El código se generó correctamente.";
             LimpiarFormulario(conservarMensaje: true);
 
             await Task.WhenAll(
@@ -581,7 +580,7 @@
     {
         bool confirmar = await JS.InvokeAsync<bool>(
             "confirm",
-            $"¿Bloquear temporalmente la llave {llave.LlaveEnmascarada}?");
+            $"¿Bloquear temporalmente el código {llave.LlaveEnmascarada}?");
 
         if (!confirmar)
             return;
@@ -590,14 +589,14 @@
             () => ObtenerServicio().BloquearAsync(
                 UsuarioId,
                 llave.ActualizacionLlaveDescargaId),
-            "La llave fue bloqueada temporalmente.");
+            "El código fue bloqueado temporalmente.");
     }
 
     private async Task ReactivarAsync(LlaveDescargaWebItem llave)
     {
         bool confirmar = await JS.InvokeAsync<bool>(
             "confirm",
-            $"¿Reactivar la llave {llave.LlaveEnmascarada}?");
+            $"¿Reactivar el código {llave.LlaveEnmascarada}?");
 
         if (!confirmar)
             return;
@@ -606,7 +605,7 @@
             () => ObtenerServicio().ReactivarAsync(
                 UsuarioId,
                 llave.ActualizacionLlaveDescargaId),
-            "La llave fue reactivada correctamente.");
+            "El código fue reactivado correctamente.");
     }
 
     private async Task CambiarEstadoLlaveAsync(
@@ -636,7 +635,7 @@
     {
         bool confirmar = await JS.InvokeAsync<bool>(
             "confirm",
-            $"¿Revocar la llave {llave.LlaveEnmascarada} de {llave.Destinatario}?");
+            $"¿Revocar el código {llave.LlaveEnmascarada} de {llave.Destinatario}?");
 
         if (!confirmar)
             return;
@@ -650,7 +649,7 @@
                 UsuarioId,
                 llave.ActualizacionLlaveDescargaId);
 
-            mensajeExito = "La llave fue revocada correctamente.";
+            mensajeExito = "El código fue revocado correctamente.";
             await CargarLlavesInternoAsync();
         }
         catch (Exception ex)
@@ -674,12 +673,12 @@
                 "navigator.clipboard.writeText",
                 llaveCreada.Llave);
 
-            mensajeExito = "La llave fue copiada al portapapeles.";
+            mensajeExito = "El código fue copiado al portapapeles.";
         }
         catch
         {
             mensajeError =
-                "No fue posible copiarla automáticamente. Seleccione la llave y cópiela manualmente.";
+                "No fue posible copiarla automáticamente. Seleccione el código y cópielo manualmente.";
         }
     }
 
@@ -715,7 +714,7 @@
 
     private LlavesDescargaService ObtenerServicio() =>
         servicio ?? throw new InvalidOperationException(
-            "El servicio de llaves no fue inicializado.");
+            "El servicio de códigos de descarga no está disponible.");
 
     private static DateTime ConvertirManaguaAUtc(DateTime fechaLocal)
     {
@@ -785,14 +784,14 @@
     private static string TextoResultado(string resultado) =>
         resultado switch
         {
-            "AUTORIZADA" => "Autorizada por llave",
+            "AUTORIZADA" => "Autorizada por código",
             "AUTORIZADA_APLICACION" => "Autorizada por la aplicación",
             "DESCARGA_INICIADA" => "Descarga iniciada",
-            "RECHAZADA_LLAVE" => "Llave incorrecta",
-            "RECHAZADA_ESTADO" => "Llave no disponible",
+            "RECHAZADA_LLAVE" => "Código incorrecto",
+            "RECHAZADA_ESTADO" => "Código no disponible",
             "RECHAZADA_FORMATO" => "Formato inválido",
             "RECHAZADA_SIN_VERSION" => "Sin versión",
-            "RECHAZADA_BLOQUEO_IP" => "IP bloqueada",
+            "RECHAZADA_BLOQUEO_IP" => "Acceso bloqueado",
             _ => resultado
         };
 

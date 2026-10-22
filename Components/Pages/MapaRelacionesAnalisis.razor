@@ -80,7 +80,7 @@ else if (detalle is not null &&
             <strong>
                 @(detalle.ProcedenciaOffline is null
                     ? "En línea"
-                    : "Sincronizado offline")
+                    : "Registrado sin conexión")
             </strong>
         </div>
 
@@ -149,7 +149,7 @@ else if (detalle is not null &&
             <footer class="relationship-map-legend">
                 <span><i class="correct"></i> Correcto</span>
                 <span><i class="information"></i> Información</span>
-                <span><i class="offline"></i> Sincronización offline</span>
+                <span><i class="offline"></i> Registro sin conexión</span>
                 <span><i class="neutral"></i> Sin registro opcional</span>
                 <span><i class="warning"></i> Requiere revisión</span>
                 <span><i class="inactive"></i> Inactivo</span>
@@ -290,7 +290,7 @@ else if (detalle is not null &&
             detalle =
                 await tareaExpediente ??
                 throw new InvalidOperationException(
-                    "La API no devolvió el expediente del análisis.");
+                    "No fue posible obtener el expediente del análisis.");
 
             AuditoriaApiRespuesta<
                 MapaRelacionesDetalleTecnico>?
@@ -301,7 +301,7 @@ else if (detalle is not null &&
                 respuestaTecnica?.Data ??
                 throw new InvalidOperationException(
                     respuestaTecnica?.Message ??
-                    "La API no devolvió las relaciones internas.");
+                    "No fue posible obtener la información relacionada.");
 
             payload =
                 ConstruirPayload(
@@ -411,7 +411,7 @@ else if (detalle is not null &&
                 ["Técnico"] =
                     Valor(
                         expediente.Resumen.UsuarioNombre),
-                ["Usuario ID"] =
+                ["Código de usuario"] =
                     expediente.Resumen.UsuarioId
                         ?.ToString() ??
                     "Sin dato"
@@ -427,7 +427,7 @@ else if (detalle is not null &&
             estadoGeneral,
             new()
             {
-                ["Identificador"] =
+                ["Código de análisis"] =
                     expediente.Resumen.Identificador,
                 ["Laboratorio"] =
                     Valor(
@@ -710,7 +710,7 @@ else if (detalle is not null &&
                 "origen",
                 "SINCRONIZACION",
                 "TRAZABILIDAD",
-                "Sincronización offline",
+                "Registro sin conexión",
                 Valor(
                     offline.Estado,
                     "Operación registrada"),
@@ -723,19 +723,19 @@ else if (detalle is not null &&
                     ["Estado"] =
                         Valor(
                             offline.Estado),
-                    ["Versión del motor"] =
+                    ["Versión del cálculo"] =
                         Valor(
                             offline.VersionMotor),
                     ["Calculado localmente"] =
                         FechaLocal(
                             offline.FechaCalculoLocalUtc),
-                    ["Recibido por servidor"] =
+                    ["Recibido por el sistema"] =
                         FechaLocal(
                             offline.FechaRecepcionUtc),
                     ["Completado"] =
                         FechaLocal(
                             offline.FechaCompletadoUtc),
-                    ["Hash"] =
+                    ["Código de verificación"] =
                         Valor(
                             offline.HashPaquete)
                 });

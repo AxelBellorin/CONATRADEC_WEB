@@ -100,7 +100,7 @@
                     <input class="form-control"
                            value="@UrlInstalacionAndroid"
                            readonly
-                           aria-label="URL pública de Android" />
+                           aria-label="Enlace público de Android" />
                     <button type="button"
                             class="btn-secondary"
                             title="Copiar enlace de Android"
@@ -130,7 +130,7 @@
                     <input class="form-control"
                            value="@UrlInstalacionWindows"
                            readonly
-                           aria-label="URL pública de Windows" />
+                           aria-label="Enlace público de Windows" />
                     <button type="button"
                             class="btn-secondary"
                             title="Copiar enlace de Windows"
@@ -175,7 +175,7 @@
 
             <span class="update-security-note">
                 <i class="fa-solid fa-shield-halved"></i>
-                Se calcula SHA-256 automáticamente
+                El archivo se verifica automáticamente
             </span>
         </div>
 
@@ -293,10 +293,10 @@
                     <span>
                         Última registrada:
                         <strong>@sugerencia.UltimaVersionNombre</strong>
-                        (build @sugerencia.UltimaVersionCodigo).
+                        (versión interna @sugerencia.UltimaVersionCodigo).
                         Sugerida:
                         <strong>@sugerencia.SiguienteVersionNombre</strong>
-                        (build @sugerencia.SiguienteVersionCodigo).
+                        (versión interna @sugerencia.SiguienteVersionCodigo).
                     </span>
                     <button type="button"
                             class="btn-link"
@@ -440,7 +440,7 @@ else
                         <p>
                             @TextoPlataforma(version.Plataforma) ·
                             @TextoCanal(version.Canal) ·
-                            build @version.VersionCodigo
+                            versión interna @version.VersionCodigo
                         </p>
                     </div>
                 </div>
@@ -457,7 +457,7 @@ else
                     @if (version.VersionMinimaCodigo.HasValue)
                     {
                         <span class="flag">
-                            Mínima: build @version.VersionMinimaCodigo
+                            Mínima: versión interna @version.VersionMinimaCodigo
                         </span>
                     }
 
@@ -487,12 +487,6 @@ else
                             @(version.FechaPublicacionUtc.HasValue
                                 ? FormatearFecha(version.FechaPublicacionUtc.Value)
                                 : "Pendiente")
-                        </dd>
-                    </div>
-                    <div class="hash-row">
-                        <dt>SHA-256</dt>
-                        <dd title="@version.HashSha256">
-                            @AcortarHash(version.HashSha256)
                         </dd>
                     </div>
                 </dl>

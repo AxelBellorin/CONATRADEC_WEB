@@ -165,7 +165,7 @@ public sealed class AuthStateService : IAsyncDisposable
             if (usuario is null)
             {
                 return ResultadoOperacion.Fallido(
-                    "La API no devolvió los datos del usuario.");
+                    "No fue posible obtener los datos del usuario.");
             }
 
             if (!usuario.Activo)
@@ -178,8 +178,8 @@ public sealed class AuthStateService : IAsyncDisposable
                 usuario.VersionSesion <= 0)
             {
                 return ResultadoOperacion.Fallido(
-                    "La API no devolvió una sesión válida. " +
-                    "Verifique que el backend actualizado esté publicado.");
+                    "No fue posible iniciar la sesión. " +
+                    "Intenta nuevamente o contacta al administrador.");
             }
 
             if (string.IsNullOrWhiteSpace(usuario.Token) ||
@@ -187,8 +187,8 @@ public sealed class AuthStateService : IAsyncDisposable
                 usuario.ExpiraTokenUtc.Value <= DateTime.UtcNow)
             {
                 return ResultadoOperacion.Fallido(
-                    "La API no devolvió un token de seguridad vigente. " +
-                    "Publique primero el backend actualizado.");
+                    "No fue posible validar la sesión. " +
+                    "Intenta nuevamente o contacta al administrador.");
             }
 
             usuario.MinutosInactividad = Math.Clamp(
@@ -253,7 +253,7 @@ public sealed class AuthStateService : IAsyncDisposable
         catch (TaskCanceledException)
         {
             return ResultadoOperacion.Fallido(
-                "La API tardó demasiado en responder.");
+                "La operación tardó más de lo esperado. Verifica tu conexión e intenta nuevamente.");
         }
         catch (Exception ex)
         {

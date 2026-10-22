@@ -12,7 +12,7 @@
         <p class="eyebrow">Parametrización por permisos</p>
         <h1>Propietarios y acceso a terrenos</h1>
         <p>
-            Administra propietarios, cuentas del portal, asignaciones operativas
+            Administra propietarios, cuentas del portal, acceso a terrenos
             y coberturas territoriales sin depender del nombre del rol.
         </p>
     </div>
@@ -64,7 +64,7 @@ else
         {
             <button class="@ClaseTab("ASIGNACIONES")"
                     @onclick='() => CambiarTab("ASIGNACIONES")'>
-                Asignaciones
+                Acceso a terrenos
             </button>
         }
 
@@ -342,22 +342,77 @@ else
 
                     @if (PuedeActualizarPropietarios)
                     {
-                        <div class="access-inline-form">
-                            <select class="form-control"
-                                    @bind="terrenoParaPropietarioId">
-                                <option value="0">Seleccione un terreno</option>
-                                @foreach (TerrenoAccesoCatalogo terreno in terrenos)
-                                {
-                                    <option value="@terreno.TerrenoId">
-                                        @terreno.CodigoTerreno · @terreno.PropietarioActual
-                                    </option>
-                                }
-                            </select>
+                        <div class="owner-terrain-linker">
+                            <div class="access-picker-section compact">
+                                <label>
+                                    <i class="fa-solid fa-map-location-dot"></i>
+                                    Agregar terreno
+                                </label>
+
+                                <div class="access-entity-combobox">
+                                    <div class="access-entity-search-box">
+                                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                                        <input class="form-control"
+                                               type="search"
+                                               placeholder="Buscar por código, propietario o dirección"
+                                               autocomplete="off"
+                                               value="@buscarTerrenoPropietario"
+                                               @oninput="BuscarTerrenoPropietarioCambiado" />
+
+                                        @if (!string.IsNullOrWhiteSpace(buscarTerrenoPropietario) || terrenoParaPropietarioId > 0)
+                                        {
+                                            <button type="button"
+                                                    class="access-entity-clear"
+                                                    title="Limpiar terreno"
+                                                    @onclick="LimpiarTerrenoPropietario">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
+                                        }
+                                    </div>
+
+                                    <div class="access-entity-options owner-terrain-options" role="listbox" aria-label="Terrenos disponibles">
+                                        @if (!TerrenosParaPropietarioFiltrados.Any())
+                                        {
+                                            <div class="access-entity-no-results">
+                                                <i class="fa-solid fa-map-location-dot"></i>
+                                                <span>No se encontraron terrenos disponibles.</span>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            @foreach (TerrenoAccesoCatalogo terreno in TerrenosParaPropietarioFiltrados.Take(20))
+                                            {
+                                                <button type="button"
+                                                        class="access-entity-option @(terreno.TerrenoId == terrenoParaPropietarioId ? "selected" : string.Empty)"
+                                                        @onclick="() => SeleccionarTerrenoPropietario(terreno)">
+                                                    <span class="access-avatar"><i class="fa-solid fa-map-pin"></i></span>
+                                                    <span class="access-entity-option-text">
+                                                        <strong>@terreno.CodigoTerreno</strong>
+                                                        <small>@terreno.PropietarioActual · @terreno.Direccion</small>
+                                                    </span>
+                                                    @if (terreno.TerrenoId == terrenoParaPropietarioId)
+                                                    {
+                                                        <i class="fa-solid fa-check access-entity-selected-icon"></i>
+                                                    }
+                                                </button>
+                                            }
+
+                                            @if (TerrenosParaPropietarioFiltrados.Count() > 20)
+                                            {
+                                                <div class="access-entity-more-results">
+                                                    Mostrando 20 de @TerrenosParaPropietarioFiltrados.Count() coincidencias. Escriba más para refinar la búsqueda.
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            </div>
 
                             <button type="button"
-                                    class="btn-primary"
+                                    class="btn-primary owner-terrain-submit"
                                     @onclick="VincularTerrenoAsync"
-                                    disabled="@(terrenoParaPropietarioId <= 0)">
+                                    disabled="@(terrenoParaPropietarioId <= 0 || !TerrenoPropietarioSeleccionadoVisible)">
+                                <i class="fa-solid fa-link"></i>
                                 Vincular terreno
                             </button>
                         </div>
@@ -416,269 +471,831 @@ else
 
     @if (tab == "PORTAL" && PuedeLeerVinculaciones)
     {
-        <section class="access-card">
-            <div class="access-card-title">
+        <section class="access-card portal-manager">
+            <div class="access-card-title coverage-title">
                 <div>
                     <span>Representación digital</span>
-                    <h2>Vincular usuario con propietario</h2>
+                    <h2>Usuario del portal y propietario</h2>
+                    <p>
+                        Seleccione primero una cuenta del portal. Después podrá consultar,
+                        vincular o cambiar únicamente el propietario de esa persona.
+                    </p>
                 </div>
             </div>
 
-            <div class="access-inline-form access-inline-form-three">
-                <select class="form-control" @bind="usuarioPortalId">
-                    <option value="0">Seleccione un usuario</option>
-                    @foreach (UsuarioAccesoCatalogo usuario in usuarios)
-                    {
-                        <option value="@usuario.UsuarioId">
-                            @usuario.NombreCompletoUsuario (@usuario.NombreUsuario)
-                        </option>
-                    }
-                </select>
+            <div class="access-picker-section">
+                <label for="portal-user-search">
+                    <i class="fa-solid fa-user"></i>
+                    Usuario a configurar
+                </label>
 
-                <select class="form-control" @bind="propietarioPortalId">
-                    <option value="0">Seleccione un propietario</option>
-                    @foreach (PropietarioAccesoItem propietario in propietarios)
-                    {
-                        <option value="@propietario.PropietarioId">
-                            @propietario.NombreCompleto · @propietario.Identificacion
-                        </option>
-                    }
-                </select>
+                <div class="access-entity-combobox">
+                    <div class="access-entity-search-box">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <input id="portal-user-search"
+                               class="form-control"
+                               type="search"
+                               placeholder="Buscar por nombre, usuario o correo"
+                               autocomplete="off"
+                               value="@buscarUsuarioPortal"
+                               @oninput="BuscarUsuarioPortalCambiado" />
 
-                <button type="button"
-                        class="btn-primary"
-                        disabled="@(!PuedeGuardarVinculacion || usuarioPortalId <= 0 || propietarioPortalId <= 0)"
-                        @onclick="VincularUsuarioPropietarioAsync">
-                    Vincular
-                </button>
+                        @if (!string.IsNullOrWhiteSpace(buscarUsuarioPortal) || usuarioPortalId > 0)
+                        {
+                            <button type="button"
+                                    class="access-entity-clear"
+                                    title="Limpiar selección"
+                                    aria-label="Limpiar usuario seleccionado"
+                                    @onclick="LimpiarUsuarioPortal">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="access-entity-options" role="listbox" aria-label="Usuarios disponibles">
+                        @if (!UsuariosPortalFiltrados.Any())
+                        {
+                            <div class="access-entity-no-results">
+                                <i class="fa-solid fa-user-slash"></i>
+                                <span>No se encontraron usuarios.</span>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (UsuarioAccesoCatalogo usuario in UsuariosPortalFiltrados.Take(20))
+                            {
+                                <button type="button"
+                                        class="access-entity-option @(usuario.UsuarioId == usuarioPortalId ? "selected" : string.Empty)"
+                                        role="option"
+                                        aria-selected="@(usuario.UsuarioId == usuarioPortalId)"
+                                        @onclick="() => SeleccionarUsuarioPortal(usuario)">
+                                    <span class="access-avatar">@Iniciales(usuario.NombreCompletoUsuario)</span>
+                                    <span class="access-entity-option-text">
+                                        <strong>@usuario.NombreCompletoUsuario</strong>
+                                        <small>
+                                            @usuario.NombreUsuario
+                                            @if (!string.IsNullOrWhiteSpace(usuario.CorreoUsuario))
+                                            {
+                                                <text> · @usuario.CorreoUsuario</text>
+                                            }
+                                        </small>
+                                    </span>
+                                    @if (usuario.UsuarioId == usuarioPortalId)
+                                    {
+                                        <i class="fa-solid fa-check access-entity-selected-icon"></i>
+                                    }
+                                </button>
+                            }
+
+                            @if (UsuariosPortalFiltrados.Count() > 20)
+                            {
+                                <div class="access-entity-more-results">
+                                    Mostrando 20 de @UsuariosPortalFiltrados.Count() coincidencias. Escriba más para refinar la búsqueda.
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <small class="access-picker-help">
+                    Escriba parte del nombre, usuario o correo para filtrar la lista.
+                </small>
             </div>
 
-            <div class="access-list compact">
-                @foreach (PropietarioAccesoItem propietario in propietarios
-                    .Where(x => x.UsuarioPortalId.HasValue))
-                {
-                    <div class="access-list-item static">
-                        <span class="access-avatar">
-                            @Iniciales(propietario.NombreCompleto)
-                        </span>
-                        <span>
-                            <strong>@propietario.NombreCompleto</strong>
-                            <small>@propietario.UsuarioPortal</small>
-                        </span>
+            @if (usuarioPortalId <= 0)
+            {
+                <div class="coverage-empty-state">
+                    <i class="fa-solid fa-link"></i>
+                    <div>
+                        <strong>Seleccione un usuario para comenzar</strong>
+                        <span>Se mostrará únicamente su relación actual con un propietario.</span>
+                    </div>
+                </div>
+            }
+            else if (UsuarioPortalSeleccionado is not null)
+            {
+                <div class="coverage-user-summary">
+                    <span class="access-avatar">@Iniciales(UsuarioPortalSeleccionado.NombreCompletoUsuario)</span>
+                    <div>
+                        <strong>@UsuarioPortalSeleccionado.NombreCompletoUsuario</strong>
+                        <small>@UsuarioPortalSeleccionado.NombreUsuario · @UsuarioPortalSeleccionado.Rol</small>
+                    </div>
+                    <span class="coverage-count">
+                        @(PropietarioUsuarioPortalActual is null ? "Sin propietario" : "Propietario vinculado")
+                    </span>
+                </div>
 
+                @if (PropietarioUsuarioPortalActual is not null)
+                {
+                    <div class="access-current-relation">
+                        <div>
+                            <small>Propietario actual</small>
+                            <strong>@PropietarioUsuarioPortalActual.NombreCompleto</strong>
+                            <span>@PropietarioUsuarioPortalActual.Identificacion</span>
+                        </div>
                         @if (PuedeEliminarVinculacion)
                         {
                             <button type="button"
-                                    class="access-danger-button"
-                                    @onclick="() => DesvincularUsuarioAsync(propietario)">
+                                    class="access-danger-link"
+                                    @onclick="DesvincularUsuarioPortalActualAsync">
                                 <i class="fa-solid fa-user-xmark"></i>
+                                Retirar vínculo
                             </button>
                         }
                     </div>
                 }
-            </div>
+
+                @if (PuedeGuardarVinculacion)
+                {
+                    <div class="access-action-card">
+                        <div class="coverage-section-heading">
+                            <div>
+                                <span>@(PropietarioUsuarioPortalActual is null ? "Vinculación" : "Cambio de propietario")</span>
+                                <strong>Seleccione un propietario</strong>
+                            </div>
+                        </div>
+
+                        <div class="access-picker-section compact">
+                            <div class="access-entity-combobox">
+                                <div class="access-entity-search-box">
+                                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                                    <input class="form-control"
+                                           type="search"
+                                           placeholder="Buscar por nombre, identificación o correo"
+                                           autocomplete="off"
+                                           value="@buscarPropietarioVinculacion"
+                                           @oninput="BuscarPropietarioPortalCambiado" />
+
+                                    @if (!string.IsNullOrWhiteSpace(buscarPropietarioVinculacion) || propietarioPortalId > 0)
+                                    {
+                                        <button type="button"
+                                                class="access-entity-clear"
+                                                title="Limpiar selección"
+                                                @onclick="LimpiarPropietarioPortal">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    }
+                                </div>
+
+                                <div class="access-entity-options" role="listbox" aria-label="Propietarios disponibles">
+                                    @if (!PropietariosParaVincular.Any())
+                                    {
+                                        <div class="access-entity-no-results">
+                                            <i class="fa-solid fa-address-card"></i>
+                                            <span>No se encontraron propietarios.</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (PropietarioAccesoItem propietario in PropietariosParaVincular.Take(20))
+                                        {
+                                            <button type="button"
+                                                    class="access-entity-option @(propietario.PropietarioId == propietarioPortalId ? "selected" : string.Empty)"
+                                                    @onclick="() => SeleccionarPropietarioPortal(propietario)">
+                                                <span class="access-avatar">@Iniciales(propietario.NombreCompleto)</span>
+                                                <span class="access-entity-option-text">
+                                                    <strong>@propietario.NombreCompleto</strong>
+                                                    <small>
+                                                        @propietario.Identificacion · Portal:
+                                                        @(string.IsNullOrWhiteSpace(propietario.UsuarioPortal) ? "Sin usuario" : propietario.UsuarioPortal)
+                                                    </small>
+                                                </span>
+                                                @if (propietario.PropietarioId == propietarioPortalId)
+                                                {
+                                                    <i class="fa-solid fa-check access-entity-selected-icon"></i>
+                                                }
+                                            </button>
+                                        }
+
+                                        @if (PropietariosParaVincular.Count() > 20)
+                                        {
+                                            <div class="access-entity-more-results">
+                                                Mostrando 20 de @PropietariosParaVincular.Count() coincidencias. Escriba más para refinar la búsqueda.
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button"
+                                class="btn-primary access-action-submit"
+                                disabled="@(propietarioPortalId <= 0 || !PropietarioSeleccionadoVisible)"
+                                @onclick="VincularUsuarioPropietarioAsync">
+                            <i class="fa-solid fa-link"></i>
+                            @(PropietarioUsuarioPortalActual is null ? "Vincular propietario" : "Cambiar propietario")
+                        </button>
+                    </div>
+                }
+            }
         </section>
     }
 
     @if (tab == "ASIGNACIONES" && PuedeLeerAsignaciones)
     {
-        <section class="access-card">
-            <div class="access-card-title">
+        <section class="access-card assignment-manager">
+            <div class="access-card-title coverage-title">
                 <div>
-                    <span>Responsabilidad operativa</span>
-                    <h2>Asignar terrenos a usuarios</h2>
+                    <span>Acceso de propietario</span>
+                    <h2>Acceso del propietario a sus terrenos</h2>
+                    <p>
+                        Seleccione un propietario para definir cuáles de sus terrenos activos
+                        estarán habilitados en la cuenta del portal.
+                    </p>
                 </div>
             </div>
 
-            @if (PuedeAgregarAsignaciones)
+            <div class="access-picker-section">
+                <label for="assignment-user-search">
+                    <i class="fa-solid fa-user"></i>
+                    Propietario a configurar
+                </label>
+
+                <div class="access-entity-combobox">
+                    <div class="access-entity-search-box">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <input id="assignment-user-search"
+                               class="form-control"
+                               type="search"
+                               placeholder="Buscar propietario por nombre, identificación, correo o usuario"
+                               autocomplete="off"
+                               value="@buscarUsuarioAsignacion"
+                               @oninput="BuscarUsuarioAsignacionCambiado" />
+
+                        @if (!string.IsNullOrWhiteSpace(buscarUsuarioAsignacion) || usuarioAsignacionSeleccionadoId > 0)
+                        {
+                            <button type="button"
+                                    class="access-entity-clear"
+                                    title="Limpiar selección"
+                                    @onclick="LimpiarUsuarioAsignacionAsync">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="access-entity-options" role="listbox" aria-label="Usuarios disponibles">
+                        @if (!UsuariosAsignacionFiltrados.Any())
+                        {
+                            <div class="access-entity-no-results">
+                                <i class="fa-solid fa-user-slash"></i>
+                                <span>No se encontraron propietarios con usuario vinculado.</span>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (UsuarioAccesoCatalogo usuario in UsuariosAsignacionFiltrados.Take(20))
+                            {
+                                PropietarioAccesoItem? propietarioOpcion =
+                                    ObtenerPropietarioAsignacion(usuario.UsuarioId);
+
+                                <button type="button"
+                                        class="access-entity-option @(usuario.UsuarioId == usuarioAsignacionSeleccionadoId ? "selected" : string.Empty)"
+                                        @onclick="() => SeleccionarUsuarioAsignacionAsync(usuario)">
+                                    <span class="access-avatar">@Iniciales(propietarioOpcion?.NombreCompleto ?? usuario.NombreCompletoUsuario)</span>
+                                    <span class="access-entity-option-text">
+                                        <strong>@(propietarioOpcion?.NombreCompleto ?? usuario.NombreCompletoUsuario)</strong>
+                                        <small>
+                                            @if (!string.IsNullOrWhiteSpace(propietarioOpcion?.Identificacion))
+                                            {
+                                                <text>@propietarioOpcion.Identificacion · </text>
+                                            }
+                                            Portal: @usuario.NombreUsuario
+                                            @if (!string.IsNullOrWhiteSpace(usuario.CorreoUsuario))
+                                            {
+                                                <text> · @usuario.CorreoUsuario</text>
+                                            }
+                                        </small>
+                                    </span>
+                                    @if (usuario.UsuarioId == usuarioAsignacionSeleccionadoId)
+                                    {
+                                        <i class="fa-solid fa-check access-entity-selected-icon"></i>
+                                    }
+                                </button>
+                            }
+
+                            @if (UsuariosAsignacionFiltrados.Count() > 20)
+                            {
+                                <div class="access-entity-more-results">
+                                    Mostrando 20 de @UsuariosAsignacionFiltrados.Count() coincidencias. Escriba más para refinar la búsqueda.
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <small class="access-picker-help">
+                    Busque por los datos del propietario o por su cuenta del portal vinculada.
+                </small>
+            </div>
+
+            @if (usuarioAsignacionSeleccionadoId <= 0)
             {
-                <div class="access-form-grid">
-                    <select class="form-control" @bind="nuevaAsignacion.UsuarioId">
-                        <option value="0">Seleccione un usuario</option>
-                        @foreach (UsuarioAccesoCatalogo usuario in usuarios)
-                        {
-                            <option value="@usuario.UsuarioId">
-                                @usuario.NombreCompletoUsuario
-                            </option>
-                        }
-                    </select>
-
-                    <select class="form-control" @bind="nuevaAsignacion.TerrenoId">
-                        <option value="0">Seleccione un terreno</option>
-                        @foreach (TerrenoAccesoCatalogo terreno in terrenos)
-                        {
-                            <option value="@terreno.TerrenoId">
-                                @terreno.CodigoTerreno
-                            </option>
-                        }
-                    </select>
-
-                    <select class="form-control" @bind="nuevaAsignacion.TipoAsignacion">
-                        <option value="TECNICO">Técnico</option>
-                        <option value="SUPERVISOR">Supervisor</option>
-                        <option value="GERENCIA">Gerencia</option>
-                        <option value="CONSULTA">Consulta</option>
-                    </select>
-
-                    <label class="access-check">
-                        <input type="checkbox" @bind="nuevaAsignacion.EsResponsablePrincipal" />
-                        <span>Responsable principal</span>
-                    </label>
-
-                    <input class="form-control"
-                           placeholder="Observación opcional"
-                           @bind="nuevaAsignacion.Observacion" />
-
-                    <button type="button"
-                            class="btn-primary"
-                            @onclick="CrearAsignacionAsync">
-                        Asignar
-                    </button>
+                <div class="coverage-empty-state">
+                    <i class="fa-solid fa-list-check"></i>
+                    <div>
+                        <strong>Seleccione un propietario para comenzar</strong>
+                        <span>Se cargarán únicamente los terrenos asociados a su propietario.</span>
+                    </div>
                 </div>
             }
+            else if (cargandoAsignacionesUsuario)
+            {
+                <div class="coverage-empty-state">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    <div>
+                        <strong>Cargando terrenos...</strong>
+                        <span>Consultando los terrenos de este propietario.</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @if (UsuarioAsignacionSeleccionado is not null)
+                {
+                    PropietarioAccesoItem? propietarioSeleccionado =
+                        ObtenerPropietarioAsignacion(UsuarioAsignacionSeleccionado.UsuarioId);
 
-            <div class="access-table-wrap">
-                <table class="access-table">
-                    <thead>
-                        <tr>
-                            <th>Usuario</th>
-                            <th>Terreno</th>
-                            <th>Tipo</th>
-                            <th>Responsable</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (AsignacionTerrenoItem item in asignaciones)
-                        {
-                            <tr>
-                                <td>@item.NombreCompletoUsuario</td>
-                                <td>@item.CodigoTerreno</td>
-                                <td>@item.TipoAsignacion</td>
-                                <td>@(item.EsResponsablePrincipal ? "Sí" : "No")</td>
-                                <td>
-                                    @if (PuedeEliminarAsignaciones)
+                    <div class="coverage-user-summary">
+                        <span class="access-avatar">@Iniciales(propietarioSeleccionado?.NombreCompleto ?? UsuarioAsignacionSeleccionado.NombreCompletoUsuario)</span>
+                        <div>
+                            <strong>@(propietarioSeleccionado?.NombreCompleto ?? PropietarioUsuarioAsignacion?.Propietario ?? "Propietario")</strong>
+                            <small>
+                                Portal: @UsuarioAsignacionSeleccionado.NombreUsuario
+                                @if (!string.IsNullOrWhiteSpace(propietarioSeleccionado?.Identificacion))
+                                {
+                                    <text> · @propietarioSeleccionado.Identificacion</text>
+                                }
+                            </small>
+                        </div>
+                        <span class="coverage-count">@TotalTerrenosPropietario terreno(s) activo(s)</span>
+                    </div>
+
+                    <div class="assignment-status-grid" aria-label="Resumen de acceso a terrenos">
+                        <div class="assignment-status-card">
+                            <span>Terrenos activos</span>
+                            <strong>@TotalTerrenosPropietario</strong>
+                            <small>Vinculados actualmente al propietario.</small>
+                        </div>
+                        <div class="assignment-status-card enabled">
+                            <span>Habilitados en portal</span>
+                            <strong>@asignaciones.Count</strong>
+                            <small>Terrenos que esta cuenta ya puede consultar.</small>
+                        </div>
+                        <div class="assignment-status-card pending">
+                            <span>Disponibles para habilitar</span>
+                            <strong>@TotalTerrenosDisponibles</strong>
+                            <small>Terrenos activos que aún no están habilitados.</small>
+                        </div>
+                    </div>
+                }
+
+                @if (PuedeAgregarAsignaciones)
+                {
+                    <div class="access-action-card">
+                        <div class="coverage-section-heading">
+                            <div>
+                                <span>Habilitar acceso</span>
+                                <strong>Seleccione un terreno que todavía no esté habilitado en el portal</strong>
+                            </div>
+                        </div>
+
+                        <div class="access-picker-section compact">
+                            <div class="access-entity-combobox">
+                                <div class="access-entity-search-box">
+                                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                                    <input class="form-control"
+                                           type="search"
+                                           placeholder="Buscar entre los terrenos disponibles por código o dirección"
+                                           autocomplete="off"
+                                           value="@buscarTerrenoAsignacion"
+                                           @oninput="BuscarTerrenoAsignacionCambiado" />
+
+                                    @if (!string.IsNullOrWhiteSpace(buscarTerrenoAsignacion) || nuevaAsignacion.TerrenoId > 0)
                                     {
                                         <button type="button"
-                                                class="access-danger-button"
-                                                @onclick="() => EliminarAsignacionAsync(item)">
+                                                class="access-entity-clear"
+                                                title="Limpiar terreno"
+                                                @onclick="LimpiarTerrenoAsignacion">
                                             <i class="fa-solid fa-xmark"></i>
                                         </button>
                                     }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+                                </div>
+
+                                <div class="access-entity-options" role="listbox" aria-label="Terrenos disponibles">
+                                    @if (!TerrenosAsignacionFiltrados.Any())
+                                    {
+                                        <div class="access-entity-no-results">
+                                            <i class="fa-solid fa-map-location-dot"></i>
+                                            <span>@(TotalTerrenosDisponibles == 0
+                                                ? "Todos los terrenos activos del propietario ya están habilitados."
+                                                : "No hay terrenos disponibles que coincidan con la búsqueda.")</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (TerrenoAccesoCatalogo terreno in TerrenosAsignacionFiltrados.Take(20))
+                                        {
+                                            <button type="button"
+                                                    class="access-entity-option @(terreno.TerrenoId == nuevaAsignacion.TerrenoId ? "selected" : string.Empty)"
+                                                    @onclick="() => SeleccionarTerrenoAsignacion(terreno)">
+                                                <span class="access-avatar"><i class="fa-solid fa-map-pin"></i></span>
+                                                <span class="access-entity-option-text">
+                                                    <strong>@terreno.CodigoTerreno</strong>
+                                                    <small>@terreno.PropietarioActual · @terreno.Direccion</small>
+                                                </span>
+                                                @if (terreno.TerrenoId == nuevaAsignacion.TerrenoId)
+                                                {
+                                                    <i class="fa-solid fa-check access-entity-selected-icon"></i>
+                                                }
+                                            </button>
+                                        }
+
+                                        @if (TerrenosAsignacionFiltrados.Count() > 20)
+                                        {
+                                            <div class="access-entity-more-results">
+                                                Mostrando 20 de @TerrenosAsignacionFiltrados.Count() coincidencias. Escriba más para refinar la búsqueda.
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="assignment-form-grid">
+                            <div class="form-group assignment-observation">
+                                <label>Observación</label>
+                                <input class="form-control"
+                                       placeholder="Observación opcional"
+                                       @bind="nuevaAsignacion.Observacion" />
+                            </div>
+
+                            <button type="button"
+                                    class="btn-primary assignment-submit"
+                                    disabled="@(nuevaAsignacion.TerrenoId <= 0 || !TerrenoAsignacionSeleccionadoVisible)"
+                                    @onclick="CrearAsignacionAsync">
+                                <i class="fa-solid fa-key"></i>
+                                Habilitar terreno
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <div class="coverage-current-header">
+                    <div>
+                        <span>Acceso actual</span>
+                        <strong>Terrenos habilitados para la cuenta del portal</strong>
+                    </div>
+                    <b>@asignaciones.Count</b>
+                </div>
+
+                @if (asignaciones.Count == 0)
+                {
+                    <div class="coverage-empty-state compact">
+                        <i class="fa-regular fa-map"></i>
+                        <div>
+                            <strong>Sin terrenos habilitados</strong>
+                            <span>La cuenta del portal todavía no tiene acceso a ningún terreno de este propietario.</span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="access-table-wrap">
+                        <table class="access-table">
+                            <thead>
+                                <tr>
+                                    <th>Terreno</th>
+                                    <th>Propietario</th>
+                                    <th>Observación</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (AsignacionTerrenoItem item in asignaciones)
+                                {
+                                    <tr>
+                                        <td>@item.CodigoTerreno</td>
+                                        <td>@(string.IsNullOrWhiteSpace(item.Propietario) ? "—" : item.Propietario)</td>
+                                        <td>@(string.IsNullOrWhiteSpace(item.Observacion) ? "—" : item.Observacion)</td>
+                                        <td>
+                                            @if (PuedeEliminarAsignaciones)
+                                            {
+                                                <button type="button"
+                                                        class="access-danger-button"
+                                                        title="Retirar acceso al terreno"
+                                                        @onclick="() => EliminarAsignacionAsync(item)">
+                                                    <i class="fa-solid fa-xmark"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
         </section>
     }
 
     @if (tab == "COBERTURAS" && PuedeLeerCoberturas)
     {
-        <section class="access-card">
-            <div class="access-card-title">
+        <section class="access-card coverage-manager">
+            <div class="access-card-title coverage-title">
                 <div>
                     <span>Alcance de información</span>
-                    <h2>Cobertura territorial</h2>
+                    <h2>Cobertura territorial por usuario</h2>
+                    <p>
+                        Seleccione una persona para consultar y administrar únicamente
+                        sus coberturas activas.
+                    </p>
                 </div>
             </div>
 
-            @if (PuedeAgregarCoberturas)
-            {
-                <div class="access-form-grid">
-                    <select class="form-control" @bind="nuevaCobertura.UsuarioId">
-                        <option value="0">Seleccione un usuario</option>
-                        @foreach (UsuarioAccesoCatalogo usuario in usuarios)
+            <div class="coverage-user-picker">
+                <label for="coverage-user-search">
+                    <i class="fa-solid fa-user"></i>
+                    Usuario a configurar
+                </label>
+
+                <div class="coverage-user-combobox">
+                    <div class="coverage-user-search-box">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <input id="coverage-user-search"
+                               class="form-control"
+                               type="search"
+                               placeholder="Buscar por nombre, usuario o correo"
+                               autocomplete="off"
+                               value="@buscarUsuarioCobertura"
+                               @oninput="BuscarUsuarioCoberturaCambiado" />
+
+                        @if (!string.IsNullOrWhiteSpace(buscarUsuarioCobertura) ||
+                             usuarioCoberturaSeleccionadoId > 0)
                         {
-                            <option value="@usuario.UsuarioId">
-                                @usuario.NombreCompletoUsuario
-                            </option>
+                            <button type="button"
+                                    class="coverage-user-clear"
+                                    title="Limpiar selección"
+                                    aria-label="Limpiar usuario seleccionado"
+                                    @onclick="LimpiarUsuarioCoberturaAsync">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
                         }
-                    </select>
+                    </div>
 
-                    <select class="form-control"
-                            @bind="nuevaCobertura.TipoCobertura">
-                        <option value="NACIONAL">Nacional</option>
-                        <option value="DEPARTAMENTO">Departamento</option>
-                        <option value="MUNICIPIO">Municipio</option>
-                    </select>
-
-                    @if (nuevaCobertura.TipoCobertura != "NACIONAL")
-                    {
-                        <select class="form-control"
-                                value="@nuevaCobertura.DepartamentoId"
-                                @onchange="DepartamentoCoberturaCambiadoAsync">
-                            <option value="">Seleccione un departamento</option>
-                            @foreach (DepartamentoAccesoCatalogo departamento in departamentos)
+                    <div class="coverage-user-options" role="listbox" aria-label="Usuarios disponibles">
+                        @if (!UsuariosCoberturaFiltrados.Any())
+                        {
+                            <div class="coverage-user-no-results">
+                                <i class="fa-solid fa-user-slash"></i>
+                                <span>No se encontraron usuarios.</span>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (UsuarioAccesoCatalogo usuario in UsuariosCoberturaFiltrados.Take(20))
                             {
-                                <option value="@departamento.DepartamentoId">
-                                    @departamento.Nombre
-                                </option>
+                                <button type="button"
+                                        class="coverage-user-option @(usuario.UsuarioId == usuarioCoberturaSeleccionadoId ? "selected" : string.Empty)"
+                                        role="option"
+                                        aria-selected="@(usuario.UsuarioId == usuarioCoberturaSeleccionadoId)"
+                                        @onclick="() => SeleccionarUsuarioCoberturaAsync(usuario)">
+                                    <span class="access-avatar">
+                                        @Iniciales(usuario.NombreCompletoUsuario)
+                                    </span>
+                                    <span class="coverage-user-option-text">
+                                        <strong>@usuario.NombreCompletoUsuario</strong>
+                                        <small>
+                                            @usuario.NombreUsuario
+                                            @if (!string.IsNullOrWhiteSpace(usuario.CorreoUsuario))
+                                            {
+                                                <text> · @usuario.CorreoUsuario</text>
+                                            }
+                                        </small>
+                                    </span>
+                                    @if (usuario.UsuarioId == usuarioCoberturaSeleccionadoId)
+                                    {
+                                        <i class="fa-solid fa-check coverage-user-selected-icon"></i>
+                                    }
+                                </button>
                             }
-                        </select>
-                    }
 
-                    @if (nuevaCobertura.TipoCobertura == "MUNICIPIO")
-                    {
-                        <select class="form-control"
-                                @bind="nuevaCobertura.MunicipioId">
-                            <option value="">Seleccione un municipio</option>
-                            @foreach (MunicipioAccesoCatalogo municipio in municipios)
+                            @if (UsuariosCoberturaFiltrados.Count() > 20)
                             {
-                                <option value="@municipio.MunicipioId">
-                                    @municipio.Nombre
-                                </option>
+                                <div class="coverage-user-more-results">
+                                    Mostrando 20 de @UsuariosCoberturaFiltrados.Count() coincidencias. Escriba más para refinar la búsqueda.
+                                </div>
                             }
-                        </select>
-                    }
+                        }
+                    </div>
+                </div>
 
-                    <input class="form-control"
-                           placeholder="Observación opcional"
-                           @bind="nuevaCobertura.Observacion" />
+                <small class="coverage-user-search-help">
+                    Escriba parte del nombre, usuario o correo para filtrar la lista.
+                </small>
+            </div>
 
-                    <button type="button"
-                            class="btn-primary"
-                            @onclick="CrearCoberturaAsync">
-                        Agregar cobertura
-                    </button>
+            @if (usuarioCoberturaSeleccionadoId <= 0)
+            {
+                <div class="coverage-empty-state">
+                    <i class="fa-solid fa-location-dot"></i>
+                    <div>
+                        <strong>Seleccione un usuario para comenzar</strong>
+                        <span>
+                            Al cambiar de usuario se cargarán solamente sus coberturas.
+                        </span>
+                    </div>
                 </div>
             }
+            else if (cargandoCoberturasUsuario)
+            {
+                <div class="coverage-empty-state">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    <div>
+                        <strong>Cargando coberturas...</strong>
+                        <span>Consultando el alcance territorial del usuario.</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @if (UsuarioCoberturaSeleccionado is not null)
+                {
+                    <div class="coverage-user-summary">
+                        <span class="access-avatar">
+                            @Iniciales(UsuarioCoberturaSeleccionado.NombreCompletoUsuario)
+                        </span>
+                        <div>
+                            <strong>@UsuarioCoberturaSeleccionado.NombreCompletoUsuario</strong>
+                            <small>
+                                @UsuarioCoberturaSeleccionado.NombreUsuario ·
+                                @UsuarioCoberturaSeleccionado.Rol
+                            </small>
+                        </div>
+                        <span class="coverage-count">
+                            @coberturas.Count cobertura(s)
+                        </span>
+                    </div>
+                }
 
-            <div class="access-table-wrap">
-                <table class="access-table">
-                    <thead>
-                        <tr>
-                            <th>Usuario</th>
-                            <th>Tipo</th>
-                            <th>Departamento</th>
-                            <th>Municipio</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (CoberturaTerritorialItem item in coberturas)
-                        {
-                            <tr>
-                                <td>@item.NombreCompletoUsuario</td>
-                                <td>@item.TipoCobertura</td>
-                                <td>@(item.Departamento ?? "Todos")</td>
-                                <td>@(item.Municipio ?? "Todos")</td>
-                                <td>
-                                    @if (PuedeEliminarCoberturas)
+                @if (PropietarioUsuarioCobertura is not null)
+                {
+                    <div class="coverage-inline-warning">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <div>
+                            <strong>Este usuario accede como propietario</strong>
+                            <span>
+                                Está asociado a @PropietarioUsuarioCobertura.NombreCompleto.
+                                Para asignarle cobertura territorial primero debe retirar
+                                esa vinculación.
+                            </span>
+                        </div>
+                    </div>
+                }
+
+                @if (TieneCoberturasDuplicadas)
+                {
+                    <div class="coverage-inline-warning duplicate">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <div>
+                            <strong>Se encontraron coberturas repetidas</strong>
+                            <span>
+                                Puede retirar las filas marcadas como repetidas. El sistema
+                                ya no permitirá crear nuevamente la misma cobertura.
+                            </span>
+                        </div>
+                    </div>
+                }
+
+                @if (PuedeAgregarCoberturas && PropietarioUsuarioCobertura is null)
+                {
+                    <div class="coverage-form-card">
+                        <div class="coverage-section-heading">
+                            <div>
+                                <span>Nueva cobertura</span>
+                                <strong>Defina el alcance territorial</strong>
+                            </div>
+                        </div>
+
+                        <div class="access-form-grid coverage-form-grid">
+                            <select class="form-control"
+                                    value="@nuevaCobertura.TipoCobertura"
+                                    @onchange="TipoCoberturaCambiadoAsync">
+                                <option value="NACIONAL">Todo Nicaragua</option>
+                                <option value="DEPARTAMENTO">Un departamento</option>
+                                <option value="MUNICIPIO">Un municipio</option>
+                            </select>
+
+                            @if (nuevaCobertura.TipoCobertura != "NACIONAL")
+                            {
+                                <select class="form-control"
+                                        value="@nuevaCobertura.DepartamentoId"
+                                        @onchange="DepartamentoCoberturaCambiadoAsync">
+                                    <option value="">Seleccione un departamento</option>
+                                    @foreach (DepartamentoAccesoCatalogo departamento in departamentos)
                                     {
-                                        <button type="button"
-                                                class="access-danger-button"
-                                                @onclick="() => EliminarCoberturaAsync(item)">
-                                            <i class="fa-solid fa-xmark"></i>
-                                        </button>
+                                        <option value="@departamento.DepartamentoId">
+                                            @departamento.Nombre
+                                        </option>
                                     }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+                                </select>
+                            }
+
+                            @if (nuevaCobertura.TipoCobertura == "MUNICIPIO")
+                            {
+                                <select class="form-control"
+                                        @bind="nuevaCobertura.MunicipioId">
+                                    <option value="">Seleccione un municipio</option>
+                                    @foreach (MunicipioAccesoCatalogo municipio in municipios)
+                                    {
+                                        <option value="@municipio.MunicipioId">
+                                            @municipio.Nombre
+                                        </option>
+                                    }
+                                </select>
+                            }
+
+                            <input class="form-control"
+                                   placeholder="Observación opcional"
+                                   @bind="nuevaCobertura.Observacion" />
+
+                            <button type="button"
+                                    class="btn-primary coverage-add-button"
+                                    disabled="@(!FormularioCoberturaCompleto)"
+                                    @onclick="CrearCoberturaAsync">
+                                <i class="fa-solid fa-plus"></i>
+                                Agregar cobertura
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <div class="coverage-current-header">
+                    <div>
+                        <span>Coberturas actuales</span>
+                        <strong>Alcance autorizado para este usuario</strong>
+                    </div>
+                    <b>@coberturas.Count</b>
+                </div>
+
+                @if (coberturas.Count == 0)
+                {
+                    <div class="coverage-empty-state compact">
+                        <i class="fa-regular fa-map"></i>
+                        <div>
+                            <strong>Sin cobertura territorial</strong>
+                            <span>Este usuario no tiene territorios asignados actualmente.</span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="access-table-wrap">
+                        <table class="access-table coverage-table">
+                            <thead>
+                                <tr>
+                                    <th>Alcance</th>
+                                    <th>Departamento</th>
+                                    <th>Municipio</th>
+                                    <th>Observación</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (CoberturaTerritorialItem item in coberturas)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="coverage-scope-cell">
+                                                <strong>@NombreTipoCobertura(item.TipoCobertura)</strong>
+                                                @if (EsCoberturaDuplicada(item))
+                                                {
+                                                    <span class="coverage-duplicate-badge">
+                                                        Repetida
+                                                    </span>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>@(item.Departamento ?? "Todos")</td>
+                                        <td>@(item.Municipio ?? "Todos")</td>
+                                        <td>@(string.IsNullOrWhiteSpace(item.Observacion) ? "—" : item.Observacion)</td>
+                                        <td>
+                                            @if (PuedeEliminarCoberturas)
+                                            {
+                                                <button type="button"
+                                                        class="access-danger-button"
+                                                        title="Retirar cobertura"
+                                                        @onclick="() => EliminarCoberturaAsync(item)">
+                                                    <i class="fa-solid fa-xmark"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
         </section>
     }
 }
@@ -813,13 +1430,24 @@ else
     private bool esError;
     private bool formularioVisible;
     private bool cargandoDetalle;
+    private bool cargandoCoberturasUsuario;
+    private bool cargandoAsignacionesUsuario;
     private string mensaje = string.Empty;
     private string buscarPropietario = string.Empty;
+    private string buscarPropietarioVinculacion = string.Empty;
+    private string buscarUsuarioPortal = string.Empty;
+    private string buscarUsuarioAsignacion = string.Empty;
+    private string buscarTerrenoAsignacion = string.Empty;
+    private string buscarTerrenoPropietario = string.Empty;
+    private string buscarUsuarioCobertura = string.Empty;
     private string tab = "PROPIETARIOS";
 
     private List<PropietarioAccesoItem> propietarios = [];
+    private List<PropietarioAccesoItem> propietariosCatalogo = [];
     private List<UsuarioAccesoCatalogo> usuarios = [];
+    private List<UsuarioPropietarioAsignacionCatalogo> usuariosPropietariosAsignacion = [];
     private List<TerrenoAccesoCatalogo> terrenos = [];
+    private List<TerrenoAccesoCatalogo> terrenosAsignacionPropietario = [];
     private List<DepartamentoAccesoCatalogo> departamentos = [];
     private List<MunicipioAccesoCatalogo> municipios = [];
     private List<AsignacionTerrenoItem> asignaciones = [];
@@ -831,6 +1459,8 @@ else
     private int terrenoParaPropietarioId;
     private int usuarioPortalId;
     private int propietarioPortalId;
+    private int usuarioAsignacionSeleccionadoId;
+    private int usuarioCoberturaSeleccionadoId;
     private AsignarUsuarioTerrenoRequest nuevaAsignacion = new();
     private GuardarCoberturaTerritorialRequest nuevaCobertura = new();
 
@@ -885,6 +1515,172 @@ else
         PuedeLeerAsignaciones ||
         PuedeLeerCoberturas;
 
+    private UsuarioAccesoCatalogo? UsuarioPortalSeleccionado =>
+        usuarios.FirstOrDefault(item => item.UsuarioId == usuarioPortalId);
+
+    private UsuarioAccesoCatalogo? UsuarioAsignacionSeleccionado =>
+        usuarios.FirstOrDefault(
+            item => item.UsuarioId == usuarioAsignacionSeleccionadoId);
+
+    private UsuarioAccesoCatalogo? UsuarioCoberturaSeleccionado =>
+        usuarios.FirstOrDefault(
+            item => item.UsuarioId == usuarioCoberturaSeleccionadoId);
+
+    private PropietarioAccesoItem? PropietarioUsuarioPortalActual =>
+        propietariosCatalogo.FirstOrDefault(
+            item => item.UsuarioPortalId == usuarioPortalId);
+
+    private PropietarioAccesoItem? PropietarioUsuarioCobertura =>
+        propietariosCatalogo.FirstOrDefault(
+            item => item.UsuarioPortalId == usuarioCoberturaSeleccionadoId);
+
+    private UsuarioPropietarioAsignacionCatalogo? PropietarioUsuarioAsignacion =>
+        usuariosPropietariosAsignacion.FirstOrDefault(
+            item => item.UsuarioId == usuarioAsignacionSeleccionadoId);
+
+    private IEnumerable<UsuarioAccesoCatalogo> UsuariosPortalFiltrados =>
+        FiltrarUsuarios(buscarUsuarioPortal);
+
+    private IEnumerable<UsuarioAccesoCatalogo> UsuariosAsignacionFiltrados
+    {
+        get
+        {
+            IEnumerable<UsuarioAccesoCatalogo> consulta = usuarios
+                .Where(item => usuariosPropietariosAsignacion
+                    .Any(relacion => relacion.UsuarioId == item.UsuarioId));
+
+            string filtro = buscarUsuarioAsignacion.Trim();
+
+            if (!string.IsNullOrWhiteSpace(filtro))
+            {
+                consulta = consulta.Where(usuario =>
+                {
+                    PropietarioAccesoItem? propietario =
+                        ObtenerPropietarioAsignacion(usuario.UsuarioId);
+
+                    return
+                        ContieneTexto(propietario?.NombreCompleto, filtro) ||
+                        ContieneTexto(propietario?.Identificacion, filtro) ||
+                        ContieneTexto(propietario?.Correo, filtro) ||
+                        ContieneTexto(usuario.NombreCompletoUsuario, filtro) ||
+                        ContieneTexto(usuario.NombreUsuario, filtro) ||
+                        ContieneTexto(usuario.CorreoUsuario, filtro) ||
+                        ContieneTexto(TextoUsuarioAsignacion(usuario), filtro);
+                });
+            }
+
+            return consulta
+                .OrderBy(item => ObtenerPropietarioAsignacion(item.UsuarioId)?.NombreCompleto)
+                .ThenBy(item => item.NombreCompletoUsuario)
+                .ThenBy(item => item.NombreUsuario);
+        }
+    }
+
+    private IEnumerable<UsuarioAccesoCatalogo> UsuariosCoberturaFiltrados =>
+        FiltrarUsuarios(buscarUsuarioCobertura);
+
+    private HashSet<int> TerrenosAsignadosIds =>
+        asignaciones.Select(item => item.TerrenoId).ToHashSet();
+
+    private IEnumerable<TerrenoAccesoCatalogo> TerrenosAsignacionDisponibles =>
+        terrenosAsignacionPropietario
+            .Where(item => !TerrenosAsignadosIds.Contains(item.TerrenoId));
+
+    private int TotalTerrenosPropietario => terrenosAsignacionPropietario.Count;
+
+    private int TotalTerrenosDisponibles => TerrenosAsignacionDisponibles.Count();
+
+    private IEnumerable<TerrenoAccesoCatalogo> TerrenosAsignacionFiltrados
+    {
+        get
+        {
+            IEnumerable<TerrenoAccesoCatalogo> consulta =
+                TerrenosAsignacionDisponibles;
+            string filtro = buscarTerrenoAsignacion.Trim();
+
+            if (!string.IsNullOrWhiteSpace(filtro))
+            {
+                consulta = consulta.Where(item =>
+                    ContieneTexto(item.CodigoTerreno, filtro) ||
+                    ContieneTexto(item.PropietarioActual, filtro) ||
+                    ContieneTexto(item.Direccion, filtro) ||
+                    ContieneTexto(TextoTerreno(item), filtro));
+            }
+
+            return consulta
+                .OrderBy(item => item.CodigoTerreno);
+        }
+    }
+
+    private IEnumerable<TerrenoAccesoCatalogo> TerrenosParaPropietarioFiltrados
+    {
+        get
+        {
+            HashSet<int> vinculados = detalleSeleccionado?.Terrenos
+                .Select(item => item.TerrenoId)
+                .ToHashSet() ?? new HashSet<int>();
+
+            return FiltrarTerrenos(buscarTerrenoPropietario)
+                .Where(item => !vinculados.Contains(item.TerrenoId));
+        }
+    }
+
+    private IEnumerable<PropietarioAccesoItem> PropietariosParaVincular
+    {
+        get
+        {
+            IEnumerable<PropietarioAccesoItem> consulta = propietariosCatalogo;
+            string filtro = buscarPropietarioVinculacion.Trim();
+
+            if (!string.IsNullOrWhiteSpace(filtro))
+            {
+                consulta = consulta.Where(item =>
+                    ContieneTexto(item.NombreCompleto, filtro) ||
+                    ContieneTexto(item.Identificacion, filtro) ||
+                    ContieneTexto(item.Correo, filtro) ||
+                    ContieneTexto(TextoPropietario(item), filtro));
+            }
+
+            return consulta
+                .OrderBy(item => item.NombreCompleto)
+                .ThenBy(item => item.Identificacion);
+        }
+    }
+
+    private bool PropietarioSeleccionadoVisible =>
+        propietarioPortalId > 0 &&
+        propietariosCatalogo.Any(
+            item => item.PropietarioId == propietarioPortalId);
+
+    private bool TerrenoAsignacionSeleccionadoVisible =>
+        nuevaAsignacion.TerrenoId > 0 &&
+        TerrenosAsignacionDisponibles.Any(
+            item => item.TerrenoId == nuevaAsignacion.TerrenoId);
+
+    private bool TerrenoPropietarioSeleccionadoVisible =>
+        terrenoParaPropietarioId > 0 &&
+        terrenos.Any(item => item.TerrenoId == terrenoParaPropietarioId) &&
+        !(detalleSeleccionado?.Terrenos.Any(
+            item => item.TerrenoId == terrenoParaPropietarioId) ?? false);
+
+    private bool FormularioCoberturaCompleto =>
+        usuarioCoberturaSeleccionadoId > 0 &&
+        nuevaCobertura.UsuarioId == usuarioCoberturaSeleccionadoId &&
+        (nuevaCobertura.TipoCobertura switch
+        {
+            "NACIONAL" => true,
+            "DEPARTAMENTO" => nuevaCobertura.DepartamentoId.HasValue,
+            "MUNICIPIO" =>
+                nuevaCobertura.DepartamentoId.HasValue &&
+                nuevaCobertura.MunicipioId.HasValue,
+            _ => false
+        });
+
+    private bool TieneCoberturasDuplicadas =>
+        coberturas
+            .GroupBy(ClaveCobertura)
+            .Any(grupo => grupo.Count() > 1);
+
     protected override async Task OnInitializedAsync()
     {
         if (!PuedeLeerPropietarios)
@@ -927,6 +1723,11 @@ else
             Task<List<TerrenoAccesoCatalogo>?> terrenosTask =
                 Servicio.ListarTerrenosAsync();
 
+            Task<List<UsuarioPropietarioAsignacionCatalogo>?>
+                usuariosPropietariosAsignacionTask = PuedeLeerAsignaciones
+                    ? Servicio.ListarUsuariosPropietariosAsignacionAsync()
+                    : Task.FromResult<List<UsuarioPropietarioAsignacionCatalogo>?>([]);
+
             Task<List<DepartamentoAccesoCatalogo>?> departamentosTask =
                 Servicio.ListarDepartamentosAsync();
 
@@ -934,18 +1735,81 @@ else
                 propietariosTask,
                 usuariosTask,
                 terrenosTask,
+                usuariosPropietariosAsignacionTask,
                 departamentosTask);
 
             propietarios = propietariosTask.Result ?? [];
+            propietariosCatalogo = [.. propietarios];
             usuarios = usuariosTask.Result ?? [];
             terrenos = terrenosTask.Result ?? [];
+            usuariosPropietariosAsignacion =
+                usuariosPropietariosAsignacionTask.Result ?? [];
             departamentos = departamentosTask.Result ?? [];
 
             if (PuedeLeerAsignaciones)
-                asignaciones = await Servicio.ListarAsignacionesAsync() ?? [];
+            {
+                if (usuarioAsignacionSeleccionadoId > 0 &&
+                    usuarios.Any(item => item.UsuarioId == usuarioAsignacionSeleccionadoId) &&
+                    usuariosPropietariosAsignacion.Any(
+                        item => item.UsuarioId == usuarioAsignacionSeleccionadoId))
+                {
+                    await CargarAsignacionesUsuarioAsync();
+
+                    UsuarioAccesoCatalogo? usuarioSeleccionado = UsuarioAsignacionSeleccionado;
+                    if (usuarioSeleccionado is not null &&
+                        string.IsNullOrWhiteSpace(buscarUsuarioAsignacion))
+                    {
+                        buscarUsuarioAsignacion = TextoUsuarioAsignacion(usuarioSeleccionado);
+                    }
+                }
+                else
+                {
+                    usuarioAsignacionSeleccionadoId = 0;
+                    buscarUsuarioAsignacion = string.Empty;
+                    buscarTerrenoAsignacion = string.Empty;
+                    asignaciones = [];
+                    terrenosAsignacionPropietario = [];
+                    nuevaAsignacion = new();
+                }
+            }
+
+            if (usuarioPortalId > 0)
+            {
+                UsuarioAccesoCatalogo? usuarioPortal = UsuarioPortalSeleccionado;
+                if (usuarioPortal is null)
+                {
+                    LimpiarUsuarioPortal();
+                }
+                else if (string.IsNullOrWhiteSpace(buscarUsuarioPortal))
+                {
+                    buscarUsuarioPortal = TextoUsuario(usuarioPortal);
+                }
+            }
 
             if (PuedeLeerCoberturas)
-                coberturas = await Servicio.ListarCoberturasAsync() ?? [];
+            {
+                if (usuarioCoberturaSeleccionadoId > 0 &&
+                    usuarios.Any(
+                        item => item.UsuarioId == usuarioCoberturaSeleccionadoId))
+                {
+                    coberturas = await Servicio.ListarCoberturasAsync(
+                        usuarioCoberturaSeleccionadoId) ?? [];
+
+                    UsuarioAccesoCatalogo? usuarioSeleccionado = UsuarioCoberturaSeleccionado;
+                    if (usuarioSeleccionado is not null &&
+                        string.IsNullOrWhiteSpace(buscarUsuarioCobertura))
+                    {
+                        buscarUsuarioCobertura = TextoUsuario(usuarioSeleccionado);
+                    }
+                }
+                else
+                {
+                    usuarioCoberturaSeleccionadoId = 0;
+                    buscarUsuarioCobertura = string.Empty;
+                    coberturas = [];
+                    ReiniciarFormularioCobertura();
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -961,14 +1825,44 @@ else
     {
         try
         {
-            propietarios =
-                await Servicio.ListarPropietariosAsync(
+            Task<List<PropietarioAccesoItem>?> filtradosTask =
+                Servicio.ListarPropietariosAsync(
                     buscarPropietario,
-                    incluirInactivos: false) ?? [];
+                    incluirInactivos: false);
+
+            Task<List<PropietarioAccesoItem>?> catalogoTask =
+                string.IsNullOrWhiteSpace(buscarPropietario)
+                    ? filtradosTask
+                    : Servicio.ListarPropietariosAsync(
+                        incluirInactivos: false);
+
+            await Task.WhenAll(filtradosTask, catalogoTask);
+
+            propietarios = filtradosTask.Result ?? [];
+            propietariosCatalogo = catalogoTask.Result ?? [];
         }
         catch (Exception ex)
         {
             MostrarError(ex.Message);
+        }
+    }
+
+    private async Task CargarUsuariosPropietariosAsignacionAsync()
+    {
+        if (!PuedeLeerAsignaciones)
+        {
+            usuariosPropietariosAsignacion = [];
+            return;
+        }
+
+        usuariosPropietariosAsignacion =
+            await Servicio.ListarUsuariosPropietariosAsignacionAsync() ?? [];
+
+        if (usuarioAsignacionSeleccionadoId > 0 &&
+            !usuariosPropietariosAsignacion.Any(
+                item => item.UsuarioId == usuarioAsignacionSeleccionadoId))
+        {
+            await LimpiarUsuarioAsignacionAsync();
         }
     }
 
@@ -985,6 +1879,7 @@ else
         formularioVisible = true;
         detalleSeleccionado = null;
         terrenoParaPropietarioId = 0;
+        buscarTerrenoPropietario = string.Empty;
         LimpiarMensaje();
     }
 
@@ -995,6 +1890,7 @@ else
 
         detalleSeleccionado = null;
         terrenoParaPropietarioId = 0;
+        buscarTerrenoPropietario = string.Empty;
         formulario = CrearFormulario(item);
         formularioVisible = true;
         LimpiarMensaje();
@@ -1017,6 +1913,7 @@ else
         formulario = new();
         detalleSeleccionado = null;
         terrenoParaPropietarioId = 0;
+        buscarTerrenoPropietario = string.Empty;
         cargandoDetalle = true;
         LimpiarMensaje();
 
@@ -1162,8 +2059,15 @@ else
                     detalleSeleccionado.Propietario.PropietarioId);
 
             terrenoParaPropietarioId = 0;
+            buscarTerrenoPropietario = string.Empty;
             MostrarExito("Terreno vinculado correctamente.");
             await CargarPropietariosAsync();
+
+            if (PropietarioUsuarioAsignacion?.PropietarioId ==
+                detalleSeleccionado?.Propietario.PropietarioId)
+            {
+                await CargarAsignacionesUsuarioAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -1191,6 +2095,9 @@ else
 
             MostrarExito("Terreno desvinculado correctamente.");
             await CargarPropietariosAsync();
+
+            if (PropietarioUsuarioAsignacion?.PropietarioId == propietarioId)
+                await CargarAsignacionesUsuarioAsync();
         }
         catch (Exception ex)
         {
@@ -1198,23 +2105,340 @@ else
         }
     }
 
+    private IEnumerable<UsuarioAccesoCatalogo> FiltrarUsuarios(string filtro)
+    {
+        IEnumerable<UsuarioAccesoCatalogo> consulta = usuarios;
+        string texto = filtro.Trim();
+
+        if (!string.IsNullOrWhiteSpace(texto))
+        {
+            consulta = consulta.Where(item =>
+                ContieneTexto(item.NombreCompletoUsuario, texto) ||
+                ContieneTexto(item.NombreUsuario, texto) ||
+                ContieneTexto(item.CorreoUsuario, texto) ||
+                ContieneTexto(TextoUsuario(item), texto));
+        }
+
+        return consulta
+            .OrderBy(item => item.NombreCompletoUsuario)
+            .ThenBy(item => item.NombreUsuario);
+    }
+
+    private IEnumerable<TerrenoAccesoCatalogo> FiltrarTerrenos(string filtro)
+    {
+        IEnumerable<TerrenoAccesoCatalogo> consulta = terrenos;
+        string texto = filtro.Trim();
+
+        if (!string.IsNullOrWhiteSpace(texto))
+        {
+            consulta = consulta.Where(item =>
+                ContieneTexto(item.CodigoTerreno, texto) ||
+                ContieneTexto(item.PropietarioActual, texto) ||
+                ContieneTexto(item.Direccion, texto) ||
+                ContieneTexto(TextoTerreno(item), texto));
+        }
+
+        return consulta
+            .OrderBy(item => item.CodigoTerreno)
+            .ThenBy(item => item.PropietarioActual);
+    }
+
+    private static bool ContieneTexto(string? valor, string filtro) =>
+        !string.IsNullOrWhiteSpace(valor) &&
+        valor.Contains(filtro, StringComparison.OrdinalIgnoreCase);
+
+    private static string TextoUsuario(UsuarioAccesoCatalogo usuario) =>
+        string.IsNullOrWhiteSpace(usuario.NombreUsuario)
+            ? usuario.NombreCompletoUsuario
+            : $"{usuario.NombreCompletoUsuario} ({usuario.NombreUsuario})";
+
+    private PropietarioAccesoItem? ObtenerPropietarioAsignacion(int usuarioId)
+    {
+        UsuarioPropietarioAsignacionCatalogo? relacion =
+            usuariosPropietariosAsignacion.FirstOrDefault(
+                item => item.UsuarioId == usuarioId);
+
+        if (relacion is null)
+            return null;
+
+        return propietariosCatalogo.FirstOrDefault(
+            item => item.PropietarioId == relacion.PropietarioId);
+    }
+
+    private string TextoUsuarioAsignacion(UsuarioAccesoCatalogo usuario)
+    {
+        PropietarioAccesoItem? propietario =
+            ObtenerPropietarioAsignacion(usuario.UsuarioId);
+
+        if (propietario is null)
+            return TextoUsuario(usuario);
+
+        return string.IsNullOrWhiteSpace(usuario.NombreUsuario)
+            ? propietario.NombreCompleto
+            : $"{propietario.NombreCompleto} ({usuario.NombreUsuario})";
+    }
+
+    private static string TextoPropietario(PropietarioAccesoItem propietario) =>
+        $"{propietario.NombreCompleto} · {propietario.Identificacion}";
+
+    private static string TextoTerreno(TerrenoAccesoCatalogo terreno) =>
+        string.IsNullOrWhiteSpace(terreno.PropietarioActual)
+            ? terreno.CodigoTerreno
+            : $"{terreno.CodigoTerreno} · {terreno.PropietarioActual}";
+
+    private void BuscarUsuarioPortalCambiado(ChangeEventArgs args)
+    {
+        string texto = args.Value?.ToString() ?? string.Empty;
+
+        if (usuarioPortalId > 0 &&
+            UsuarioPortalSeleccionado is not null &&
+            !string.Equals(
+                texto,
+                TextoUsuario(UsuarioPortalSeleccionado),
+                StringComparison.Ordinal))
+        {
+            usuarioPortalId = 0;
+            propietarioPortalId = 0;
+            buscarPropietarioVinculacion = string.Empty;
+        }
+
+        buscarUsuarioPortal = texto;
+    }
+
+    private void SeleccionarUsuarioPortal(UsuarioAccesoCatalogo usuario)
+    {
+        usuarioPortalId = usuario.UsuarioId;
+        buscarUsuarioPortal = TextoUsuario(usuario);
+        propietarioPortalId = 0;
+        buscarPropietarioVinculacion = string.Empty;
+        LimpiarMensaje();
+    }
+
+    private void LimpiarUsuarioPortal()
+    {
+        usuarioPortalId = 0;
+        propietarioPortalId = 0;
+        buscarUsuarioPortal = string.Empty;
+        buscarPropietarioVinculacion = string.Empty;
+        LimpiarMensaje();
+    }
+
+    private void BuscarPropietarioPortalCambiado(ChangeEventArgs args)
+    {
+        string texto = args.Value?.ToString() ?? string.Empty;
+        PropietarioAccesoItem? seleccionado = propietariosCatalogo.FirstOrDefault(
+            item => item.PropietarioId == propietarioPortalId);
+
+        if (seleccionado is not null &&
+            !string.Equals(texto, TextoPropietario(seleccionado), StringComparison.Ordinal))
+        {
+            propietarioPortalId = 0;
+        }
+
+        buscarPropietarioVinculacion = texto;
+    }
+
+    private void SeleccionarPropietarioPortal(PropietarioAccesoItem propietario)
+    {
+        propietarioPortalId = propietario.PropietarioId;
+        buscarPropietarioVinculacion = TextoPropietario(propietario);
+        LimpiarMensaje();
+    }
+
+    private void LimpiarPropietarioPortal()
+    {
+        propietarioPortalId = 0;
+        buscarPropietarioVinculacion = string.Empty;
+        LimpiarMensaje();
+    }
+
+    private void BuscarUsuarioAsignacionCambiado(ChangeEventArgs args)
+    {
+        string texto = args.Value?.ToString() ?? string.Empty;
+
+        if (usuarioAsignacionSeleccionadoId > 0 &&
+            UsuarioAsignacionSeleccionado is not null &&
+            !string.Equals(
+                texto,
+                TextoUsuarioAsignacion(UsuarioAsignacionSeleccionado),
+                StringComparison.Ordinal))
+        {
+            usuarioAsignacionSeleccionadoId = 0;
+            buscarTerrenoAsignacion = string.Empty;
+            asignaciones = [];
+            terrenosAsignacionPropietario = [];
+            nuevaAsignacion = new();
+        }
+
+        buscarUsuarioAsignacion = texto;
+    }
+
+    private async Task SeleccionarUsuarioAsignacionAsync(UsuarioAccesoCatalogo usuario)
+    {
+        usuarioAsignacionSeleccionadoId = usuario.UsuarioId;
+        buscarUsuarioAsignacion = TextoUsuarioAsignacion(usuario);
+        buscarTerrenoAsignacion = string.Empty;
+        nuevaAsignacion = new AsignarUsuarioTerrenoRequest
+        {
+            UsuarioId = usuario.UsuarioId
+        };
+
+        LimpiarMensaje();
+        await CargarAsignacionesUsuarioAsync();
+    }
+
+    private Task LimpiarUsuarioAsignacionAsync()
+    {
+        usuarioAsignacionSeleccionadoId = 0;
+        buscarUsuarioAsignacion = string.Empty;
+        buscarTerrenoAsignacion = string.Empty;
+        asignaciones = [];
+        terrenosAsignacionPropietario = [];
+        nuevaAsignacion = new();
+        LimpiarMensaje();
+        return Task.CompletedTask;
+    }
+
+    private async Task CargarAsignacionesUsuarioAsync()
+    {
+        if (usuarioAsignacionSeleccionadoId <= 0)
+        {
+            asignaciones = [];
+            terrenosAsignacionPropietario = [];
+            return;
+        }
+
+        cargandoAsignacionesUsuario = true;
+
+        try
+        {
+            Task<List<AsignacionTerrenoItem>?> asignacionesTask =
+                Servicio.ListarAsignacionesAsync(usuarioAsignacionSeleccionadoId);
+            Task<List<TerrenoAccesoCatalogo>?> terrenosPropietarioTask =
+                Servicio.ListarTerrenosPropietarioAsync(
+                    usuarioAsignacionSeleccionadoId);
+
+            await Task.WhenAll(asignacionesTask, terrenosPropietarioTask);
+
+            asignaciones = asignacionesTask.Result ?? [];
+            terrenosAsignacionPropietario = terrenosPropietarioTask.Result ?? [];
+            nuevaAsignacion = new AsignarUsuarioTerrenoRequest
+            {
+                UsuarioId = usuarioAsignacionSeleccionadoId,
+                TipoAsignacion = "PROPIETARIO",
+                EsResponsablePrincipal = true
+            };
+        }
+        catch (Exception ex)
+        {
+            asignaciones = [];
+            terrenosAsignacionPropietario = [];
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            cargandoAsignacionesUsuario = false;
+        }
+    }
+
+    private void BuscarTerrenoAsignacionCambiado(ChangeEventArgs args)
+    {
+        string texto = args.Value?.ToString() ?? string.Empty;
+        TerrenoAccesoCatalogo? seleccionado =
+            terrenosAsignacionPropietario.FirstOrDefault(
+                item => item.TerrenoId == nuevaAsignacion.TerrenoId);
+
+        if (seleccionado is not null &&
+            !string.Equals(texto, TextoTerreno(seleccionado), StringComparison.Ordinal))
+        {
+            nuevaAsignacion.TerrenoId = 0;
+        }
+
+        buscarTerrenoAsignacion = texto;
+    }
+
+    private void SeleccionarTerrenoAsignacion(TerrenoAccesoCatalogo terreno)
+    {
+        nuevaAsignacion.TerrenoId = terreno.TerrenoId;
+        buscarTerrenoAsignacion = TextoTerreno(terreno);
+        LimpiarMensaje();
+    }
+
+    private void LimpiarTerrenoAsignacion()
+    {
+        nuevaAsignacion.TerrenoId = 0;
+        buscarTerrenoAsignacion = string.Empty;
+        LimpiarMensaje();
+    }
+
+    private void BuscarTerrenoPropietarioCambiado(ChangeEventArgs args)
+    {
+        string texto = args.Value?.ToString() ?? string.Empty;
+        TerrenoAccesoCatalogo? seleccionado = terrenos.FirstOrDefault(
+            item => item.TerrenoId == terrenoParaPropietarioId);
+
+        if (seleccionado is not null &&
+            !string.Equals(texto, TextoTerreno(seleccionado), StringComparison.Ordinal))
+        {
+            terrenoParaPropietarioId = 0;
+        }
+
+        buscarTerrenoPropietario = texto;
+    }
+
+    private void SeleccionarTerrenoPropietario(TerrenoAccesoCatalogo terreno)
+    {
+        terrenoParaPropietarioId = terreno.TerrenoId;
+        buscarTerrenoPropietario = TextoTerreno(terreno);
+        LimpiarMensaje();
+    }
+
+    private void LimpiarTerrenoPropietario()
+    {
+        terrenoParaPropietarioId = 0;
+        buscarTerrenoPropietario = string.Empty;
+        LimpiarMensaje();
+    }
+
     private async Task VincularUsuarioPropietarioAsync()
     {
         try
         {
+            if (PuedeLeerCoberturas)
+            {
+                List<CoberturaTerritorialItem> coberturasUsuario =
+                    await Servicio.ListarCoberturasAsync(usuarioPortalId) ?? [];
+
+                if (coberturasUsuario.Count > 0)
+                {
+                    MostrarError("Este usuario ya tiene cobertura territorial. " +
+                                 "Retírela antes de asociarlo a un propietario.");
+                    return;
+                }
+            }
+
             await Servicio.VincularUsuarioPropietarioAsync(
                 usuarioPortalId,
                 propietarioPortalId);
 
-            usuarioPortalId = 0;
             propietarioPortalId = 0;
+            buscarPropietarioVinculacion = string.Empty;
             MostrarExito("Usuario vinculado correctamente.");
             await CargarPropietariosAsync();
+            await CargarUsuariosPropietariosAsignacionAsync();
         }
         catch (Exception ex)
         {
             MostrarError(ex.Message);
         }
+    }
+
+    private async Task DesvincularUsuarioPortalActualAsync()
+    {
+        if (PropietarioUsuarioPortalActual is null)
+            return;
+
+        await DesvincularUsuarioAsync(PropietarioUsuarioPortalActual);
     }
 
     private async Task DesvincularUsuarioAsync(
@@ -1230,6 +2454,7 @@ else
 
             MostrarExito("Usuario desvinculado correctamente.");
             await CargarPropietariosAsync();
+            await CargarUsuariosPropietariosAsignacionAsync();
         }
         catch (Exception ex)
         {
@@ -1248,10 +2473,20 @@ else
 
         try
         {
+            nuevaAsignacion.TipoAsignacion = "PROPIETARIO";
+            nuevaAsignacion.EsResponsablePrincipal = true;
+
             await Servicio.CrearAsignacionAsync(nuevaAsignacion);
-            nuevaAsignacion = new();
-            asignaciones = await Servicio.ListarAsignacionesAsync() ?? [];
-            MostrarExito("Asignación creada correctamente.");
+
+            nuevaAsignacion = new AsignarUsuarioTerrenoRequest
+            {
+                UsuarioId = usuarioAsignacionSeleccionadoId,
+                TipoAsignacion = "PROPIETARIO",
+                EsResponsablePrincipal = true
+            };
+            buscarTerrenoAsignacion = string.Empty;
+            await CargarAsignacionesUsuarioAsync();
+            MostrarExito("Terreno asignado al propietario correctamente.");
         }
         catch (Exception ex)
         {
@@ -1267,13 +2502,67 @@ else
             await Servicio.EliminarAsignacionAsync(
                 item.UsuarioTerrenoAsignacionId);
 
-            asignaciones = await Servicio.ListarAsignacionesAsync() ?? [];
-            MostrarExito("Asignación desactivada.");
+            await CargarAsignacionesUsuarioAsync();
+            MostrarExito("Acceso al terreno retirado correctamente.");
         }
         catch (Exception ex)
         {
             MostrarError(ex.Message);
         }
+    }
+
+    private void BuscarUsuarioCoberturaCambiado(ChangeEventArgs args)
+    {
+        buscarUsuarioCobertura = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private async Task SeleccionarUsuarioCoberturaAsync(UsuarioAccesoCatalogo usuario)
+    {
+        usuarioCoberturaSeleccionadoId = usuario.UsuarioId;
+        buscarUsuarioCobertura = TextoUsuario(usuario);
+
+        ReiniciarFormularioCobertura();
+        LimpiarMensaje();
+        await CargarCoberturasUsuarioAsync();
+    }
+
+    private Task LimpiarUsuarioCoberturaAsync()
+    {
+        usuarioCoberturaSeleccionadoId = 0;
+        buscarUsuarioCobertura = string.Empty;
+        coberturas = [];
+        municipios = [];
+        ReiniciarFormularioCobertura();
+        LimpiarMensaje();
+        return Task.CompletedTask;
+    }
+
+    private async Task TipoCoberturaCambiadoAsync(
+        ChangeEventArgs args)
+    {
+        nuevaCobertura.TipoCobertura =
+            args.Value?.ToString()?.Trim().ToUpperInvariant() ??
+            "DEPARTAMENTO";
+
+        if (nuevaCobertura.TipoCobertura == "NACIONAL")
+        {
+            nuevaCobertura.DepartamentoId = null;
+            nuevaCobertura.MunicipioId = null;
+            municipios = [];
+            return;
+        }
+
+        if (nuevaCobertura.TipoCobertura == "DEPARTAMENTO")
+        {
+            nuevaCobertura.MunicipioId = null;
+            municipios = [];
+            return;
+        }
+
+        municipios = nuevaCobertura.DepartamentoId.HasValue
+            ? await Servicio.ListarMunicipiosAsync(
+                nuevaCobertura.DepartamentoId) ?? []
+            : [];
     }
 
     private async Task DepartamentoCoberturaCambiadoAsync(
@@ -1286,26 +2575,74 @@ else
 
         nuevaCobertura.MunicipioId = null;
 
-        municipios = nuevaCobertura.DepartamentoId.HasValue
-            ? await Servicio.ListarMunicipiosAsync(
-                nuevaCobertura.DepartamentoId) ?? []
-            : [];
+        municipios =
+            nuevaCobertura.TipoCobertura == "MUNICIPIO" &&
+            nuevaCobertura.DepartamentoId.HasValue
+                ? await Servicio.ListarMunicipiosAsync(
+                    nuevaCobertura.DepartamentoId) ?? []
+                : [];
+    }
+
+    private async Task CargarCoberturasUsuarioAsync()
+    {
+        if (!PuedeLeerCoberturas || usuarioCoberturaSeleccionadoId <= 0)
+        {
+            coberturas = [];
+            return;
+        }
+
+        cargandoCoberturasUsuario = true;
+
+        try
+        {
+            coberturas = await Servicio.ListarCoberturasAsync(
+                usuarioCoberturaSeleccionadoId) ?? [];
+        }
+        catch (Exception ex)
+        {
+            coberturas = [];
+            MostrarError(ex.Message);
+        }
+        finally
+        {
+            cargandoCoberturasUsuario = false;
+        }
     }
 
     private async Task CrearCoberturaAsync()
     {
-        if (nuevaCobertura.UsuarioId <= 0)
+        if (usuarioCoberturaSeleccionadoId <= 0)
         {
             MostrarError("Seleccione un usuario.");
+            return;
+        }
+
+        nuevaCobertura.UsuarioId = usuarioCoberturaSeleccionadoId;
+
+        if (!FormularioCoberturaCompleto)
+        {
+            MostrarError("Complete la ubicación requerida para la cobertura.");
+            return;
+        }
+
+        if (PropietarioUsuarioCobertura is not null)
+        {
+            MostrarError("Este usuario ya está asociado a un propietario. " +
+                         "Retire esa vinculación antes de asignarle cobertura.");
+            return;
+        }
+
+        if (CoberturaYaRegistrada(nuevaCobertura))
+        {
+            MostrarError("Este usuario ya tiene registrada esa misma cobertura.");
             return;
         }
 
         try
         {
             await Servicio.CrearCoberturaAsync(nuevaCobertura);
-            nuevaCobertura = new();
-            municipios = [];
-            coberturas = await Servicio.ListarCoberturasAsync() ?? [];
+            ReiniciarFormularioCobertura();
+            await CargarCoberturasUsuarioAsync();
             MostrarExito("Cobertura creada correctamente.");
         }
         catch (Exception ex)
@@ -1322,14 +2659,61 @@ else
             await Servicio.EliminarCoberturaAsync(
                 item.UsuarioCoberturaTerritorialId);
 
-            coberturas = await Servicio.ListarCoberturasAsync() ?? [];
-            MostrarExito("Cobertura desactivada.");
+            await CargarCoberturasUsuarioAsync();
+            MostrarExito("Cobertura retirada correctamente.");
         }
         catch (Exception ex)
         {
             MostrarError(ex.Message);
         }
     }
+
+    private void ReiniciarFormularioCobertura()
+    {
+        nuevaCobertura = new GuardarCoberturaTerritorialRequest
+        {
+            UsuarioId = usuarioCoberturaSeleccionadoId,
+            TipoCobertura = "DEPARTAMENTO"
+        };
+
+        municipios = [];
+    }
+
+    private bool CoberturaYaRegistrada(
+        GuardarCoberturaTerritorialRequest cobertura)
+    {
+        string tipo = cobertura.TipoCobertura.Trim().ToUpperInvariant();
+
+        return coberturas.Any(item =>
+            string.Equals(
+                item.TipoCobertura,
+                tipo,
+                StringComparison.OrdinalIgnoreCase) &&
+            (tipo == "NACIONAL" ||
+             (tipo == "DEPARTAMENTO" &&
+              item.DepartamentoId == cobertura.DepartamentoId) ||
+             (tipo == "MUNICIPIO" &&
+              item.DepartamentoId == cobertura.DepartamentoId &&
+              item.MunicipioId == cobertura.MunicipioId)));
+    }
+
+    private bool EsCoberturaDuplicada(CoberturaTerritorialItem item) =>
+        coberturas.Count(otra =>
+            ClaveCobertura(otra) == ClaveCobertura(item)) > 1;
+
+    private static string ClaveCobertura(CoberturaTerritorialItem item) =>
+        $"{item.TipoCobertura.Trim().ToUpperInvariant()}|" +
+        $"{item.DepartamentoId?.ToString() ?? "-"}|" +
+        $"{item.MunicipioId?.ToString() ?? "-"}";
+
+    private static string NombreTipoCobertura(string tipo) =>
+        tipo.Trim().ToUpperInvariant() switch
+        {
+            "NACIONAL" => "Todo Nicaragua",
+            "DEPARTAMENTO" => "Departamento",
+            "MUNICIPIO" => "Municipio",
+            _ => tipo
+        };
 
     private void CancelarFormulario()
     {
@@ -1341,6 +2725,7 @@ else
     {
         detalleSeleccionado = null;
         terrenoParaPropietarioId = 0;
+        buscarTerrenoPropietario = string.Empty;
         cargandoDetalle = false;
     }
 

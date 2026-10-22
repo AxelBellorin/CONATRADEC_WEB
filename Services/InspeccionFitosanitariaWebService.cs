@@ -60,7 +60,7 @@ public sealed class InspeccionFitosanitariaWebService
                 cancellationToken);
 
         return envelope?.Data ?? throw new InvalidOperationException(
-            "La API no devolvió la configuración actualizada.");
+            "No fue posible obtener la configuración actualizada.");
     }
 
     public async Task<TipoFotografiaIAWeb> CrearTipoFotografiaAsync(
@@ -74,7 +74,7 @@ public sealed class InspeccionFitosanitariaWebService
                 cancellationToken);
 
         return envelope?.Data ?? throw new InvalidOperationException(
-            "La API no devolvió el tipo de fotografía creado.");
+            "No fue posible obtener el tipo de fotografía creado.");
     }
 
     public async Task<TipoFotografiaIAWeb> ActualizarTipoFotografiaAsync(
@@ -89,7 +89,7 @@ public sealed class InspeccionFitosanitariaWebService
                 cancellationToken);
 
         return envelope?.Data ?? throw new InvalidOperationException(
-            "La API no devolvió el tipo de fotografía actualizado.");
+            "No fue posible obtener el tipo de fotografía actualizado.");
     }
 
     public Task DesactivarTipoFotografiaAsync(
@@ -196,7 +196,7 @@ public sealed class InspeccionFitosanitariaWebService
                 cancellationToken);
 
         return envelope?.Data ?? throw new InvalidOperationException(
-            "La API no devolvió el detalle de la inspección.");
+            "No fue posible obtener el detalle de la inspección.");
     }
 
     public Task<InspeccionFitosanitariaDetalleWeb> CrearAsync(
@@ -550,7 +550,7 @@ public sealed class InspeccionFitosanitariaWebService
 
         string? token = authState.Usuario?.Token;
         if (string.IsNullOrWhiteSpace(token))
-            throw new UnauthorizedAccessException("La sesión no contiene un token válido.");
+            throw new UnauthorizedAccessException("La sesión ya no es válida. Inicia sesión nuevamente.");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, ruta);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -596,7 +596,7 @@ public sealed class InspeccionFitosanitariaWebService
                 throw CrearExcepcion(response.StatusCode, envelope?.Message, json);
 
             return envelope?.Data ?? throw new InvalidOperationException(
-                "La API no devolvió la inspección registrada.");
+                "No fue posible obtener la inspección registrada.");
         }
         finally
         {
@@ -613,7 +613,7 @@ public sealed class InspeccionFitosanitariaWebService
         ApiEnvelopeWeb<T>? envelope =
             await apiClient.GetAsync<ApiEnvelopeWeb<T>>(ruta, cancellationToken);
         return envelope?.Data ?? throw new InvalidOperationException(
-            envelope?.Message ?? "La API no devolvió datos para la operación.");
+            envelope?.Message ?? "No fue posible obtener la información necesaria para completar la operación.");
     }
 
     private async Task<T> PostDataAsync<T>(
@@ -635,7 +635,7 @@ public sealed class InspeccionFitosanitariaWebService
             return (T)(object)new object();
 
         throw new InvalidOperationException(
-            envelope?.Message ?? "La API no devolvió el resultado esperado.");
+            envelope?.Message ?? "No fue posible obtener el resultado de la operación.");
     }
 
     private static void Agregar(

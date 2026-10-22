@@ -617,7 +617,7 @@ else
             if (item is null)
             {
                 throw new InvalidOperationException(
-                    "La API no devolvió la publicación.");
+                    "No fue posible obtener la publicación.");
             }
 
             formulario =
@@ -680,7 +680,7 @@ else
                 if (publicacionId <= 0)
                 {
                     throw new InvalidOperationException(
-                        "La API no devolvió el identificador de la publicación.");
+                        "No fue posible confirmar la publicación guardada.");
                 }
             }
             else

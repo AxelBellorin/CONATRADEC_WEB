@@ -349,7 +349,7 @@ window.conatradecDispositivosMapa = (() => {
                     ${escapar(fechaUbicacion)}
                 </p>
                 <p>
-                    <strong>Último latido:</strong>
+                    <strong>Última conexión:</strong>
                     ${escapar(ultimoLatido)}
                 </p>
                 <p>

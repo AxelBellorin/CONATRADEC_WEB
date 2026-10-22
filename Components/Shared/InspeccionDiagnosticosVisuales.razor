@@ -517,7 +517,7 @@
                     $"api/inspecciones-fitosanitarias/{InspeccionId}");
 
             if (respuesta?.Data is null)
-                throw new InvalidOperationException(string.IsNullOrWhiteSpace(respuesta?.Message) ? "La API no devolvió el detalle visual de la inspección." : respuesta.Message);
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(respuesta?.Message) ? "No fue posible obtener el detalle visual de la inspección." : respuesta.Message);
 
             foto = respuesta.Data.Fotografias.FirstOrDefault(item => item.FotografiaId == FotografiaId);
             if (foto is null)

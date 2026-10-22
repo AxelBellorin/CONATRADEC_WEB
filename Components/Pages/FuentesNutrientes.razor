@@ -1192,7 +1192,7 @@ else
             if (actual is null)
             {
                 MostrarMensaje(
-                    "La API no devolvió el detalle de la fuente.",
+                    "No fue posible obtener el detalle de la fuente.",
                     true);
                 return;
             }
@@ -1344,7 +1344,7 @@ else
             if (fuenteId <= 0)
             {
                 throw new InvalidOperationException(
-                    "La API no devolvió el identificador de la fuente.");
+                    "No fue posible confirmar la fuente guardada.");
             }
 
             await SincronizarClasificacionesAsync(

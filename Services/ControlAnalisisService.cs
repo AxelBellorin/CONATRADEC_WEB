@@ -134,7 +134,7 @@ public sealed class ControlAnalisisService
         if (string.IsNullOrWhiteSpace(usuario.Token))
         {
             throw new UnauthorizedAccessException(
-                "La sesión no contiene un token de seguridad.");
+                "La sesión ya no es válida. Inicia sesión nuevamente.");
         }
 
         return usuario;
@@ -237,7 +237,7 @@ public sealed class ControlAnalisisService
         string contenido)
     {
         if (string.IsNullOrWhiteSpace(contenido))
-            return "La API no devolvió detalles del error.";
+            return "No fue posible completar la operación.";
 
         try
         {

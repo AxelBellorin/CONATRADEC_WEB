@@ -203,7 +203,7 @@ else
             if (string.IsNullOrWhiteSpace(token))
             {
                 throw new UnauthorizedAccessException(
-                    "La sesión no contiene un token vigente.");
+                    "La sesión ya no es válida. Inicia sesión nuevamente.");
             }
 
             HttpClient client =
@@ -258,7 +258,7 @@ else
             if (contenido.Length == 0)
             {
                 throw new InvalidOperationException(
-                    "La API devolvió un archivo vacío.");
+                    "El reporte generado no contiene información para descargar.");
             }
 
             string nombre =

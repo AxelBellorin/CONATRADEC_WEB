@@ -13,11 +13,11 @@
             <i class="fa-solid fa-location-dot"></i>
             República de Nicaragua
         </span>
-        <p class="eyebrow">Inteligencia territorial nacional</p>
+        <p class="eyebrow">Información de mi cobertura</p>
         <h1>Centro Geoespacial CONATRADEC</h1>
         <p>
             Integra terrenos, alertas, suelos y condiciones meteorológicas
-            dentro de un único mapa nacional.
+            dentro de los territorios autorizados para su cuenta.
         </p>
     </div>
 
@@ -29,10 +29,10 @@
 
         <button class="btn-secondary"
                 type="button"
-                title="Volver a la vista nacional"
+                title="Volver a mi cobertura"
                 @onclick="CentrarNicaraguaAsync">
             <i class="fa-solid fa-expand"></i>
-            Centrar Nicaragua
+            Centrar mi cobertura
         </button>
 
         <button class="btn-primary"
@@ -44,6 +44,15 @@
         </button>
     </div>
 </div>
+
+@if (sinCobertura)
+{
+    <div class="alert alert-warning geo-alert">
+        <i class="fa-solid fa-lock"></i>
+        <span>No tiene cobertura territorial ni terrenos propios autorizados.
+              Solicite que configuren su acceso en Propietarios y acceso a terrenos.</span>
+    </div>
+}
 
 @if (!string.IsNullOrWhiteSpace(error))
 {
@@ -141,7 +150,7 @@
     <aside class="geo-control-panel @(panelControlesAbierto ? "open" : string.Empty)">
         <div class="geo-panel-heading">
             <div>
-                <span>Panel nacional</span>
+                <span>Mi cobertura territorial</span>
                 <h2>Capas y filtros</h2>
             </div>
 
@@ -313,7 +322,7 @@
                         <button class="btn-link"
                                 type="button"
                                 @onclick="LimpiarSeleccionTerritorialAsync">
-                            Ver Nicaragua
+                            Restablecer mi cobertura
                         </button>
                     </div>
                 </section>
@@ -406,10 +415,10 @@
         {
             <div class="geo-territorial-breadcrumb">
                 <button type="button"
-                        title="Volver a la vista nacional"
+                        title="Volver a mi cobertura"
                         @onclick="LimpiarSeleccionTerritorialAsync">
                     <i class="fa-solid fa-earth-americas"></i>
-                    Nicaragua
+                    Mi cobertura
                 </button>
                 @if (DepartamentoSeleccionado is not null)
                 {
@@ -434,7 +443,7 @@
 
             <button class="geo-tool-button"
                     type="button"
-                    title="Centrar Nicaragua"
+                    title="Centrar mi cobertura"
                     @onclick="CentrarNicaraguaAsync">
                 <i class="fa-solid fa-crosshairs"></i>
             </button>
@@ -717,6 +726,7 @@
     private AnalisisTerrenoMapa? analisisSeleccionado;
     private List<CatalogoSimple> departamentos = [];
     private List<MunicipioSelectorItem> municipios = [];
+    private bool sinCobertura;
     private DotNetObjectReference<Mapa>? referenciaDotNet;
     private bool cargando = true;
     private bool cargandoClima;
@@ -854,7 +864,24 @@
     {
         try
         {
-            municipios = await MapaService.ObtenerMunicipiosAsync();
+            List<int> municipiosAutorizados =
+                await MapaService.ObtenerMunicipiosPermitidosAsync();
+            municipios = (await MapaService.ObtenerMunicipiosAsync())
+                .Where(item => municipiosAutorizados.Contains(item.MunicipioId))
+                .ToList();
+
+            // Sin relaciones no existe acceso nacional, tampoco para administradores.
+            sinCobertura = municipios.Count == 0;
+
+            List<int> departamentosAutorizados = municipios
+                .Select(item => item.DepartamentoId)
+                .Distinct().ToList();
+            filtro.DepartamentoId = departamentosAutorizados.Count == 1
+                ? departamentosAutorizados[0]
+                : null;
+            filtro.MunicipioId = municipios.Count == 1
+                ? municipios[0].MunicipioId
+                : null;
 
             departamentos = municipios
                 .GroupBy(item => new
@@ -918,6 +945,14 @@
 
             await InicializarMapaAsync();
             await JS.InvokeVoidAsync(
+                "conatradecMapaInteligente.establecerCobertura",
+                "mapaTerrenos",
+                municipios.Select(item => new
+                {
+                    departamento = item.NombreDepartamento,
+                    municipio = item.NombreMunicipio
+                }).ToList());
+            await JS.InvokeVoidAsync(
                 "conatradecMapaInteligente.mostrarTerrenos",
                 "mapaTerrenos",
                 respuesta.Terrenos,
@@ -957,16 +992,16 @@
         {
             climaNacional = await MapaService
                 .ObtenerClimaAsync(forzarActualizacion);
-            clima = climaNacional;
             climaConsultado = true;
 
-            if (!climaNacional.Disponible)
-                errorClima = climaNacional.Mensaje;
-
-            await JS.InvokeVoidAsync(
-                "conatradecMapaInteligente.mostrarClima",
-                "mapaTerrenos",
-                climaNacional);
+            ClimaMapaRespuesta? climaVisible =
+                await JS.InvokeAsync<ClimaMapaRespuesta?>(
+                    "conatradecMapaInteligente.mostrarClima",
+                    "mapaTerrenos",
+                    climaNacional);
+            clima = climaVisible ?? new();
+            if (!clima.Disponible)
+                errorClima = clima.Mensaje;
 
             await AplicarFiltroTerritorialEnMapaAsync(
                 ajustarVista: false);
@@ -1010,7 +1045,7 @@
         if (!climaConsultado)
             return;
 
-        clima = climaFiltrado ?? climaNacional;
+        clima = climaFiltrado ?? new();
 
         if (clima.Disponible)
         {
@@ -1121,8 +1156,10 @@
     private async Task LimpiarFiltrosAsync()
     {
         filtro.Texto = string.Empty;
-        filtro.DepartamentoId = null;
-        filtro.MunicipioId = null;
+        filtro.DepartamentoId = departamentos.Count == 1
+            ? departamentos[0].Id : null;
+        filtro.MunicipioId = municipios.Count == 1
+            ? municipios[0].MunicipioId : null;
         filtro.Nivel = string.Empty;
         filtro.Indicador = string.Empty;
 
@@ -1132,9 +1169,10 @@
     private Task DepartamentoCambiadoAsync(ChangeEventArgs args)
     {
         filtro.DepartamentoId =
-            int.TryParse(args.Value?.ToString(), out int departamentoId)
+            int.TryParse(args.Value?.ToString(), out int departamentoId) &&
+            departamentos.Any(item => item.Id == departamentoId)
                 ? departamentoId
-                : null;
+                : departamentos.Count == 1 ? departamentos[0].Id : null;
 
         filtro.MunicipioId = null;
 
@@ -1144,7 +1182,8 @@
     private Task MunicipioCambiadoAsync(ChangeEventArgs args)
     {
         filtro.MunicipioId =
-            int.TryParse(args.Value?.ToString(), out int municipioId)
+            int.TryParse(args.Value?.ToString(), out int municipioId) &&
+            municipios.Any(item => item.MunicipioId == municipioId)
                 ? municipioId
                 : null;
 
@@ -1257,9 +1296,16 @@
 
         if (mapaInicializado)
         {
-            await JS.InvokeVoidAsync(
-                "conatradecMapaInteligente.centrarNicaragua",
-                "mapaTerrenos");
+            if (filtro.DepartamentoId.HasValue || filtro.MunicipioId.HasValue)
+            {
+                await AplicarFiltroTerritorialEnMapaAsync(ajustarVista: true);
+            }
+            else
+            {
+                await JS.InvokeVoidAsync(
+                    "conatradecMapaInteligente.centrarCobertura",
+                    "mapaTerrenos");
+            }
         }
     }
 
@@ -1361,8 +1407,10 @@
 
     private async Task LimpiarSeleccionTerritorialAsync()
     {
-        filtro.DepartamentoId = null;
-        filtro.MunicipioId = null;
+        filtro.DepartamentoId = departamentos.Count == 1
+            ? departamentos[0].Id : null;
+        filtro.MunicipioId = municipios.Count == 1
+            ? municipios[0].MunicipioId : null;
         await CargarMapaAsync();
         await CentrarNicaraguaAsync();
     }

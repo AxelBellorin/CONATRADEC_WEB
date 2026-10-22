@@ -625,7 +625,7 @@
             if (portal is null)
             {
                 error =
-                    "El servidor no devolvió la información del propietario.";
+                    "No fue posible obtener la información del propietario.";
                 return;
             }
 
@@ -690,7 +690,7 @@
         {
             error =
                 string.IsNullOrWhiteSpace(ex.Message)
-                    ? "No fue posible conectarse con el servidor."
+                    ? "No fue posible cargar la información. Verifica tu conexión e intenta nuevamente."
                     : ex.Message;
         }
         catch (TaskCanceledException)

@@ -31,7 +31,7 @@
     <div class="form-group filter-search-wide">
         <label>Búsqueda general</label>
         <InputText class="form-control" @bind-Value="filtro.Buscar"
-                   placeholder="Usuario, descripción, endpoint, página o correlación" />
+                   placeholder="Usuario, descripción, página o referencia" />
     </div>
 
     <div class="form-group">
@@ -186,17 +186,10 @@ else
             <div class="detail-grid">
                 <DetailItem Etiqueta="Fecha" Valor="@FechaLocal(detalle.FechaHoraUtc)" />
                 <DetailItem Etiqueta="Usuario" Valor="@NombreUsuario(detalle)" />
-                <DetailItem Etiqueta="Método" Valor="@detalle.MetodoHttp" />
-                <DetailItem Etiqueta="Código HTTP" Valor="@detalle.CodigoEstado.ToString()" />
                 <DetailItem Etiqueta="Duración" Valor="@($"{detalle.DuracionMs} ms")" />
-                <DetailItem Etiqueta="IP" Valor="@detalle.DireccionIp" />
+                <DetailItem Etiqueta="Dirección de conexión" Valor="@detalle.DireccionIp" />
                 <DetailItem Etiqueta="Plataforma" Valor="@detalle.Plataforma" />
                 <DetailItem Etiqueta="Dispositivo" Valor="@detalle.Dispositivo" />
-            </div>
-
-            <div class="detail-block">
-                <strong>Endpoint</strong>
-                <code>@detalle.Endpoint</code>
             </div>
 
             <div class="detail-block">
@@ -221,10 +214,10 @@ else
                         {
                             <article class="change-item">
                                 <div><strong>@cambio.Entidad</strong> · @cambio.Operacion</div>
-                                <small>ID: @cambio.EntidadId</small>
+                                <small>Código: @cambio.EntidadId</small>
                                 @if (!string.IsNullOrWhiteSpace(cambio.PropiedadesModificadas))
                                 {
-                                    <p>Propiedades: @cambio.PropiedadesModificadas</p>
+                                    <p>Campos modificados: @cambio.PropiedadesModificadas</p>
                                 }
                             </article>
                         }

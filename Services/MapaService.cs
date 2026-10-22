@@ -49,6 +49,12 @@ public sealed class MapaService
             "api/centro-geoespacial/capas",
             cancellationToken) ?? new();
 
+    public async Task<List<int>> ObtenerMunicipiosPermitidosAsync(
+        CancellationToken cancellationToken = default) =>
+        await apiClient.GetAsync<List<int>>(
+            "api/mapa/mi-cobertura/municipios",
+            cancellationToken) ?? [];
+
     public async Task<List<MunicipioSelectorItem>>
         ObtenerMunicipiosAsync(
             CancellationToken cancellationToken = default) =>

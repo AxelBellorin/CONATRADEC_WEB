@@ -135,10 +135,18 @@ public sealed class ParametrizacionAccesoService
             cancellationToken);
 
     public Task<List<AsignacionTerrenoItem>?> ListarAsignacionesAsync(
-        CancellationToken cancellationToken = default) =>
-        api.GetAsync<List<AsignacionTerrenoItem>>(
-            "api/parametrizacion-acceso/asignaciones",
+        int? usuarioId = null,
+        CancellationToken cancellationToken = default)
+    {
+        string ruta = "api/parametrizacion-acceso/asignaciones";
+
+        if (usuarioId.HasValue)
+            ruta += $"?usuarioId={usuarioId.Value}";
+
+        return api.GetAsync<List<AsignacionTerrenoItem>>(
+            ruta,
             cancellationToken);
+    }
 
     public Task<ApiOperacionAccesoRespuesta?> CrearAsignacionAsync(
         AsignarUsuarioTerrenoRequest request,
@@ -158,10 +166,18 @@ public sealed class ParametrizacionAccesoService
             cancellationToken);
 
     public Task<List<CoberturaTerritorialItem>?> ListarCoberturasAsync(
-        CancellationToken cancellationToken = default) =>
-        api.GetAsync<List<CoberturaTerritorialItem>>(
-            "api/parametrizacion-acceso/coberturas",
+        int? usuarioId = null,
+        CancellationToken cancellationToken = default)
+    {
+        string ruta = "api/parametrizacion-acceso/coberturas";
+
+        if (usuarioId.HasValue)
+            ruta += $"?usuarioId={usuarioId.Value}";
+
+        return api.GetAsync<List<CoberturaTerritorialItem>>(
+            ruta,
             cancellationToken);
+    }
 
     public Task<ApiOperacionAccesoRespuesta?> CrearCoberturaAsync(
         GuardarCoberturaTerritorialRequest request,
@@ -184,6 +200,21 @@ public sealed class ParametrizacionAccesoService
         CancellationToken cancellationToken = default) =>
         api.GetAsync<List<UsuarioAccesoCatalogo>>(
             "api/parametrizacion-acceso/catalogos/usuarios",
+            cancellationToken);
+
+    public Task<List<UsuarioPropietarioAsignacionCatalogo>?>
+        ListarUsuariosPropietariosAsignacionAsync(
+            CancellationToken cancellationToken = default) =>
+        api.GetAsync<List<UsuarioPropietarioAsignacionCatalogo>>(
+            "api/parametrizacion-acceso/catalogos/usuarios-propietarios",
+            cancellationToken);
+
+    public Task<List<TerrenoAccesoCatalogo>?>
+        ListarTerrenosPropietarioAsync(
+            int usuarioId,
+            CancellationToken cancellationToken = default) =>
+        api.GetAsync<List<TerrenoAccesoCatalogo>>(
+            $"api/parametrizacion-acceso/catalogos/terrenos-propietario/{usuarioId}",
             cancellationToken);
 
     public Task<List<TerrenoAccesoCatalogo>?> ListarTerrenosAsync(

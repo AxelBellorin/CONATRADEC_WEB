@@ -280,7 +280,7 @@ public sealed class ActualizacionesService
         if (string.IsNullOrWhiteSpace(usuario.Token))
         {
             throw new UnauthorizedAccessException(
-                "La sesión no contiene un token de seguridad.");
+                "La sesión ya no es válida. Inicia sesión nuevamente.");
         }
 
         using var request =
@@ -425,7 +425,7 @@ public sealed class ActualizacionesService
         if (string.IsNullOrWhiteSpace(texto))
         {
             return
-                "La API no devolvió detalles del error.";
+                "No fue posible completar la operación.";
         }
 
         try
@@ -557,7 +557,7 @@ public sealed class ActualizacionesService
                             enviados,
                             longitud,
                             porcentaje,
-                            "Subiendo el archivo al servidor..."));
+                            "Subiendo el archivo..."));
                 }
 
                 await destino.FlushAsync(cancellationToken);
@@ -568,7 +568,7 @@ public sealed class ActualizacionesService
                         longitud,
                         longitud,
                         100,
-                        "Archivo transferido. Calculando SHA-256 y guardando el borrador..."));
+                        "Archivo transferido. Verificando y guardando el borrador..."));
             }
             finally
             {

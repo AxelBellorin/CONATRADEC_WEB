@@ -3,7 +3,7 @@
 @inject DashboardService DashboardService
 @inject NavigationManager Navigation
 
-<PageTitle>Dashboard ejecutivo | CONATRADEC</PageTitle>
+<PageTitle>Resumen ejecutivo | CONATRADEC</PageTitle>
 
 @if (cargando)
 {
@@ -13,7 +13,7 @@ else if (!string.IsNullOrWhiteSpace(error))
 {
     <section class="panel dashboard-error">
         <i class="fa-solid fa-circle-exclamation"></i>
-        <h1>No fue posible cargar el dashboard</h1>
+        <h1>No fue posible cargar el resumen ejecutivo</h1>
         <p>@error</p>
         <button class="btn-primary" @onclick="CargarDatos">Reintentar</button>
     </section>
@@ -23,15 +23,11 @@ else
     <div class="executive-header">
         <div>
             <p class="eyebrow">Centro de operaciones</p>
-            <h1>Dashboard ejecutivo</h1>
+            <h1>Resumen ejecutivo</h1>
             <p>Resumen actualizado al @FechaConsultaTexto.</p>
         </div>
 
         <div class="executive-header-actions">
-            <span class="dashboard-live-indicator">
-                <i class="fa-solid fa-circle"></i>
-                Datos de la API
-            </span>
             <button class="btn-secondary" @onclick="CargarDatos">
                 <i class="fa-solid fa-rotate"></i>
                 Actualizar

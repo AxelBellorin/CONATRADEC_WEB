@@ -42,8 +42,7 @@
     <div class="cl-source-note">
         <i class="fa-solid fa-circle-info"></i>
         <span>
-            Los cambios se aplican al módulo web Clima y labores sin
-            recompilar la API ni la página.
+            Los cambios se aplican automáticamente al módulo web Clima y labores.
         </span>
     </div>
 
@@ -436,7 +435,7 @@
             if (guardada is null)
             {
                 MostrarMensaje(
-                    "El servidor no devolvió la regla guardada.",
+                    "No fue posible obtener la regla guardada.",
                     error: true);
                 return;
             }

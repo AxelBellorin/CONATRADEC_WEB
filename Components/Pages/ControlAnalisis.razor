@@ -40,7 +40,7 @@
         <label>Búsqueda general</label>
         <InputText class="form-control"
                    @bind-Value="filtro.Buscar"
-                   placeholder="Identificador, terreno, propietario, técnico o laboratorio" />
+                   placeholder="Código, terreno, propietario, técnico o laboratorio" />
     </div>
 
     <div class="form-group">
@@ -328,7 +328,7 @@ else
                                             ? "fa-cloud-arrow-up"
                                             : "fa-wifi")"></i>
                                         @(item.Origen == "OFFLINE"
-                                            ? "Offline"
+                                            ? "Sin conexión"
                                             : "En línea")
                                     </span>
                                 </td>
@@ -583,25 +583,20 @@ else
                     @if (detalle.ProcedenciaOffline is not null)
                     {
                         <section class="detail-section">
-                            <h3>Sincronización offline</h3>
+                            <h3>Registro realizado sin conexión</h3>
                             <div class="detail-grid">
                                 <DetailItem Etiqueta="Operación"
                                             Valor="@detalle.ProcedenciaOffline.TipoOperacion" />
                                 <DetailItem Etiqueta="Estado"
                                             Valor="@detalle.ProcedenciaOffline.Estado" />
-                                <DetailItem Etiqueta="Versión del motor"
+                                <DetailItem Etiqueta="Versión del cálculo"
                                             Valor="@detalle.ProcedenciaOffline.VersionMotor" />
                                 <DetailItem Etiqueta="Calculado localmente"
                                             Valor="@FechaUtcLocal(detalle.ProcedenciaOffline.FechaCalculoLocalUtc)" />
-                                <DetailItem Etiqueta="Recibido por servidor"
+                                <DetailItem Etiqueta="Recibido por el sistema"
                                             Valor="@FechaUtcLocal(detalle.ProcedenciaOffline.FechaRecepcionUtc)" />
                                 <DetailItem Etiqueta="Completado"
                                             Valor="@FechaUtcLocal(detalle.ProcedenciaOffline.FechaCompletadoUtc)" />
-                            </div>
-
-                            <div class="hash-block">
-                                <strong>Hash del paquete</strong>
-                                <code>@detalle.ProcedenciaOffline.HashPaquete</code>
                             </div>
                         </section>
                     }
@@ -702,7 +697,7 @@ else
                                                         <pre>@evento.ValoresNuevos</pre>
                                                     </div>
                                                 </div>
-                                                <code>@evento.Endpoint</code>
+
                                             </details>
                                         </div>
                                     </article>

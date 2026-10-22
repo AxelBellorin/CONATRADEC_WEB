@@ -35,7 +35,7 @@ public sealed class LlavesDescargaService : IDisposable
 
         string baseUrl = configuration["ApiSettings:BaseUrl"]
             ?? throw new InvalidOperationException(
-                "No se encontró ApiSettings:BaseUrl en appsettings.json.");
+                "El servicio de códigos de descarga no está disponible en este momento.");
 
         httpClient = new HttpClient
         {
@@ -182,7 +182,7 @@ public sealed class LlavesDescargaService : IDisposable
         if (string.IsNullOrWhiteSpace(usuario.Token))
         {
             throw new UnauthorizedAccessException(
-                "La sesión no contiene un token de seguridad.");
+                "La sesión ya no es válida. Inicia sesión nuevamente.");
         }
 
         using var request = new HttpRequestMessage(metodo, ruta);
@@ -314,7 +314,7 @@ public sealed class LlavesDescargaService : IDisposable
     private static string ExtraerMensaje(string texto)
     {
         if (string.IsNullOrWhiteSpace(texto))
-            return "La API no devolvió detalles del error.";
+            return "No fue posible completar la operación.";
 
         try
         {

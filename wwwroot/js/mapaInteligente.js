@@ -110,6 +110,7 @@ window.conatradecMapaInteligente = (() => {
             mapaBaseActivo: "calles",
             capasActivas: { ...configuracionCapasInicial },
             terrenos: [],
+            municipiosAutorizados: null,
             clima: null,
             climaOriginal: null,
             filtroTerritorial: {
@@ -362,6 +363,7 @@ window.conatradecMapaInteligente = (() => {
 
                 layer.on({
                     mouseover: evento => {
+                        if (!coberturaPermiteDepartamento(contexto, nombre)) return;
                         evento.target.setStyle({
                             weight: 2.8,
                             fillOpacity: 0.16
@@ -372,6 +374,7 @@ window.conatradecMapaInteligente = (() => {
                             ?.resetStyle(evento.target);
                     },
                     click: evento => {
+                        if (!coberturaPermiteDepartamento(contexto, nombre)) return;
                         contexto.mapa.fitBounds(
                             evento.target.getBounds(),
                             {
@@ -408,8 +411,25 @@ window.conatradecMapaInteligente = (() => {
         });
     }
 
+    function coberturaPermiteDepartamento(contexto, departamento) {
+        return !Array.isArray(contexto.municipiosAutorizados) ||
+            contexto.municipiosAutorizados.some(item =>
+                normalizar(item.departamento) === normalizar(departamento));
+    }
+
+    function coberturaPermiteMunicipio(contexto, departamento, municipio) {
+        return !Array.isArray(contexto.municipiosAutorizados) ||
+            contexto.municipiosAutorizados.some(item =>
+                normalizar(item.departamento) === normalizar(departamento) &&
+                normalizar(item.municipio) === normalizar(municipio));
+    }
+
     function estiloDepartamento(contexto, feature) {
         const nombre = nombreDepartamento(feature);
+        if (!coberturaPermiteDepartamento(contexto, nombre)) {
+            return { opacity: 0, fillOpacity: 0, weight: 0,
+                conatradecFueraCobertura: true };
+        }
         const estadistica = estadisticaDepartamento(contexto, nombre);
         const seleccionado = contexto.filtroTerritorial?.departamento;
         const coincide = !seleccionado ||
@@ -680,6 +700,7 @@ window.conatradecMapaInteligente = (() => {
 
                 layer.on({
                     mouseover: evento => {
+                        if (!coberturaPermiteMunicipio(contexto, departamento, municipio)) return;
                         evento.target.setStyle({
                             weight: 2.3,
                             fillOpacity: 0.18
@@ -689,6 +710,7 @@ window.conatradecMapaInteligente = (() => {
                         contexto.capas.municipios?.resetStyle(evento.target);
                     },
                     click: evento => {
+                        if (!coberturaPermiteMunicipio(contexto, departamento, municipio)) return;
                         contexto.mapa.fitBounds(evento.target.getBounds(), {
                             padding: [42, 42],
                             maxZoom: 13
@@ -728,6 +750,10 @@ window.conatradecMapaInteligente = (() => {
     function estiloMunicipio(contexto, feature) {
         const municipio = nombreMunicipio(feature);
         const departamento = departamentoMunicipio(feature);
+        if (!coberturaPermiteMunicipio(contexto, departamento, municipio)) {
+            return { opacity: 0, fillOpacity: 0, weight: 0,
+                conatradecFueraCobertura: true };
+        }
         const estadistica = estadisticaMunicipio(
             contexto,
             municipio,
@@ -1004,7 +1030,7 @@ window.conatradecMapaInteligente = (() => {
                 animate: true
             });
         } else {
-            centrarNicaragua(contexto.elementId);
+            centrarCobertura(contexto.elementId);
         }
     }
 
@@ -1512,12 +1538,25 @@ window.conatradecMapaInteligente = (() => {
         const original = contexto.climaOriginal;
         if (!original) return null;
 
-        const todos = Array.isArray(original.puntos)
+        const puntosValidos = Array.isArray(original.puntos)
             ? original.puntos.filter(item =>
                 coordenadaValida(
                     Number(item.latitud),
                     Number(item.longitud)))
             : [];
+        const zonasPermitidas = (contexto.geojsonMunicipios?.features || [])
+            .filter(feature => coberturaPermiteMunicipio(
+                contexto,
+                departamentoMunicipio(feature),
+                nombreMunicipio(feature)));
+        // No se utiliza el clima nacional como respaldo cuando falta cobertura.
+        const todos = Array.isArray(contexto.municipiosAutorizados)
+            ? puntosValidos.filter(item => zonasPermitidas.some(feature =>
+                puntoDentroFeature(
+                    Number(item.longitud),
+                    Number(item.latitud),
+                    feature)))
+            : puntosValidos;
         const filtro = contexto.filtroTerritorial || {};
         const feature = filtro.feature;
 
@@ -1772,6 +1811,56 @@ window.conatradecMapaInteligente = (() => {
         nueva.addTo(contexto.mapa);
         nueva.bringToBack();
         contexto.mapaBaseActivo = clave;
+    }
+
+    async function establecerCobertura(elementId, municipios) {
+        const contexto = mapas.get(elementId);
+        if (!contexto) return;
+        contexto.municipiosAutorizados = Array.isArray(municipios) ? municipios : [];
+        // Para visualizar únicamente la cobertura, la cartografía municipal
+        // también delimita las capas de clima de múltiples departamentos.
+        if (contexto.municipiosAutorizados.length > 0) {
+            try {
+                await cargarMunicipios(contexto);
+            } catch (error) {
+                console.warn("Cartografía municipal no disponible.", error);
+            }
+        }
+        contexto.capas.departamentos?.setStyle?.(
+            feature => estiloDepartamento(contexto, feature));
+        contexto.capas.municipios?.setStyle?.(
+            feature => estiloMunicipio(contexto, feature));
+    }
+
+    async function centrarCobertura(elementId) {
+        const contexto = mapas.get(elementId);
+        if (!contexto) return;
+        const autorizados = contexto.municipiosAutorizados || [];
+        if (!autorizados.length) return;
+
+        try {
+            await cargarMunicipios(contexto);
+            let bounds = null;
+            contexto.capas.municipios?.eachLayer(layer => {
+                const feature = layer.feature;
+                if (!feature || !coberturaPermiteMunicipio(
+                    contexto,
+                    departamentoMunicipio(feature),
+                    nombreMunicipio(feature))) return;
+                const zona = layer.getBounds?.();
+                if (zona?.isValid()) {
+                    if (bounds) bounds.extend(zona);
+                    else bounds = L.latLngBounds(zona);
+                }
+            });
+            if (bounds?.isValid()) {
+                contexto.mapa.fitBounds(bounds, {
+                    padding: [35, 35], maxZoom: 12, animate: true
+                });
+            }
+        } catch (error) {
+            console.warn("No se pudo centrar la cobertura autorizada.", error);
+        }
     }
 
     function centrarNicaragua(elementId) {
@@ -2264,6 +2353,8 @@ window.conatradecMapaInteligente = (() => {
         cambiarCapa,
         aplicarCapas,
         cambiarMapaBase,
+        establecerCobertura,
+        centrarCobertura,
         centrarNicaragua,
         alternarPantallaCompleta,
         destruir,

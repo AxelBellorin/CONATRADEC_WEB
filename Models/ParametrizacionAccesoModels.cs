@@ -74,6 +74,13 @@ public sealed class UsuarioAccesoCatalogo
         $"{NombreCompletoUsuario} ({NombreUsuario})";
 }
 
+public sealed class UsuarioPropietarioAsignacionCatalogo
+{
+    public int UsuarioId { get; set; }
+    public int PropietarioId { get; set; }
+    public string Propietario { get; set; } = string.Empty;
+}
+
 public sealed class TerrenoAccesoCatalogo
 {
     public int TerrenoId { get; set; }
@@ -147,7 +154,7 @@ public sealed class AsignarUsuarioTerrenoRequest
 {
     public int UsuarioId { get; set; }
     public int TerrenoId { get; set; }
-    public string TipoAsignacion { get; set; } = "TECNICO";
+    public string TipoAsignacion { get; set; } = "PROPIETARIO";
     public bool EsResponsablePrincipal { get; set; }
     public string? Observacion { get; set; }
 }
