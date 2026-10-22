@@ -92,15 +92,55 @@ else
             <div class="config-section-title">
                 <div>
                     <p class="eyebrow">Fincas y propietarios</p>
-                    <h2>Acceso y evidencia</h2>
+                    <h2>Propietarios y terrenos</h2>
                 </div>
 
                 <span>
-                    Herramientas administrativas complementarias de terrenos.
+                    Catálogos y herramientas administrativas relacionadas.
                 </span>
             </div>
 
             <div class="config-card-grid">
+                @if (PuedeVerPropietarios)
+                {
+                    <a class="panel config-action-card"
+                       href="/propietarios">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-address-card"></i>
+                        </span>
+
+                        <span>
+                            <strong>Propietarios</strong>
+                            <small>
+                                Registro, búsqueda y administración de
+                                propietarios vinculados a terrenos.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
+                @if (PuedeVerTerrenos)
+                {
+                    <a class="panel config-action-card"
+                       href="/terrenos">
+                        <span class="config-action-icon">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                        </span>
+
+                        <span>
+                            <strong>Terrenos</strong>
+                            <small>
+                                Registro y mantenimiento de terrenos,
+                                ubicación y datos de las fincas.
+                            </small>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+
                 @if (Puede(PermisosWeb.FotosTerreno))
                 {
                     <a class="panel config-action-card"
@@ -659,7 +699,16 @@ else
         Puede(PermisosWeb.AsignacionTerreno) ||
         Puede(PermisosWeb.CoberturaTerritorial);
 
+    private bool PuedeVerPropietarios =>
+        Puede(PermisosWeb.Propietarios);
+
+    private bool PuedeVerTerrenos =>
+        Puede("terrenoPage") ||
+        Puede("TerrenoPage");
+
     private bool PuedeVerAdministracionTerrenos =>
+        PuedeVerPropietarios ||
+        PuedeVerTerrenos ||
         Puede(PermisosWeb.FotosTerreno) ||
         PuedeVerParametrizacionAcceso;
 

@@ -183,30 +183,12 @@ else
                         </NavLink>
                     }
 
-                    @if (PuedeVerPropietarios ||
-                         PuedeVerTerrenos ||
-                         PuedeVerFotosTerreno ||
+                    @if (PuedeVerFotosTerreno ||
                          PuedeVerParametrizacionAcceso)
                     {
                         <div class="nav-section">
                             Propietarios y cobertura
                         </div>
-
-                        @if (PuedeVerPropietarios)
-                        {
-                            <NavLink href="/propietarios">
-                                <i class="fa-solid fa-address-card"></i>
-                                <span>Propietarios</span>
-                            </NavLink>
-                        }
-
-                        @if (PuedeVerTerrenos)
-                        {
-                            <NavLink href="/terrenos">
-                                <i class="fa-solid fa-map-location-dot"></i>
-                                <span>Terrenos</span>
-                            </NavLink>
-                        }
 
                         @if (PuedeVerFotosTerreno)
                         {
@@ -515,9 +497,6 @@ else
     private const string PermisoAlbumBotanico =
         "albumFotosPage";
 
-    private const string PermisoTerrenos =
-        "terrenoPage";
-
     private const string PermisoElementosQuimicos =
         "elementoQuimicoPage";
 
@@ -619,11 +598,6 @@ else
         PuedeVerCategoriasPublicacion ||
         PuedeVerAlbumBotanico;
 
-    private bool PuedeVerPropietarios =>
-        AuthState.EsAdministrador ||
-        AuthState.TienePermisoLectura(
-            PermisosWeb.Propietarios);
-
     private bool PuedeVerReportes =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
@@ -633,13 +607,6 @@ else
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
             PermisosWeb.FotosTerreno);
-
-    private bool PuedeVerTerrenos =>
-        AuthState.EsAdministrador ||
-        AuthState.TienePermisoLectura(
-            PermisoTerrenos) ||
-        AuthState.TienePermisoLectura(
-            "TerrenoPage");
 
     private bool PuedeVerElementosQuimicos =>
         AuthState.EsAdministrador ||
