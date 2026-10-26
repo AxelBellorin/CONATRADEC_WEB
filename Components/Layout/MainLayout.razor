@@ -8,7 +8,6 @@
 @inject PortalPropietarioService PortalPropietario
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-
 @if (!AuthState.IsAuthenticated)
 {
     <main class="public-layout">
@@ -36,7 +35,6 @@ else
                 <div class="brand-icon">
                     <i class="fa-solid fa-seedling"></i>
                 </div>
-
                 <div>
                     <strong>CONATRADEC</strong>
                     <span>
@@ -49,7 +47,6 @@ else
 
             <nav class="nav-menu"
                  @onclick="CerrarMenuMovil">
-
                 @if (EsPortalPropietarioExclusivo)
                 {
                     <div class="nav-section">
@@ -61,7 +58,6 @@ else
                         <i class="fa-solid fa-house-chimney-user"></i>
                         <span>Mi información y terrenos</span>
                     </NavLink>
-
                     @if (PuedeMostrarClimaLabores)
                     {
                         <NavLink href="/mi-portal/clima-labores">
@@ -69,7 +65,6 @@ else
                             <span>Clima y labores</span>
                         </NavLink>
                     }
-
                     @if (PuedeMostrarMiCentroGeoespacial)
                     {
                         <NavLink href="/mi-portal/centro-geoespacial">
@@ -85,14 +80,12 @@ else
                         <i class="fa-solid fa-chart-line"></i>
                         <span>Resumen ejecutivo</span>
                     </NavLink>
-
                     @if (TienePortalPropietario)
                     {
                         <NavLink href="/mi-portal">
                             <i class="fa-solid fa-house-chimney-user"></i>
                             <span>Mi información y terrenos</span>
                         </NavLink>
-
                         @if (PuedeMostrarClimaLabores)
                         {
                             <NavLink href="/mi-portal/clima-labores">
@@ -100,7 +93,6 @@ else
                                 <span>Clima y labores</span>
                             </NavLink>
                         }
-
                         @if (PuedeMostrarMiCentroGeoespacial)
                         {
                             <NavLink href="/mi-portal/centro-geoespacial">
@@ -109,7 +101,6 @@ else
                             </NavLink>
                         }
                     }
-
                     @if (AuthState.TienePermisoLectura("TerrenoPage") ||
                          AuthState.TienePermisoLectura("terrenoPage") ||
                          AuthState.TienePermisoLectura("MapaTerrenosWeb") ||
@@ -120,14 +111,12 @@ else
                             <span>Centro Geoespacial nacional</span>
                         </NavLink>
                     }
-
                     @if (PuedeVerSupervision)
                     {
                         <div class="nav-section">
                             Supervisión agrícola
                         </div>
                     }
-
                     @if (AuthState.TienePermisoLectura(PermisosWeb.Alertas) ||
                          AuthState.EsAdministrador)
                     {
@@ -136,7 +125,6 @@ else
                             <span>Centro de alertas</span>
                         </NavLink>
                     }
-
                     @if (AuthState.TienePermisoLectura(
                              PermisosWeb.SeguimientoAlertas) ||
                          AuthState.EsAdministrador)
@@ -146,7 +134,6 @@ else
                             <span>Seguimiento</span>
                         </NavLink>
                     }
-
                     @if (AuthState.TienePermisoLectura(
                              PermisosWeb.ConfiguracionAlertas) ||
                          AuthState.EsAdministrador)
@@ -156,7 +143,6 @@ else
                             <span>Umbrales</span>
                         </NavLink>
                     }
-
                     @if (PuedeAdministrarReglasClima)
                     {
                         <NavLink href="/configuracion/reglas-clima">
@@ -164,7 +150,6 @@ else
                             <span>Reglas de labores</span>
                         </NavLink>
                     }
-
                     @if (AuthState.TienePermisoLectura(
                              PermisosWeb.AuditoriaAnalisis) ||
                          AuthState.EsAdministrador)
@@ -174,7 +159,6 @@ else
                             <span>Control de análisis</span>
                         </NavLink>
                     }
-
                     @if (PuedeVerReportes)
                     {
                         <NavLink href="/reportes">
@@ -182,14 +166,12 @@ else
                             <span>Centro de reportes</span>
                         </NavLink>
                     }
-
                     @if (PuedeVerFotosTerreno ||
                          PuedeVerParametrizacionAcceso)
                     {
                         <div class="nav-section">
                             Propietarios y cobertura
                         </div>
-
                         @if (PuedeVerFotosTerreno)
                         {
                             <NavLink href="/terrenos/fotografias">
@@ -197,7 +179,6 @@ else
                                 <span>Fotografías de terrenos</span>
                             </NavLink>
                         }
-
                         @if (PuedeVerParametrizacionAcceso)
                         {
                             <NavLink href="/parametrizacion-acceso">
@@ -206,13 +187,11 @@ else
                             </NavLink>
                         }
                     }
-
                     @if (PuedeVerParametrosAgronomicos)
                     {
                         <div class="nav-section">
                             Parámetros agronómicos
                         </div>
-
                         @if (PuedeVerElementosQuimicos)
                         {
                             <NavLink href="/parametros-agronomicos/elementos-quimicos">
@@ -220,7 +199,6 @@ else
                                 <span>Elementos químicos</span>
                             </NavLink>
                         }
-
                         @if (PuedeVerTiposCultivo)
                         {
                             <NavLink href="/parametros-agronomicos/tipos-cultivo">
@@ -228,7 +206,6 @@ else
                                 <span>Tipos de cultivo</span>
                             </NavLink>
                         }
-
                         @if (PuedeVerTiposAnalisis)
                         {
                             <NavLink href="/parametros-agronomicos/tipos-analisis-suelo">
@@ -236,7 +213,6 @@ else
                                 <span>Tipos de análisis</span>
                             </NavLink>
                         }
-
                         @if (PuedeVerFuentesNutrientes)
                         {
                             <NavLink href="/parametros-agronomicos/fuentes-nutrientes">
@@ -244,7 +220,6 @@ else
                                 <span>Fuentes de nutrientes</span>
                             </NavLink>
                         }
-
                         @if (PuedeVerExtraccionNutrientes)
                         {
                             <NavLink href="/parametros-agronomicos/extraccion-nutrientes">
@@ -252,7 +227,6 @@ else
                                 <span>Extracción de nutrientes</span>
                             </NavLink>
                         }
-
                         @if (PuedeVerRangosNutrientes)
                         {
                             <NavLink href="/parametros-agronomicos/rangos-nutricionales">
@@ -260,7 +234,6 @@ else
                                 <span>Rangos nutricionales</span>
                             </NavLink>
                         }
-
                         @if (PuedeVerUnidadesConversiones)
                         {
                             <NavLink href="/parametros-agronomicos/unidades-conversiones">
@@ -269,7 +242,6 @@ else
                             </NavLink>
                         }
                     }
-
                     @if (PuedeVerUbicaciones)
                     {
                         <div class="nav-section">
@@ -281,13 +253,11 @@ else
                             <span>Ubicaciones geográficas</span>
                         </NavLink>
                     }
-
                     @if (PuedeVerContenidoAdministrativo)
                     {
                         <div class="nav-section">
                             Contenido
                         </div>
-
                         @if (PuedeAdministrarNoticias)
                         {
                             <NavLink href="/contenido/publicaciones">
@@ -295,7 +265,6 @@ else
                                 <span>Noticias y publicaciones</span>
                             </NavLink>
                         }
-
                         @if (PuedeVerCategoriasPublicacion)
                         {
                             <NavLink href="/contenido/tipos-publicacion">
@@ -303,7 +272,6 @@ else
                                 <span>Tipos de publicación</span>
                             </NavLink>
                         }
-
                         @if (PuedeVerAlbumBotanico)
                         {
                             <NavLink href="/contenido/album-botanico">
@@ -316,7 +284,6 @@ else
                     <div class="nav-section">
                         Administración
                     </div>
-
                     @if (AuthState.TienePermisoLectura("UsuarioPage") ||
                          AuthState.TienePermisoLectura("userPage") ||
                          AuthState.EsAdministrador)
@@ -326,7 +293,6 @@ else
                             <span>Usuarios</span>
                         </NavLink>
                     }
-
                     @if (AuthState.TienePermisoLectura(PermisosWeb.Roles) ||
                          AuthState.EsAdministrador)
                     {
@@ -335,7 +301,6 @@ else
                             <span>Roles</span>
                         </NavLink>
                     }
-
                     @if (AuthState.TienePermisoLectura(PermisosWeb.Matriz) ||
                          AuthState.EsAdministrador)
                     {
@@ -344,7 +309,6 @@ else
                             <span>Matriz de permisos</span>
                         </NavLink>
                     }
-
                     @if (AuthState.TienePermisoLectura(
                              "dispositivosConectadosPage") ||
                          AuthState.EsAdministrador)
@@ -354,7 +318,6 @@ else
                             <span>Dispositivos conectados</span>
                         </NavLink>
                     }
-
                     @if (AuthState.TienePermisoLectura(
                              PermisosWeb.Actualizaciones) ||
                          AuthState.EsAdministrador)
@@ -364,7 +327,6 @@ else
                             <span>Actualizaciones</span>
                         </NavLink>
                     }
-
                     @if (AuthState.TienePermisoLectura(
                              PermisosWeb.LlavesDescarga) ||
                          AuthState.EsAdministrador)
@@ -374,7 +336,6 @@ else
                             <span>Códigos de descarga</span>
                         </NavLink>
                     }
-
                     @if (AuthState.TienePermisoLectura("BitacoraPage") ||
                          AuthState.TienePermisoLectura("bitacoraPage") ||
                          AuthState.EsAdministrador)
@@ -384,7 +345,6 @@ else
                             <span>Bitácora</span>
                         </NavLink>
                     }
-
                     <NavLink href="/configuracion">
                         <i class="fa-solid fa-gear"></i>
                         <span>Configuración</span>
@@ -396,7 +356,6 @@ else
                 <div class="avatar">
                     @ObtenerIniciales()
                 </div>
-
                 <div class="sidebar-user-data">
                     <strong>
                         @AuthState.Usuario?.NombreCompletoUsuario
@@ -406,7 +365,6 @@ else
                         @AuthState.Usuario?.RolNombre
                     </span>
                 </div>
-
                 <button class="icon-button"
                         title="Cerrar sesión"
                         @onclick="CerrarSesionAsync">
@@ -422,7 +380,6 @@ else
                     @onclick="ToggleMenu">
             </button>
         }
-
         <section class="content-shell">
             <header class="topbar">
                 <button class="menu-button"
@@ -430,7 +387,6 @@ else
                         aria-label="Abrir menú">
                     <i class="fa-solid fa-bars"></i>
                 </button>
-
                 <div class="topbar-title">
                     <span>
                         @(EsPortalPropietarioExclusivo
@@ -439,13 +395,6 @@ else
                     </span>
                 </div>
 
-                <div class="topbar-user">
-                    <i class="fa-regular fa-circle-user"></i>
-
-                    <span>
-                        @AuthState.Usuario?.NombreUsuario
-                    </span>
-                </div>
             </header>
 
             <main class="page-content @(EsRutaMapaNacional
@@ -454,7 +403,6 @@ else
                 @if (PuedeMostrarContenidoActual)
                 {
                     @Body
-
                     @if (EsInicioPortalPropietario)
                     {
                         <ResumenPoligonosPropietario />
@@ -476,7 +424,6 @@ else
             </main>
         </section>
     </div>
-
     <!--
         Carga las delimitaciones según el contexto:
         administración o terrenos propios del propietario.
@@ -496,7 +443,6 @@ else
 
     private const string PermisoAlbumBotanico =
         "albumFotosPage";
-
     private const string PermisoElementosQuimicos =
         "elementoQuimicoPage";
 
@@ -514,7 +460,6 @@ else
 
     private const string PermisoRangosNutrientes =
         "rangoNutrientePage";
-
     private const string PermisoPaises =
         "paisPage";
 
@@ -532,7 +477,6 @@ else
 
     private const string PermisoUnidadesConversiones =
         "unidadesConversionesPage";
-
     private const string PermisoReportes =
         "reportesPage";
 
@@ -547,7 +491,6 @@ else
     private bool TieneAccesoPortalWeb =>
         AuthState.TienePermisoLectura(
             PermisosWeb.Portal);
-
     private bool TienePortalPropietario =>
         AuthState.TienePermisoLectura(
             PermisosWeb.PortalPropietario);
@@ -559,7 +502,6 @@ else
     private bool PuedeMostrarClimaLabores =>
         TienePortalPropietario &&
         tieneTerrenosPropios == true;
-
     private bool PuedeAdministrarReglasClima =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
@@ -569,7 +511,6 @@ else
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
             PermisoAlbumBotanico);
-
     private bool PuedeVerUbicaciones =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
@@ -578,7 +519,6 @@ else
             PermisoDepartamentos) ||
         AuthState.TienePermisoLectura(
             PermisoMunicipios);
-
     private bool PuedeAdministrarNoticias =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoAgregar(
@@ -592,7 +532,6 @@ else
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
             PermisoCategoriasPublicacion);
-
     private bool PuedeVerContenidoAdministrativo =>
         PuedeAdministrarNoticias ||
         PuedeVerCategoriasPublicacion ||
@@ -607,7 +546,6 @@ else
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
             PermisosWeb.FotosTerreno);
-
     private bool PuedeVerElementosQuimicos =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
@@ -622,7 +560,6 @@ else
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
             PermisoTiposAnalisis);
-
     private bool PuedeVerFuentesNutrientes =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
@@ -637,7 +574,6 @@ else
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
             PermisoRangosNutrientes);
-
     private bool PuedeVerUnidadesConversiones =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
@@ -651,11 +587,9 @@ else
         PuedeVerExtraccionNutrientes ||
         PuedeVerRangosNutrientes ||
         PuedeVerUnidadesConversiones;
-
     private bool EsPortalPropietarioExclusivo =>
         TienePortalPropietario &&
         !TieneFuncionesAdministrativas;
-
     private bool TieneFuncionesAdministrativas =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura("TerrenoPage") ||
@@ -712,7 +646,6 @@ else
             PermisosWeb.LlavesDescarga) ||
         AuthState.TienePermisoLectura("BitacoraPage") ||
         AuthState.TienePermisoLectura("bitacoraPage");
-
     private bool PuedeVerSupervision =>
         AuthState.EsAdministrador ||
         AuthState.TienePermisoLectura(
@@ -726,7 +659,6 @@ else
         AuthState.TienePermisoLectura(
             PermisoReglasClima) ||
         PuedeVerReportes;
-
     private bool PuedeVerParametrizacionAcceso =>
         AuthState.TienePermisoLectura(
             PermisosWeb.ParametrizacionAcceso) ||
@@ -738,7 +670,6 @@ else
             PermisosWeb.AsignacionTerreno) ||
         AuthState.TienePermisoLectura(
             PermisosWeb.CoberturaTerritorial);
-
     private bool EsRutaMapaNacional =>
         ObtenerRutaActual().Equals(
             "mapa",
@@ -754,7 +685,6 @@ else
         ObtenerRutaActual().Equals(
             "mi-portal",
             StringComparison.OrdinalIgnoreCase);
-
     private bool EsRutaCentroPropietario =>
         ObtenerRutaActual().Equals(
             "mi-portal/centro-geoespacial",
@@ -769,7 +699,6 @@ else
         ObtenerRutaActual().Equals(
             "configuracion/reglas-clima",
             StringComparison.OrdinalIgnoreCase);
-
     private bool PuedeMostrarContenidoActual
     {
         get
@@ -785,7 +714,6 @@ else
             {
                 return false;
             }
-
             if ((EsRutaCentroPropietario ||
                  EsRutaClimaLabores) &&
                 tieneTerrenosPropios == false)
@@ -808,7 +736,6 @@ else
         Navigation.LocationChanged +=
             Navigation_LocationChanged;
     }
-
     protected override async Task OnAfterRenderAsync(
         bool firstRender)
     {
@@ -820,7 +747,6 @@ else
         }
 
         await AplicarProteccionDeRutasAsync();
-
         if (AuthState.IsAuthenticated &&
             TieneAccesoPortalWeb &&
             !monitorInactividadActivo)
@@ -832,7 +758,6 @@ else
                 AuthState.Usuario?.MinutosInactividad ?? 15,
                 1,
                 1440);
-
             await JS.InvokeVoidAsync(
                 "conatradecSessionInactivity.start",
                 referenciaDotNet,
@@ -847,7 +772,6 @@ else
             await DetenerMonitorInactividadAsync();
         }
     }
-
     private async Task AplicarProteccionDeRutasAsync()
     {
         if (!AuthState.IsAuthenticated ||
@@ -866,7 +790,6 @@ else
                     return;
 
                 cerrandoPorFaltaPermiso = true;
-
                 await DetenerMonitorInactividadAsync();
                 await AuthState.CerrarSesionAsync();
 
@@ -877,7 +800,6 @@ else
 
                 return;
             }
-
             if (EsPortalPropietarioExclusivo &&
                 !EsRutaPortalPropietario)
             {
@@ -888,7 +810,6 @@ else
 
                 return;
             }
-
             if (EsRutaPortalPropietario &&
                 !TienePortalPropietario)
             {
@@ -899,7 +820,6 @@ else
 
                 return;
             }
-
             if ((EsRutaCentroPropietario ||
                  EsRutaClimaLabores) &&
                 tieneTerrenosPropios == false)
@@ -911,7 +831,6 @@ else
 
                 return;
             }
-
             if (EsRutaReglasClima &&
                 !PuedeAdministrarReglasClima)
             {
@@ -926,7 +845,6 @@ else
             aplicandoProteccion = false;
         }
     }
-
     private async Task CargarEstadoPortalPropietarioAsync()
     {
         if (resumenPortalConsultado ||
@@ -941,7 +859,6 @@ else
         {
             PortalPropietarioResumen? resumen =
                 await PortalPropietario.ObtenerMiResumenAsync();
-
             tieneTerrenosPropios =
                 resumen?.Vinculado == true &&
                 resumen.Terrenos.Count > 0;
@@ -963,7 +880,6 @@ else
             StateHasChanged();
         }
     }
-
     private async void Navigation_LocationChanged(
         object? sender,
         LocationChangedEventArgs e)
@@ -985,7 +901,6 @@ else
         }
 
         Actividad.RegistrarActividad();
-
         try
         {
             await ApiClient.GetAsync<object>(
@@ -1007,7 +922,6 @@ else
     {
         if (!AuthState.IsAuthenticated)
             return;
-
         await DetenerMonitorInactividadAsync();
         await AuthState.CerrarSesionAsync();
 
@@ -1026,7 +940,6 @@ else
         int indiceQuery =
             relativa.IndexOfAny(
                 ['?', '#']);
-
         if (indiceQuery >= 0)
             relativa = relativa[..indiceQuery];
 
@@ -1051,7 +964,6 @@ else
 
         if (string.IsNullOrWhiteSpace(nombre))
             return "U";
-
         return string.Concat(
             nombre
                 .Split(
@@ -1068,7 +980,6 @@ else
     {
         await DetenerMonitorInactividadAsync();
         await AuthState.CerrarSesionAsync();
-
         Navigation.NavigateTo(
             "/login",
             forceLoad: false);
@@ -1090,7 +1001,6 @@ else
 
         monitorInactividadActivo = false;
     }
-
     public async ValueTask DisposeAsync()
     {
         Navigation.LocationChanged -=

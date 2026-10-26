@@ -4,6 +4,9 @@
 @inject AuthStateService AuthState
 @inject ApiClientService Api
 @inject ParametrizacionAccesoService Acceso
+@inject AuditoriaAnalisisService Auditoria
+@inject BitacoraService Bitacora
+@inject InspeccionFitosanitariaWebService Fitosanitario
 @inject IJSRuntime JS
 
 <HeadContent>
@@ -15,7 +18,7 @@
         <div>
             <p class="eyebrow">Datos para tomar decisiones</p>
             <h2>Informes de gestión</h2>
-            <p>Visualiza indicadores, identifica concentraciones y exporta informes completos con sus filtros.</p>
+            <p>Consulta propietarios, terrenos, análisis de suelo, fertilización, inspecciones y actividad institucional.</p>
         </div>
         <span class="report-advanced-edition"><i class="fa-solid fa-chart-column"></i> Vista ejecutiva</span>
     </div>
@@ -32,11 +35,18 @@
                 <button type="button" class="report-selector @(tipoSeleccionado == opcion.Codigo ? "is-selected" : "")"
                         aria-pressed="@(tipoSeleccionado == opcion.Codigo)" disabled="@procesando"
                         @onclick="() => SeleccionarReporte(opcion.Codigo)">
-                    <i class="fa-solid @(opcion.Codigo switch { "propietarios" => "fa-users", "terrenos" => "fa-seedling", "asignaciones" => "fa-user-check", _ => "fa-map-location-dot" })"></i>
+                    <i class="fa-solid @(opcion.Codigo switch { "propietarios" => "fa-users", "terrenos" => "fa-seedling", "asignaciones" => "fa-user-check", "coberturas" => "fa-map-location-dot", "suelo" => "fa-flask", "fertilizacion" => "fa-leaf", "fitosanitario" => "fa-shield-virus", _ => "fa-clipboard-list" })"></i>
                     <span>@opcion.Nombre</span>
                 </button>
             }
         </div>
+
+        @if (tipoSeleccionado is "suelo" or "fertilizacion" or "fitosanitario" or "actividad")
+        {
+            <p class="report-advanced-note">
+                @DescripcionTipoSeleccionado
+            </p>
+        }
 
         <div class="report-advanced-filters">
             <div class="form-group">
@@ -220,8 +230,21 @@
         new("propietarios", "Propietarios", PermisosWeb.Propietarios),
         new("terrenos", "Terrenos", "terrenoPage"),
         new("asignaciones", "Asignaciones a terrenos", PermisosWeb.AsignacionTerreno),
-        new("coberturas", "Cobertura territorial", PermisosWeb.CoberturaTerritorial)
+        new("coberturas", "Cobertura territorial", PermisosWeb.CoberturaTerritorial),
+        new("suelo", "Análisis de suelo", PermisosWeb.AuditoriaAnalisis),
+        new("fertilizacion", "Fertilización", PermisosWeb.AuditoriaAnalisis),
+        new("fitosanitario", "Inspecciones fitosanitarias", PermisosWeb.ControlFitosanitario),
+        new("actividad", "Actividad administrativa", "")
     ];
+
+    private string DescripcionTipoSeleccionado => tipoSeleccionado switch
+    {
+        "suelo" => "Análisis de suelo: seguimiento por laboratorio, estado, terreno y pH registrado. Las fechas corresponden al registro del análisis.",
+        "fertilizacion" => "Fertilización: presencia de fórmula, enmienda o propuesta mixta en análisis de suelo. No se estiman dosis ni cantidades de fertilizantes.",
+        "fitosanitario" => "Fitosanidad: seguimiento de inspecciones, estados, técnicos, territorios y fotografías registradas.",
+        "actividad" => "Actividad administrativa: movimientos de la bitácora. Disponible únicamente para administradores.",
+        _ => string.Empty
+    };
 
     private List<DepartamentoAccesoCatalogo> departamentos = [];
     private List<ReportesAnaliticaService.Registro> filas = [];
@@ -245,11 +268,20 @@
     private IReadOnlyList<OpcionReporte> OpcionesDisponibles =>
         Opciones.Where(x => PuedeConsultar(x)).ToArray();
 
-    private bool PuedeConsultar(OpcionReporte opcion) =>
-        AuthState.IsAuthenticated &&
-        (AuthState.EsAdministrador ||
-         AuthState.TienePermisoLectura(opcion.Permiso) ||
-         (opcion.Codigo == "terrenos" && AuthState.TienePermisoLectura("TerrenoPage")));
+    private bool PuedeConsultar(OpcionReporte opcion)
+    {
+        if (!AuthState.IsAuthenticated)
+            return false;
+        // La bitácora contiene actuaciones administrativas: se restringe al administrador.
+        if (opcion.Codigo == "actividad")
+            return AuthState.EsAdministrador;
+        // Reutilizar la misma comprobación de acceso directo que el Centro de Control.
+        if (opcion.Codigo == "fitosanitario")
+            return AuthState.TienePermisoDirectoLectura(PermisosWeb.ControlFitosanitario);
+        return AuthState.EsAdministrador ||
+            AuthState.TienePermisoLectura(opcion.Permiso) ||
+            (opcion.Codigo == "terrenos" && AuthState.TienePermisoLectura("TerrenoPage"));
+    }
 
     private string FiltrosActuales =>
         $"{tipoSeleccionado}|{busqueda.Trim()}|{fechaDesde:yyyy-MM-dd}|{fechaHasta:yyyy-MM-dd}|{(tipoSeleccionado == "terrenos" ? departamentoSeleccionado : "")}|{incluirInactivos}";
@@ -323,6 +355,10 @@
                 "terrenos" => await ObtenerTerrenosAsync(),
                 "asignaciones" => await ObtenerAsignacionesAsync(),
                 "coberturas" => await ObtenerCoberturasAsync(),
+                "suelo" => await ObtenerAnalisisAsync(soloConRecomendacion: false),
+                "fertilizacion" => await ObtenerAnalisisAsync(soloConRecomendacion: true),
+                "fitosanitario" => await ObtenerFitosanitarioAsync(),
+                "actividad" => await ObtenerActividadAsync(),
                 _ => throw new InvalidOperationException("Reporte no disponible.")
             };
             encabezados = Encabezados(tipoSeleccionado);
@@ -424,6 +460,103 @@
         ], item.FechaInicioUtc)).ToList();
     }
 
+
+    private async Task<List<ReportesAnaliticaService.Registro>> ObtenerAnalisisAsync(bool soloConRecomendacion)
+    {
+        var registros = new List<ReportesAnaliticaService.Registro>();
+        for (int numero = 1; ; numero++)
+        {
+            var filtro = new AuditoriaAnalisisFiltro
+            {
+                Pagina = numero,
+                TamanoPagina = TamanoPagina,
+                Buscar = busqueda.Trim(),
+                FechaRegistroDesde = fechaDesde?.Date,
+                FechaRegistroHasta = fechaHasta?.Date.AddDays(1).AddTicks(-1)
+            };
+            AuditoriaAnalisisPaginada pagina = await Auditoria.ListarAsync(filtro);
+            ValidarCantidad(pagina.TotalRegistros);
+            foreach (AuditoriaAnalisisItem item in pagina.Items)
+            {
+                bool tienePropuesta = item.TieneFormula || item.TieneEnmienda || item.TieneMixta;
+                if (soloConRecomendacion && !tienePropuesta)
+                    continue;
+                string fecha = item.FechaRegistro.ToString("dd/MM/yyyy");
+                string[] columnas = soloConRecomendacion
+                    ? [item.Identificador, item.CodigoTerreno, item.Propietario,
+                       item.TieneFormula ? "Sí" : "No", item.TieneEnmienda ? "Sí" : "No",
+                       item.TieneMixta ? "Sí" : "No", fecha]
+                    : [item.Identificador, item.CodigoTerreno, item.Propietario,
+                       item.Laboratorio, item.Ph.ToString("0.####", CultureInfo.InvariantCulture),
+                       item.Estado, item.Origen, fecha];
+                registros.Add(new(columnas, item.FechaRegistro));
+            }
+            ValidarCantidad(registros.Count);
+            if (pagina.Items.Count == 0 || numero >= pagina.TotalPaginas)
+                break;
+        }
+        return registros;
+    }
+
+    private async Task<List<ReportesAnaliticaService.Registro>> ObtenerFitosanitarioAsync()
+    {
+        var registros = new List<ReportesAnaliticaService.Registro>();
+        for (int numero = 1; ; numero++)
+        {
+            ControlFitosanitarioPaginaWeb pagina =
+                await Fitosanitario.ObtenerControlInspeccionesAsync(
+                    busqueda.Trim(), null, null, null, fechaDesde, fechaHasta,
+                    numero, TamanoPagina);
+            ValidarCantidad(pagina.TotalRegistros);
+            foreach (ControlFitosanitarioItemWeb item in pagina.Items)
+            {
+                registros.Add(new([
+                    item.InspeccionId.ToString(CultureInfo.InvariantCulture),
+                    item.NombreInspeccion, item.CodigoTerreno, item.Propietario,
+                    item.Departamento, item.Tecnico, item.Estado,
+                    item.CerradaDefinitiva ? "Cerrada" : "Abierta",
+                    item.TotalFotografias.ToString(CultureInfo.InvariantCulture),
+                    item.FechaRegistroSistemaUtc.ToString("dd/MM/yyyy")
+                ], item.FechaRegistroSistemaUtc));
+            }
+            ValidarCantidad(registros.Count);
+            if (pagina.Items.Count == 0 || numero >= pagina.TotalPaginas)
+                break;
+        }
+        return registros;
+    }
+
+    private async Task<List<ReportesAnaliticaService.Registro>> ObtenerActividadAsync()
+    {
+        var registros = new List<ReportesAnaliticaService.Registro>();
+        for (int numero = 1; ; numero++)
+        {
+            BitacoraPaginada pagina = await Bitacora.ListarAsync(new BitacoraFiltro
+            {
+                Pagina = numero,
+                TamanoPagina = TamanoPagina,
+                Buscar = busqueda.Trim(),
+                FechaDesde = fechaDesde?.Date,
+                FechaHasta = fechaHasta?.Date.AddDays(1).AddTicks(-1)
+            });
+            ValidarCantidad(pagina.TotalRegistros);
+            foreach (BitacoraListadoItem item in pagina.Items)
+            {
+                registros.Add(new([
+                    item.FechaHoraUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
+                    string.IsNullOrWhiteSpace(item.UsuarioNombre) ? "Sistema" : item.UsuarioNombre,
+                    item.RolNombre, item.Modulo, item.Accion, item.Descripcion,
+                    item.Exitoso ? "Exitoso" : "Fallido",
+                    item.DuracionMs.ToString(CultureInfo.InvariantCulture)
+                ], item.FechaHoraUtc.ToLocalTime()));
+            }
+            ValidarCantidad(registros.Count);
+            if (pagina.Items.Count == 0 || numero >= pagina.TotalPaginas)
+                break;
+        }
+        return registros;
+    }
+
     private static DateTime? ConvertirFecha(object? valor) => valor switch
     {
         DateTime fecha => fecha,
@@ -438,6 +571,10 @@
         "terrenos" => ["Código", "Propietario", "Ubicación", "Dirección", "Extensión (mz)", "Plantas", "Fecha de ingreso"],
         "asignaciones" => ["Usuario", "Terreno", "Propietario", "Tipo", "Responsable principal", "Fecha de inicio"],
         "coberturas" => ["Usuario", "Tipo de cobertura", "Departamento", "Municipio", "Fecha de inicio"],
+        "suelo" => ["Análisis", "Terreno", "Propietario", "Laboratorio", "pH", "Estado", "Origen", "Fecha de registro"],
+        "fertilizacion" => ["Análisis", "Terreno", "Propietario", "Fórmula", "Enmienda", "Fertilización mixta", "Fecha de registro"],
+        "fitosanitario" => ["N.º", "Inspección", "Terreno", "Propietario", "Departamento", "Técnico", "Estado", "Cierre", "Fotografías", "Fecha de registro"],
+        "actividad" => ["Fecha", "Usuario", "Rol", "Módulo", "Acción", "Descripción", "Resultado", "Duración (ms)"],
         _ => []
     };
 
@@ -469,6 +606,9 @@
             {
                 "propietarios" => new HashSet<int> { 4 },
                 "terrenos" => new HashSet<int> { 4, 5 },
+                "suelo" => new HashSet<int> { 4 },
+                "fitosanitario" => new HashSet<int> { 0, 8 },
+                "actividad" => new HashSet<int> { 7 },
                 _ => new HashSet<int>()
             };
             byte[] archivo = ReportesExcelService.GenerarEjecutivo(nombreConsultado,

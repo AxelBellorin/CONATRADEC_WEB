@@ -1,324 +1,50 @@
 @page "/reportes"
-@using System.Net
-@using System.Net.Http.Headers
 @inject AuthStateService AuthState
-@inject SeguimientoAlertasService Service
-@inject IHttpClientFactory HttpClientFactory
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 
 <PageTitle>Centro de reportes | CONATRADEC</PageTitle>
 <div class="page-header">
     <div>
-        <p class="eyebrow">Información ejecutiva</p>
+        <p class="eyebrow">Informes de gestión</p>
         <h1>Centro de reportes</h1>
-        <p>
-            Consulta el estado general y descarga archivos utilizando la
-            sesión autenticada del portal.
-        </p>
+        <p>Consulta indicadores y resultados institucionales; exporta los registros autorizados a Excel.</p>
     </div>
 </div>
 
-@if (!string.IsNullOrWhiteSpace(mensaje))
+@if (cargando)
 {
-    <div class="alert alert-success-custom">
-        <i class="fa-solid fa-circle-check"></i>
-        <span>@mensaje</span>
-    </div>
+    <LoadingState Mensaje="Preparando centro de reportes..." />
 }
-@if (!string.IsNullOrWhiteSpace(error))
-{
-    <div class="alert alert-error">
-        <i class="fa-solid fa-circle-exclamation"></i>
-        <span>@error</span>
-    </div>
-}
-@if (!PuedeLeer)
+else if (!PuedeLeer)
 {
     <section class="panel empty-state compact-empty">
         <i class="fa-solid fa-lock"></i>
         <h2>Sin permiso para reportes</h2>
-        <p>
-            Solicite al administrador el permiso “Centro de reportes”.
-        </p>
+        <p>Solicita al administrador acceso al Centro de reportes.</p>
     </section>
-}
-else if (cargando)
-{
-    <LoadingState Mensaje="Preparando indicadores..." />
 }
 else
 {
     <ReportesAvanzados />
-    <section class="report-alert-section-heading">
-        <p class="eyebrow">Seguimiento agrícola</p>
-        <h2>Alertas agrícolas</h2>
-        <p>Consulta el estado de las alertas y conserva las descargas existentes.</p>
-    </section>
-    <section class="report-summary-grid">
-        <article>
-            <span>Total</span>
-            <strong>@resumen.Total</strong>
-        </article>
-        <article>
-            <span>Pendientes</span>
-            <strong>@resumen.Pendientes</strong>
-        </article>
-        <article>
-            <span>En proceso</span>
-            <strong>@resumen.EnProceso</strong>
-        </article>
-        <article>
-            <span>Atendidas</span>
-            <strong>@resumen.Atendidas</strong>
-        </article>
-        <article>
-            <span>Críticas</span>
-            <strong>@resumen.Criticas</strong>
-        </article>
-    </section>
-    <section class="report-options-grid">
-        <article class="report-option-card">
-            <i class="fa-solid fa-file-pdf"></i>
-            <div>
-                <h2>Reporte PDF</h2>
-                <p>
-                    Documento tamaño carta con el seguimiento actual de
-                    alertas agrícolas.
-                </p>
-            </div>
-            <button class="btn-primary"
-                    disabled="@descargando"
-                    @onclick='() => DescargarAsync(
-                        "api/reportes-alertas/pdf",
-                        "application/pdf",
-                        "reporte-alertas.pdf")'>
-                <i class="fa-solid @(descargando
-                    ? "fa-spinner fa-spin"
-                    : "fa-download")"></i>
-                Descargar PDF
-            </button>
-        </article>
-        <article class="report-option-card">
-            <i class="fa-solid fa-file-excel"></i>
-            <div>
-                <h2>Reporte Excel</h2>
-                <p>
-                    Archivo editable con todos los casos, estados y fechas.
-                </p>
-            </div>
-            <button class="btn-primary"
-                    disabled="@descargando"
-                    @onclick='() => DescargarAsync(
-                        "api/reportes-alertas/excel",
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        "reporte-alertas.xlsx")'>
-                <i class="fa-solid @(descargando
-                    ? "fa-spinner fa-spin"
-                    : "fa-download")"></i>
-                Descargar Excel
-            </button>
-        </article>
-    </section>
 }
+
 @code {
-    private const string CodigoPermiso =
-        "reportesPage";
-
-    private ResumenReporteAlertas resumen =
-        new();
-
     private bool cargando = true;
-    private bool descargando;
-    private string? mensaje;
-    private string? error;
+    private bool PuedeLeer => AuthState.EsAdministrador || AuthState.TienePermisoLectura("reportesPage");
 
-    private bool PuedeLeer =>
-        AuthState.EsAdministrador ||
-        AuthState.TienePermisoLectura(
-            CodigoPermiso);
-    protected override async Task OnAfterRenderAsync(
-        bool firstRender)
+    protected override Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
-            return;
+            return Task.CompletedTask;
 
         if (!AuthState.IsAuthenticated)
         {
             Navigation.NavigateTo("/login");
-            return;
+            return Task.CompletedTask;
         }
 
-        if (!PuedeLeer)
-        {
-            cargando = false;
-            StateHasChanged();
-            return;
-        }
-
-        await CargarResumenAsync();
+        cargando = false;
         StateHasChanged();
-    }
-    private async Task CargarResumenAsync()
-    {
-        cargando = true;
-        LimpiarMensajes();
-
-        try
-        {
-            resumen =
-                await Service.ResumenReporteAsync() ??
-                new ResumenReporteAlertas();
-        }
-        catch (Exception ex)
-        {
-            error = LimpiarMensaje(ex.Message);
-        }
-        finally
-        {
-            cargando = false;
-        }
-    }
-    private async Task DescargarAsync(
-        string ruta,
-        string contentTypePredeterminado,
-        string nombrePredeterminado)
-    {
-        if (descargando)
-            return;
-
-        descargando = true;
-        LimpiarMensajes();
-
-        try
-        {
-            string? token =
-                AuthState.Usuario?.Token;
-            if (string.IsNullOrWhiteSpace(token))
-            {
-                throw new UnauthorizedAccessException(
-                    "La sesión ya no es válida. Inicia sesión nuevamente.");
-            }
-
-            HttpClient client =
-                HttpClientFactory.CreateClient(
-                    "CONATRADEC_API_AUTENTICADA");
-
-            using var request =
-                new HttpRequestMessage(
-                    HttpMethod.Get,
-                    ruta);
-            request.Headers.Authorization =
-                new AuthenticationHeaderValue(
-                    "Bearer",
-                    token);
-
-            /*
-             * La descarga fue iniciada directamente por el usuario, por lo
-             * que debe registrar actividad real en la sesión.
-             */
-            request.Headers.TryAddWithoutValidation(
-                "X-Actividad-Usuario",
-                "true");
-            using HttpResponseMessage response =
-                await client.SendAsync(
-                    request,
-                    HttpCompletionOption.ResponseHeadersRead);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                string detalle =
-                    await response.Content.ReadAsStringAsync();
-                if (response.StatusCode is
-                    HttpStatusCode.Unauthorized or
-                    HttpStatusCode.Forbidden)
-                {
-                    throw new UnauthorizedAccessException(
-                        ExtraerMensaje(detalle));
-                }
-
-                throw new HttpRequestException(
-                    ExtraerMensaje(detalle),
-                    null,
-                    response.StatusCode);
-            }
-            byte[] contenido =
-                await response.Content.ReadAsByteArrayAsync();
-
-            if (contenido.Length == 0)
-            {
-                throw new InvalidOperationException(
-                    "El reporte generado no contiene información para descargar.");
-            }
-
-            string nombre =
-                ObtenerNombreArchivo(
-                    response,
-                    nombrePredeterminado);
-            string contentType =
-                response.Content.Headers.ContentType?
-                    .MediaType ??
-                contentTypePredeterminado;
-
-            await JS.InvokeVoidAsync(
-                "conatradecFiles.downloadFromBase64",
-                nombre,
-                contentType,
-                Convert.ToBase64String(contenido));
-            mensaje =
-                $"El archivo {nombre} fue generado correctamente.";
-        }
-        catch (Exception ex)
-        {
-            error = LimpiarMensaje(ex.Message);
-        }
-        finally
-        {
-            descargando = false;
-        }
-    }
-
-    private static string ObtenerNombreArchivo(
-        HttpResponseMessage response,
-        string predeterminado)
-    {
-        ContentDispositionHeaderValue? disposition =
-            response.Content.Headers.ContentDisposition;
-        string? nombre =
-            disposition?.FileNameStar ??
-            disposition?.FileName;
-
-        nombre =
-            nombre?
-                .Trim()
-                .Trim('"');
-
-        return string.IsNullOrWhiteSpace(nombre)
-            ? predeterminado
-            : nombre;
-    }
-
-    private static string ExtraerMensaje(
-        string contenido)
-    {
-        string mensaje =
-            (contenido ?? string.Empty)
-                .Trim()
-                .Trim('"');
-        return string.IsNullOrWhiteSpace(mensaje)
-            ? "No fue posible completar la descarga."
-            : mensaje;
-    }
-
-    private static string LimpiarMensaje(
-        string mensaje) =>
-        (mensaje ?? string.Empty)
-            .Trim()
-            .Trim('"');
-
-    private void LimpiarMensajes()
-    {
-        mensaje = null;
-        error = null;
+        return Task.CompletedTask;
     }
 }

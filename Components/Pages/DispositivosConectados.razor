@@ -5,7 +5,6 @@
 @inject IJSRuntime JS
 
 <PageTitle>Dispositivos conectados | CONATRADEC</PageTitle>
-
 <div class="page-header">
     <div>
         <p class="eyebrow">Monitoreo</p>
@@ -15,10 +14,9 @@
             que se encuentran conectados al sistema.
         </p>
     </div>
-
     <div class="page-header-actions">
         <button class="btn-secondary"
-                @onclick="CargarTodo"
+                @onclick="ActualizarDatos"
                 disabled="@cargando">
             <i class="fa-solid fa-rotate"></i>
             Actualizar
@@ -33,7 +31,6 @@
         <span>@error</span>
     </div>
 }
-
 <section class="device-stat-grid">
     <article class="metric-card device-stat">
         <span>Conectados ahora</span>
@@ -46,7 +43,6 @@
         <strong>@resumen.UsuariosConectados</strong>
         <small>Usuarios únicos</small>
     </article>
-
     <article class="metric-card device-stat">
         <span>Android</span>
         <strong>@resumen.AndroidConectados</strong>
@@ -58,7 +54,6 @@
         <strong>@resumen.WindowsConectados</strong>
         <small>Conectados ahora</small>
     </article>
-
     <article class="metric-card device-stat">
         <span>Web</span>
         <strong>@resumen.OtrosConectados</strong>
@@ -70,14 +65,12 @@
         <strong>@resumen.TotalDispositivosRegistrados</strong>
         <small>@resumen.TotalSesionesRegistradas sesiones</small>
     </article>
-
     <article class="metric-card device-stat">
         <span>Activos en 24 h</span>
         <strong>@resumen.DispositivosActivosUltimas24Horas</strong>
         <small>@resumen.ConectadosConUbicacion con ubicación</small>
     </article>
 </section>
-
 <section class="device-view-selector"
          aria-label="Vista de dispositivos">
     <button class="device-view-button @(vistaActual == "lista" ? "active" : string.Empty)"
@@ -85,7 +78,6 @@
         <i class="fa-solid fa-list"></i>
         Listado
     </button>
-
     <button class="device-view-button @(vistaActual == "mapa" ? "active" : string.Empty)"
             @onclick='() => CambiarVista("mapa")'>
         <i class="fa-solid fa-map-location-dot"></i>
@@ -97,7 +89,6 @@
 <section class="panel device-filters">
     <div class="form-group device-search-wide">
         <label>Búsqueda</label>
-
         <InputText class="form-control"
                    @bind-Value="filtro.Buscar"
                    placeholder="Usuario, correo, dispositivo, modelo, dirección o instalación" />
@@ -105,7 +96,6 @@
 
     <div class="form-group">
         <label>Estado</label>
-
         <InputSelect class="form-control"
                      @bind-Value="filtro.Estado">
             <option value="">Todos</option>
@@ -116,7 +106,6 @@
 
     <div class="form-group">
         <label>Plataforma</label>
-
         <InputSelect class="form-control"
                      @bind-Value="filtro.Plataforma">
             <option value="">Todas</option>
@@ -129,7 +118,6 @@
 
     <div class="form-group">
         <label>Ubicación</label>
-
         <InputSelect class="form-control"
                      @bind-Value="filtro.Ubicacion">
             <option value="">Todas</option>
@@ -145,7 +133,6 @@
                    @bind-Value="filtro.VersionApp"
                    placeholder="Ej. 1.0.0" />
     </div>
-
     <div class="form-group">
         <label>Tolerancia activa</label>
 
@@ -158,7 +145,6 @@
             <option value="15">15 minutos</option>
         </InputSelect>
     </div>
-
     <div class="device-filter-actions">
         <button class="btn-primary"
                 @onclick="AplicarFiltros">
@@ -172,7 +158,6 @@
         </button>
     </div>
 </section>
-
 @if (cargando)
 {
     <LoadingState Mensaje="Consultando dispositivos..." />
@@ -188,16 +173,7 @@ else if (vistaActual == "mapa")
                     y enviaron coordenadas válidas.
                 </p>
             </div>
-
-            <label class="device-map-toggle">
-                <InputCheckbox
-                    @bind-Value="soloConectadosMapa"
-                    @bind-Value:after="ActualizarMapaPorEstado" />
-
-                <span>Mostrar solo conectados</span>
-            </label>
         </div>
-
         @if (cargandoMapa)
         {
             <LoadingState Mensaje="Cargando ubicaciones..." />
@@ -208,17 +184,14 @@ else if (vistaActual == "mapa")
                 <i class="fa-solid fa-location-crosshairs"></i>
 
                 <h2>No hay ubicaciones disponibles</h2>
-
                 <p>
-                    Los navegadores Web pueden estar conectados aunque no
-                    aparezcan en este mapa, porque la comprobación de conexión no solicita
-                    ubicación GPS. Puedes verlos en el listado general.
+                    Ningún dispositivo con ubicación registrada coincide con los filtros.
+                    Los equipos sin coordenadas pueden consultarse en el listado general.
                 </p>
-
                 <button class="btn-primary"
                         @onclick='() => CambiarVista("lista")'>
                     <i class="fa-solid fa-list"></i>
-                    Ver dispositivos conectados
+                    Ver listado de dispositivos
                 </button>
             </div>
         }
@@ -229,7 +202,6 @@ else if (vistaActual == "mapa")
                     <i class="device-map-legend-dot online"></i>
                     Conectado
                 </span>
-
                 <span>
                     <i class="device-map-legend-dot offline"></i>
                     Desconectado
@@ -240,10 +212,9 @@ else if (vistaActual == "mapa")
                     Ubicación simulada
                 </span>
             </div>
-
             <div id="dispositivos-conectados-mapa"
                  class="device-map-container"
-                 aria-label="Mapa de ubicación de dispositivos conectados">
+                 aria-label="Mapa de ubicación de dispositivos conectados y desconectados">
             </div>
         }
     </section>
@@ -255,7 +226,6 @@ else
             <span>Dispositivos encontrados</span>
             <strong>@resultado.TotalRegistros</strong>
         </div>
-
         <div class="responsive-table-wrapper">
             <table class="data-table device-table">
                 <thead>
@@ -270,7 +240,6 @@ else
                         <th></th>
                     </tr>
                 </thead>
-
                 <tbody>
                     @if (resultado.Items.Count == 0)
                     {
@@ -291,7 +260,6 @@ else
                                         @(item.Conectado ? "Conectado" : "Desconectado")
                                     </span>
                                 </td>
-
                                 <td data-label="Usuario">
                                     <strong>@item.UsuarioNombre</strong>
                                     <small>@item.CorreoUsuario</small>
@@ -301,24 +269,20 @@ else
                                     <strong>@NombreDispositivo(item)</strong>
                                     <small>@ModeloDispositivo(item)</small>
                                 </td>
-
                                 <td data-label="Plataforma">
                                     <span class="platform-badge">
                                         <i class="@IconoPlataforma(item.Plataforma)"></i>
                                         @item.Plataforma
                                     </span>
                                 </td>
-
                                 <td data-label="Versión">
                                     <strong>@Texto(item.VersionApp)</strong>
                                     <small>Versión interna @Texto(item.BuildApp)</small>
                                 </td>
-
                                 <td data-label="Conexión">
                                     <strong>@Texto(item.TipoConexion)</strong>
                                     <small>@Texto(item.DireccionIp)</small>
                                 </td>
-
                                 <td data-label="Última conexión">
                                     <strong>@FechaLocal(item.UltimoLatidoUtc)</strong>
                                     <small>
@@ -326,7 +290,6 @@ else
                                             item.SegundosDesdeUltimoLatido)
                                     </small>
                                 </td>
-
                                 <td>
                                     <button class="table-action"
                                             title="Ver detalle"
@@ -340,7 +303,6 @@ else
                 </tbody>
             </table>
         </div>
-
         <div class="pagination-bar">
             <button class="btn-secondary"
                     disabled="@(resultado.Pagina <= 1)"
@@ -353,7 +315,6 @@ else
                 Página <strong>@resultado.Pagina</strong>
                 de <strong>@resultado.TotalPaginas</strong>
             </span>
-
             <button class="btn-secondary"
                     disabled="@(resultado.Pagina >= resultado.TotalPaginas)"
                     @onclick="PaginaSiguiente">
@@ -363,7 +324,6 @@ else
         </div>
     </section>
 }
-
 @if (detalle is not null)
 {
     <div class="modal-backdrop"
@@ -375,7 +335,6 @@ else
                     <p class="eyebrow">Detalle del dispositivo</p>
                     <h2>@NombreDispositivo(detalle)</h2>
                 </div>
-
                 <button class="modal-close"
                         @onclick="CerrarDetalle">
                     <i class="fa-solid fa-xmark"></i>
@@ -386,7 +345,6 @@ else
                 <div class="device-icon-large">
                     <i class="@IconoPlataforma(detalle.Plataforma)"></i>
                 </div>
-
                 <div>
                     <h3>@detalle.UsuarioNombre</h3>
                     <span>@detalle.CorreoUsuario · @detalle.RolNombre</span>
@@ -396,7 +354,6 @@ else
                     @(detalle.Conectado ? "Conectado" : "Desconectado")
                 </span>
             </div>
-
             <div class="detail-grid">
                 <DetailItem
                     Etiqueta="Plataforma"
@@ -409,7 +366,6 @@ else
                 <DetailItem
                     Etiqueta="Fabricante"
                     Valor="@detalle.Fabricante" />
-
                 <DetailItem
                     Etiqueta="Modelo"
                     Valor="@detalle.Modelo" />
@@ -421,7 +377,6 @@ else
                 <DetailItem
                     Etiqueta="Versión de app"
                     Valor="@($"{detalle.VersionApp} · Versión interna {detalle.BuildApp}")" />
-
                 <DetailItem
                     Etiqueta="Tipo de conexión"
                     Valor="@detalle.TipoConexion" />
@@ -433,7 +388,6 @@ else
                 <DetailItem
                     Etiqueta="Página actual"
                     Valor="@detalle.PaginaActual" />
-
                 <DetailItem
                     Etiqueta="Sesiones"
                     Valor="@detalle.CantidadSesiones.ToString()" />
@@ -446,7 +400,6 @@ else
                     Etiqueta="Última conexión"
                     Valor="@FechaLocal(detalle.UltimoLatidoUtc)" />
             </div>
-
             @if (detalle.TieneUbicacion)
             {
                 <div class="detail-block">
@@ -457,7 +410,6 @@ else
                         precisión @detalle.PrecisionMetros m ·
                         @detalle.EstadoPermisoUbicacion
                     </p>
-
                     @if (detalle.UbicacionSimulada == true)
                     {
                         <span class="status-label danger">
@@ -469,8 +421,9 @@ else
         </article>
     </div>
 }
-
 @code {
+    private const string ElementoMapaId = "dispositivos-conectados-mapa";
+
     private DispositivosConexionResumen resumen = new();
     private DispositivosConexionPaginada resultado = new();
     private DispositivoConexionFiltro filtro = new();
@@ -478,14 +431,12 @@ else
     private List<DispositivoConexionMapaItem> dispositivosMapa = [];
 
     private string vistaActual = "lista";
-    private bool soloConectadosMapa = true;
     private bool cargandoMapa;
     private bool mapaPendienteRender;
     private bool cargando = true;
     private string? error;
 
-    protected override async Task OnAfterRenderAsync(
-        bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
@@ -501,19 +452,36 @@ else
 
         if (mapaPendienteRender &&
             vistaActual == "mapa" &&
+            !cargando &&
             !cargandoMapa &&
             dispositivosMapa.Count > 0)
         {
             mapaPendienteRender = false;
 
-            await JS.InvokeVoidAsync(
-                "conatradecDispositivosMapa.inicializar",
-                "dispositivos-conectados-mapa");
+            try
+            {
+                bool inicializado = await JS.InvokeAsync<bool>(
+                    "conatradecDispositivosMapa.inicializar", ElementoMapaId);
 
-            await JS.InvokeVoidAsync(
-                "conatradecDispositivosMapa.mostrar",
-                "dispositivos-conectados-mapa",
-                dispositivosMapa);
+                if (!inicializado)
+                {
+                    error = "No fue posible iniciar el mapa. Comprueba que " +
+                            "los recursos de mapas estén disponibles.";
+                    StateHasChanged();
+                    return;
+                }
+
+                await JS.InvokeVoidAsync(
+                    "conatradecDispositivosMapa.mostrar",
+                    ElementoMapaId,
+                    dispositivosMapa);
+            }
+            catch (JSException)
+            {
+                error = "Ocurrió un problema al mostrar el mapa de dispositivos. " +
+                        "Actualiza la página e inténtalo nuevamente.";
+                StateHasChanged();
+            }
         }
     }
 
@@ -524,13 +492,9 @@ else
 
         try
         {
-            resumen =
-                await DispositivosService.ObtenerResumenAsync(
-                    filtro.MinutosActivo);
-
-            resultado =
-                await DispositivosService.ListarAsync(
-                    filtro);
+            resumen = await DispositivosService.ObtenerResumenAsync(
+                filtro.MinutosActivo);
+            resultado = await DispositivosService.ListarAsync(filtro);
         }
         catch (Exception ex)
         {
@@ -544,45 +508,54 @@ else
         }
     }
 
-    private async Task CambiarVista(
-        string vista)
+    private async Task ActualizarDatos()
     {
-        vistaActual = vista;
+        await CargarTodo();
+        if (vistaActual == "mapa")
+        {
+            await CargarMapa();
+        }
+    }
 
+    private async Task CambiarVista(string vista)
+    {
+        if (vista != "mapa" && vista != "lista")
+            return;
+
+        vistaActual = vista;
         if (vistaActual == "mapa")
         {
             await CargarMapa();
         }
         else
         {
+            mapaPendienteRender = false;
             await JS.InvokeVoidAsync(
-                "conatradecDispositivosMapa.destruir",
-                "dispositivos-conectados-mapa");
+                "conatradecDispositivosMapa.destruir", ElementoMapaId);
         }
     }
 
     private async Task CargarMapa()
     {
+        mapaPendienteRender = false;
         cargandoMapa = true;
         error = null;
 
         try
         {
-            dispositivosMapa =
-                await DispositivosService.ObtenerMapaAsync(
-                    soloConectadosMapa,
-                    filtro.MinutosActivo);
+            // Destruir la instancia anterior antes de reemplazar su nodo HTML.
+            await JS.InvokeVoidAsync(
+                "conatradecDispositivosMapa.destruir", ElementoMapaId);
 
-            mapaPendienteRender =
-                dispositivosMapa.Count > 0;
+            dispositivosMapa = await ObtenerMapaFiltradoAsync();
+            mapaPendienteRender = dispositivosMapa.Count > 0;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             dispositivosMapa = [];
-
-            error =
-                "No fue posible cargar el mapa de dispositivos. " +
-                ex.Message;
+            mapaPendienteRender = false;
+            error = "No fue posible cargar el mapa de dispositivos. " +
+                    "Inténtalo nuevamente.";
         }
         finally
         {
@@ -590,22 +563,81 @@ else
         }
     }
 
-    private async Task ActualizarMapaPorEstado()
+    private async Task<List<DispositivoConexionMapaItem>> ObtenerMapaFiltradoAsync()
     {
-        await CargarMapa();
-        StateHasChanged();
+        // El mapa requiere coordenadas, aunque en el listado existan
+        // dispositivos sin ubicación.
+        if (filtro.Ubicacion == "sin")
+            return [];
+
+        // El endpoint existente distingue 'solo conectados' o 'todos'.
+        // El estado 'desconectados' se aplica sobre la respuesta completa.
+        List<DispositivoConexionMapaItem> ubicaciones =
+            await DispositivosService.ObtenerMapaAsync(
+                filtro.Estado == "conectados", filtro.MinutosActivo, 2000);
+
+        // Excluir coordenadas que Leaflet no puede representar y el punto
+        // (0, 0), que normalmente indica ausencia de GPS.
+        ubicaciones = ubicaciones.Where(item =>
+            item.Latitud >= -90m && item.Latitud <= 90m &&
+            item.Longitud >= -180m && item.Longitud <= 180m &&
+            (item.Latitud != 0m || item.Longitud != 0m)).ToList();
+
+        if (filtro.Estado == "desconectados")
+        {
+            ubicaciones = ubicaciones.Where(item => !item.Conectado).ToList();
+        }
+
+        if (ubicaciones.Count == 0 ||
+            (string.IsNullOrWhiteSpace(filtro.Buscar) &&
+             string.IsNullOrWhiteSpace(filtro.Plataforma) &&
+             string.IsNullOrWhiteSpace(filtro.VersionApp)))
+        {
+            return ubicaciones;
+        }
+
+        // La respuesta de mapa no incluye correo, versión ni instalación.
+        // Reutilizar el listado filtrado evita inventar un endpoint nuevo.
+        var consulta = new DispositivoConexionFiltro
+        {
+            Estado = filtro.Estado,
+            Ubicacion = filtro.Ubicacion,
+            Plataforma = filtro.Plataforma,
+            VersionApp = filtro.VersionApp,
+            Buscar = filtro.Buscar,
+            MinutosActivo = filtro.MinutosActivo,
+            TamanoPagina = 100
+        };
+
+        var ids = new HashSet<int>();
+        for (int pagina = 1; pagina <= 20; pagina++)
+        {
+            consulta.Pagina = pagina;
+            DispositivosConexionPaginada datos =
+                await DispositivosService.ListarAsync(consulta);
+
+            foreach (DispositivoConexionItem item in datos.Items)
+                ids.Add(item.DispositivoConexionId);
+
+            if (pagina >= datos.TotalPaginas || datos.Items.Count == 0)
+                break;
+        }
+
+        return ubicaciones
+            .Where(item => ids.Contains(item.DispositivoConexionId))
+            .ToList();
     }
 
     private async Task AplicarFiltros()
     {
         filtro.Pagina = 1;
-        await CargarTodo();
+        await ActualizarDatos();
     }
 
     private async Task LimpiarFiltros()
     {
         filtro = new DispositivoConexionFiltro();
-        await CargarTodo();
+        await ActualizarDatos();
     }
 
     private async Task PaginaAnterior()
@@ -626,15 +658,12 @@ else
         await CargarTodo();
     }
 
-    private async Task VerDetalle(
-        int id)
+    private async Task VerDetalle(int id)
     {
         try
         {
-            detalle =
-                await DispositivosService.ObtenerAsync(
-                    id,
-                    filtro.MinutosActivo);
+            detalle = await DispositivosService.ObtenerAsync(
+                id, filtro.MinutosActivo);
         }
         catch (Exception ex)
         {
@@ -642,83 +671,59 @@ else
         }
     }
 
-    private void CerrarDetalle() =>
-        detalle = null;
+    private void CerrarDetalle() => detalle = null;
 
     private static string NombreDispositivo(
         DispositivoConexionItem item) =>
-        !string.IsNullOrWhiteSpace(
-            item.NombreDispositivo)
-                ? item.NombreDispositivo
-                : !string.IsNullOrWhiteSpace(
-                    item.Modelo)
-                        ? item.Modelo
-                        : "Dispositivo sin nombre";
+        !string.IsNullOrWhiteSpace(item.NombreDispositivo)
+            ? item.NombreDispositivo
+            : !string.IsNullOrWhiteSpace(item.Modelo)
+                ? item.Modelo
+                : "Dispositivo sin nombre";
 
-    private static string ModeloDispositivo(
-        DispositivoConexionItem item)
+    private static string ModeloDispositivo(DispositivoConexionItem item)
     {
-        string valor =
-            $"{item.Fabricante} {item.Modelo}".Trim();
-
+        string valor = $"{item.Fabricante} {item.Modelo}".Trim();
         return string.IsNullOrWhiteSpace(valor)
             ? item.InstalacionId
             : valor;
     }
 
-    private static string Texto(
-        string? valor) =>
+    private static string Texto(string? valor) =>
         string.IsNullOrWhiteSpace(valor)
             ? "No disponible"
             : valor;
 
-    private static string IconoPlataforma(
-        string? plataforma)
+    private static string IconoPlataforma(string? plataforma)
     {
         if (plataforma?.Contains(
-                "Android",
-                StringComparison.OrdinalIgnoreCase) == true)
-        {
+                "Android", StringComparison.OrdinalIgnoreCase) == true)
             return "fa-brands fa-android";
-        }
 
         if (plataforma?.Contains(
-                "Windows",
-                StringComparison.OrdinalIgnoreCase) == true ||
+                "Windows", StringComparison.OrdinalIgnoreCase) == true ||
             plataforma?.Contains(
-                "WinUI",
-                StringComparison.OrdinalIgnoreCase) == true)
-        {
+                "WinUI", StringComparison.OrdinalIgnoreCase) == true)
             return "fa-brands fa-windows";
-        }
 
         if (plataforma?.Contains(
-                "Web",
-                StringComparison.OrdinalIgnoreCase) == true)
-        {
+                "Web", StringComparison.OrdinalIgnoreCase) == true)
             return "fa-solid fa-globe";
-        }
 
         return "fa-solid fa-mobile-screen-button";
     }
 
-    private static string FechaLocal(
-        DateTime fechaUtc) =>
-        DateTime.SpecifyKind(
-                fechaUtc,
-                DateTimeKind.Utc)
+    private static string FechaLocal(DateTime fechaUtc) =>
+        DateTime.SpecifyKind(fechaUtc, DateTimeKind.Utc)
             .ToLocalTime()
             .ToString("dd/MM/yyyy hh:mm:ss tt");
 
-    private static string TiempoTranscurrido(
-        int segundos)
+    private static string TiempoTranscurrido(int segundos)
     {
         if (segundos < 60)
             return $"{segundos} s";
-
         if (segundos < 3600)
             return $"{segundos / 60} min";
-
         if (segundos < 86400)
             return $"{segundos / 3600} h";
 
