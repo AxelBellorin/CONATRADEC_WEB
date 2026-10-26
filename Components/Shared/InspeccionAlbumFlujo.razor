@@ -1,7 +1,6 @@
 @inject InspeccionFitosanitariaWebService Servicio
 @inject ApiClientService ApiClient
 @inject AuthStateService AuthState
-@inject IJSRuntime JS
 
 @if (Fotografia is not null && DebeMostrar)
 {
@@ -222,12 +221,15 @@
     </section>
 }
 
+<ConfirmacionFitosanitaria @ref="confirmacion" />
+
 @code {
     [Parameter] public int InspeccionId { get; set; }
     [Parameter] public InspeccionFotoWeb? Fotografia { get; set; }
     [Parameter] public string Etapa { get; set; } = "APROBADOR";
     [Parameter] public bool PuedeGestionar { get; set; }
     [Parameter] public EventCallback OnActualizado { get; set; }
+    private ConfirmacionFitosanitaria? confirmacion;
 
     private bool cargando;
     private bool ocupado;
@@ -564,7 +566,8 @@
                 ? "La nueva subcategoría quedará como propuesta para que el aprobador la revise. ¿Desea continuar?"
                 : "La fotografía quedará vinculada con esta subcategoría para revisión del aprobador. ¿Desea continuar?";
 
-        if (!await JS.InvokeAsync<bool>("confirm", textoConfirmacion))
+        if (confirmacion is null || !await confirmacion.ConfirmarAsync(
+                textoConfirmacion, "Confirmar clasificación botánica", critica: EsAprobador))
             return;
 
         ocupado = true;
@@ -636,9 +639,9 @@
             return;
         }
 
-        if (!await JS.InvokeAsync<bool>(
-                "confirm",
-                "Se copiará la fotografía al Álbum Botánico utilizando exactamente su clasificación oficial. El expediente original no será modificado. ¿Desea continuar?"))
+        if (confirmacion is null || !await confirmacion.ConfirmarAsync(
+                "Se copiará la fotografía al Álbum Botánico utilizando exactamente su clasificación oficial. El expediente original no será modificado. ¿Desea continuar?",
+                "Publicar copia en el Álbum Botánico"))
         {
             return;
         }
@@ -676,9 +679,9 @@
         if (Fotografia is null || ocupado)
             return;
 
-        if (!await JS.InvokeAsync<bool>(
-                "confirm",
-                "Se retirará únicamente la copia visible en el Álbum Botánico. La aprobación y la clasificación oficial permanecerán intactas. ¿Desea continuar?"))
+        if (confirmacion is null || !await confirmacion.ConfirmarAsync(
+                "Se retirará únicamente la copia visible en el Álbum Botánico. La aprobación y la clasificación oficial permanecerán intactas. ¿Desea continuar?",
+                "Retirar publicación", critica: true))
         {
             return;
         }

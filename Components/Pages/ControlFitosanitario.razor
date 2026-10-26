@@ -464,12 +464,13 @@
 
 @if (mostrandoAuditoria)
 {
-    <div class="modal-backdrop" @onclick="CerrarAuditoria">
-        <article class="modal-card cf-audit-modal" @onclick:stopPropagation="true">
+    <div class="modal-backdrop cf-backdrop" @onclick="CerrarAuditoria">
+        <article class="modal-card cf-audit-modal" role="dialog" aria-modal="true"
+                 aria-labelledby="cf-audit-title" @onclick:stopPropagation="true">
             <div class="modal-header">
                 <div>
                     <p class="eyebrow">Expediente de trazabilidad</p>
-                    <h2>@(auditoria is null ? "Cargando..." : NombreAuditoria)</h2>
+                    <h2 id="cf-audit-title">@(auditoria is null ? "Cargando..." : NombreAuditoria)</h2>
                 </div>
                 <div class="cf-modal-actions">
                     @if (auditoria is not null)
@@ -641,12 +642,13 @@
 
 @if (operacionItem is not null)
 {
-    <div class="modal-backdrop" @onclick="CerrarOperacion">
-        <article class="modal-card cf-operation-modal" @onclick:stopPropagation="true">
+    <div class="modal-backdrop cf-backdrop" @onclick="CerrarOperacion">
+        <article class="modal-card cf-operation-modal" role="dialog" aria-modal="true"
+                 aria-labelledby="cf-operacion-title" @onclick:stopPropagation="true">
             <div class="modal-header">
                 <div>
                     <p class="eyebrow">Control administrativo</p>
-                    <h2>@NombreInspeccion(operacionItem)</h2>
+                    <h2 id="cf-operacion-title">@NombreInspeccion(operacionItem)</h2>
                 </div>
                 <button class="modal-close" @onclick="CerrarOperacion" aria-label="Cerrar">
                     <i class="fa-solid fa-xmark"></i>

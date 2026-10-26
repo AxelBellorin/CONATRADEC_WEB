@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Globalization;
 
 namespace CONATRADEC.AdminWeb.Services;
 
@@ -34,6 +35,39 @@ public sealed class InspeccionFitosanitariaWebService
         await apiClient.GetAsync<List<TipoFotografiaIAWeb>>(
             "api/configuracion/tipos-fotografia-ia/activos",
             cancellationToken) ?? [];
+
+    /// <summary>
+    /// Usa exactamente la búsqueda paginada de terrenos del flujo MAUI.
+    /// La API exige el permiso de lectura terrenoPage.
+    /// </summary>
+    public Task<TerrenoBusquedaIAPaginaWeb> BuscarTerrenosAsync(
+        TerrenoBusquedaIAFiltroWeb filtro,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filtro);
+
+        var parametros = new List<string>
+        {
+            $"pagina={Math.Max(1, filtro.Pagina)}",
+            $"tamanoPagina={Math.Clamp(filtro.TamanoPagina, 5, 50)}"
+        };
+
+        Agregar(parametros, "texto", filtro.Texto);
+        Agregar(parametros, "codigo", filtro.Codigo);
+        Agregar(parametros, "propietario", filtro.Propietario);
+        Agregar(parametros, "identificacionPropietario", filtro.IdentificacionPropietario);
+        Agregar(parametros, "ubicacion", filtro.Ubicacion);
+        Agregar(parametros, "direccion", filtro.Direccion);
+
+        if (filtro.ExtensionMinima.HasValue)
+            parametros.Add("extensionMinima=" + filtro.ExtensionMinima.Value.ToString(CultureInfo.InvariantCulture));
+        if (filtro.ExtensionMaxima.HasValue)
+            parametros.Add("extensionMaxima=" + filtro.ExtensionMaxima.Value.ToString(CultureInfo.InvariantCulture));
+
+        return GetDataAsync<TerrenoBusquedaIAPaginaWeb>(
+            "api/diagnostico-ia/terrenos/buscar?" + string.Join("&", parametros),
+            cancellationToken);
+    }
 
     public async Task<List<TipoFotografiaIAWeb>> ObtenerTiposFotografiaConfiguracionAsync(
         bool incluirInactivos = true,
@@ -233,6 +267,37 @@ public sealed class InspeccionFitosanitariaWebService
             $"api/inspecciones-fitosanitarias/{inspeccionId}/procesar-fotografias",
             new { fotografiaIds },
             cancellationToken);
+
+    /// <summary>
+    /// Igual que MAUI: el endpoint contextual procesa una sola fotografía por
+    /// solicitud y permite una observación opcional, independiente de las demás.
+    /// </summary>
+    public Task<InspeccionOperacionMasivaWeb> ProcesarFotoConContextoAsync(
+        int inspeccionId,
+        int fotografiaId,
+        string? contexto,
+        CancellationToken cancellationToken = default)
+    {
+        if (inspeccionId <= 0 || fotografiaId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(fotografiaId));
+
+        string texto = contexto?.Trim() ?? string.Empty;
+        if (texto.Length > 0 && (texto.Length < 8 || texto.Length > 500))
+            throw new ArgumentException(
+                "El contexto adicional debe tener entre 8 y 500 caracteres o quedar vacío.",
+                nameof(contexto));
+
+        return PostDataAsync<InspeccionOperacionMasivaWeb>(
+            $"api/inspecciones-fitosanitarias/{inspeccionId}/contexto/procesar-fotografias",
+            new
+            {
+                fotografiaIds = new[] { fotografiaId },
+                contextos = string.IsNullOrEmpty(texto)
+                    ? Array.Empty<object>()
+                    : new object[] { new { fotografiaId, contexto = texto } }
+            },
+            cancellationToken);
+    }
 
     public Task<InspeccionOperacionMasivaWeb> SolicitarRevisionIAAsync(
         int inspeccionId,

@@ -1,0 +1,230 @@
+@implements IDisposable
+@using System.Globalization
+@inject InspeccionFitosanitariaWebService Servicio
+
+<section class="btf-panel" aria-label="Búsqueda de terrenos para la inspección">
+    <div class="btf-heading">
+        <div>
+            <span class="btf-overline">DIRECTORIO DE TERRENOS</span>
+            <h3><i class="fa-solid fa-map-location-dot"></i> Buscar terreno</h3>
+            <p>Localice un terreno activo por código, propietario, ubicación, dirección o extensión.</p>
+        </div>
+        <div class="btf-heading-icon" aria-hidden="true"><i class="fa-solid fa-seedling"></i></div>
+    </div>
+
+    <form @onsubmit="BuscarAsync" @onsubmit:preventDefault>
+        <div class="btf-grid">
+            <label class="btf-field btf-full">
+                <span>Búsqueda general</span>
+                <input @bind="texto" placeholder="Código, propietario, municipio, departamento o dirección" maxlength="150" />
+            </label>
+            <label class="btf-field">
+                <span>Código del terreno</span>
+                <input @bind="codigo" placeholder="Código" maxlength="50" />
+            </label>
+            <label class="btf-field">
+                <span>Nombre del propietario</span>
+                <input @bind="propietario" placeholder="Propietario" maxlength="150" />
+            </label>
+            <label class="btf-field">
+                <span>Identificación del propietario</span>
+                <input @bind="identificacion" placeholder="Identificación" maxlength="50" />
+            </label>
+            <label class="btf-field">
+                <span>Ubicación</span>
+                <input @bind="ubicacion" placeholder="País, departamento o municipio" maxlength="150" />
+            </label>
+            <label class="btf-field">
+                <span>Dirección o referencia</span>
+                <input @bind="direccion" placeholder="Dirección" maxlength="200" />
+            </label>
+            <div class="btf-field">
+                <span>Extensión en manzanas</span>
+                <div class="btf-range">
+                    <input @bind="extensionMinimaTexto" inputmode="decimal" placeholder="Mín." aria-label="Extensión mínima en manzanas" />
+                    <input @bind="extensionMaximaTexto" inputmode="decimal" placeholder="Máx." aria-label="Extensión máxima en manzanas" />
+                </div>
+            </div>
+        </div>
+        <div class="btf-actions">
+            <button type="submit" class="btf-button primary" disabled="@cargando">
+                <i class="fa-solid fa-magnifying-glass"></i> Buscar terrenos
+            </button>
+            <button type="button" class="btf-button secondary" @onclick="LimpiarAsync" disabled="@cargando">Limpiar filtros</button>
+        </div>
+    </form>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <p class="btf-error" role="alert"><i class="fa-solid fa-circle-exclamation"></i> @error</p>
+    }
+
+    <div class="btf-results-heading">
+        <strong>Resultados</strong>
+        <span>@(cargando ? "Buscando terrenos..." : $"{pagina.Total:N0} terrenos encontrados")</span>
+    </div>
+
+    @if (cargando)
+    {
+        <p class="btf-empty" role="status"><i class="fa-solid fa-spinner fa-spin"></i> Consultando terrenos activos...</p>
+    }
+    else if (pagina.Items.Count == 0 && string.IsNullOrWhiteSpace(error))
+    {
+        <p class="btf-empty">No se encontraron terrenos con los filtros indicados.</p>
+    }
+    else
+    {
+        <div class="btf-results">
+            @foreach (TerrenoBusquedaIAItemWeb terreno in pagina.Items)
+            {
+                <article class="btf-result">
+                    <div>
+                        <strong>@terreno.CodigoTerreno</strong>
+                        <span class="btf-owner">@terreno.PropietarioTexto</span>
+                        @if (!string.IsNullOrWhiteSpace(terreno.UbicacionTexto))
+                        {
+                            <span><i class="fa-solid fa-location-dot"></i> @terreno.UbicacionTexto</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(terreno.DireccionTerreno))
+                        {
+                            <span>@terreno.DireccionTerreno</span>
+                        }
+                        <span class="btf-extension">@terreno.ExtensionTexto</span>
+                    </div>
+                    <button type="button" class="btf-button primary"
+                            @onclick="() => OnSeleccionado.InvokeAsync(terreno)">
+                        Seleccionar terreno
+                    </button>
+                </article>
+            }
+        </div>
+    }
+
+    @if (pagina.TotalPaginas > 0)
+    {
+        <nav class="btf-pager" aria-label="Páginas de terrenos">
+            <button type="button" class="btf-button secondary" disabled="@(cargando || pagina.Pagina <= 1)"
+                    @onclick="() => CargarPaginaAsync(pagina.Pagina - 1)">← Anterior</button>
+            <strong>Página @pagina.Pagina de @pagina.TotalPaginas</strong>
+            <button type="button" class="btf-button secondary" disabled="@(cargando || pagina.Pagina >= pagina.TotalPaginas)"
+                    @onclick="() => CargarPaginaAsync(pagina.Pagina + 1)">Siguiente →</button>
+        </nav>
+    }
+</section>
+
+@code {
+    [Parameter] public EventCallback<TerrenoBusquedaIAItemWeb> OnSeleccionado { get; set; }
+
+    private readonly CancellationTokenSource cancelacion = new();
+    private TerrenoBusquedaIAPaginaWeb pagina = new();
+    private TerrenoBusquedaIAFiltroWeb filtrosAplicados = new();
+    private string texto = string.Empty;
+    private string codigo = string.Empty;
+    private string propietario = string.Empty;
+    private string identificacion = string.Empty;
+    private string ubicacion = string.Empty;
+    private string direccion = string.Empty;
+    private string extensionMinimaTexto = string.Empty;
+    private string extensionMaximaTexto = string.Empty;
+    private string error = string.Empty;
+    private bool cargando;
+    private bool disposed;
+
+    protected override Task OnInitializedAsync() => CargarPaginaAsync(1);
+
+    private async Task BuscarAsync()
+    {
+        if (cargando || disposed)
+            return;
+
+        error = string.Empty;
+        if (!ConvertirExtension(extensionMinimaTexto, out decimal? minima) ||
+            !ConvertirExtension(extensionMaximaTexto, out decimal? maxima))
+        {
+            error = "Revise los valores de extensión. Deben ser números no negativos.";
+            return;
+        }
+
+        if (minima.HasValue && maxima.HasValue && minima > maxima)
+        {
+            error = "La extensión mínima no puede ser mayor que la máxima.";
+            return;
+        }
+
+        // Los cambios escritos no afectan la navegación hasta pulsar Buscar.
+        filtrosAplicados = new TerrenoBusquedaIAFiltroWeb
+        {
+            Texto = texto.Trim(),
+            Codigo = codigo.Trim(),
+            Propietario = propietario.Trim(),
+            IdentificacionPropietario = identificacion.Trim(),
+            Ubicacion = ubicacion.Trim(),
+            Direccion = direccion.Trim(),
+            ExtensionMinima = minima,
+            ExtensionMaxima = maxima
+        };
+
+        await CargarPaginaAsync(1);
+    }
+
+    private async Task LimpiarAsync()
+    {
+        if (cargando || disposed)
+            return;
+
+        texto = codigo = propietario = identificacion = ubicacion = direccion = string.Empty;
+        extensionMinimaTexto = extensionMaximaTexto = string.Empty;
+        filtrosAplicados = new();
+        await CargarPaginaAsync(1);
+    }
+
+    private async Task CargarPaginaAsync(int numero)
+    {
+        if (cargando || disposed || numero < 1 ||
+            (pagina.TotalPaginas > 0 && numero > pagina.TotalPaginas))
+            return;
+
+        cargando = true;
+        error = string.Empty;
+        pagina = new();
+        try
+        {
+            filtrosAplicados.Pagina = numero;
+            pagina = await Servicio.BuscarTerrenosAsync(filtrosAplicados, cancelacion.Token);
+        }
+        catch (OperationCanceledException) when (cancelacion.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            if (!disposed)
+                error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private static bool ConvertirExtension(string texto, out decimal? extension)
+    {
+        extension = null;
+        if (string.IsNullOrWhiteSpace(texto))
+            return true;
+
+        const NumberStyles estilos = NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
+        if ((!decimal.TryParse(texto.Trim(), estilos, CultureInfo.CurrentCulture, out decimal valor) &&
+             !decimal.TryParse(texto.Trim(), estilos, CultureInfo.InvariantCulture, out valor)) || valor < 0)
+            return false;
+
+        extension = valor;
+        return true;
+    }
+
+    public void Dispose()
+    {
+        disposed = true;
+        cancelacion.Cancel();
+        cancelacion.Dispose();
+    }
+}

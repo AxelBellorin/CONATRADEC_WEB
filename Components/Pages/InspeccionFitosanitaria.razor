@@ -11,9 +11,18 @@
             <span class="fit-kicker">Supervisión agrícola</span>
             <h1>Inspección fitosanitaria</h1>
             <p>
-                El mismo flujo operativo de móvil/Windows, adaptado al portal web.
-                Cada fotografía conserva su proceso y trazabilidad independiente.
+                Registre evidencias, prepare el análisis y dé seguimiento a cada fotografía
+                durante la revisión técnica.
             </p>
+            <div class="fit-flow-guide" aria-label="Etapas del proceso fitosanitario">
+                <span><i class="fa-solid fa-map-location-dot"></i> Terreno</span>
+                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                <span><i class="fa-solid fa-camera"></i> Evidencias</span>
+                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                <span><i class="fa-solid fa-wand-magic-sparkles"></i> Análisis</span>
+                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                <span><i class="fa-solid fa-check-double"></i> Revisión</span>
+            </div>
         </div>
 
         @if (PuedeCrear && vistaActual == "mis")
@@ -128,6 +137,27 @@
         </div>
 
         <div class="fit-field">
+            <label>Propietario</label>
+            <input @bind="filtroPropietario" placeholder="Nombre del propietario" />
+        </div>
+
+        <div class="fit-field">
+            <label>Departamento</label>
+            <input @bind="filtroDepartamento" placeholder="Departamento" />
+        </div>
+
+        <div class="fit-field">
+            <label>Tipo de fotografía</label>
+            <select @bind="filtroTipoFotografia">
+                <option value="">Todos</option>
+                @foreach (TipoFotografiaIAWeb tipo in tiposFotografia)
+                {
+                    <option value="@tipo.Codigo">@tipo.Nombre</option>
+                }
+            </select>
+        </div>
+
+        <div class="fit-field">
             <label>Desde</label>
             <input type="date" @bind="fechaDesde" />
         </div>
@@ -205,6 +235,14 @@
                             <span><strong>@item.Finalizadas</strong> finalizadas</span>
                         </div>
 
+                        <div class="fit-progress-meter" aria-label="Progreso de fotografías">
+                            <div class="fit-progress-track" role="progressbar" aria-valuemin="0"
+                                 aria-valuemax="100" aria-valuenow="@PorcentajeAvance(item)">
+                                <span style="@($"width:{PorcentajeAvance(item)}%")"></span>
+                            </div>
+                            <span>@PorcentajeAvance(item)% completado</span>
+                        </div>
+
                         @if (!string.IsNullOrWhiteSpace(item.AnalizadorAsignado) ||
                              !string.IsNullOrWhiteSpace(item.AprobadorAsignado))
                         {
@@ -261,20 +299,57 @@
 @if (mostrarNueva)
 {
     <div class="fit-modal-backdrop" @onclick="CerrarNuevaInspeccion">
-        <section class="fit-modal fit-modal-wide" @onclick:stopPropagation="true">
+        <section class="fit-modal fit-modal-wide" role="dialog" aria-modal="true"
+                 aria-labelledby="fit-nueva-title" aria-describedby="fit-nueva-descripcion"
+                 @onclick:stopPropagation="true">
             <header>
-                <div>
+                <div class="fit-modal-heading">
+                    <span class="fit-modal-heading-icon" aria-hidden="true"><i class="fa-solid fa-clipboard-check"></i></span>
+                    <div>
                     <span class="fit-kicker">Registro en campo</span>
-                    <h2>Nueva inspección fitosanitaria</h2>
+                    <h2 id="fit-nueva-title">Nueva inspección fitosanitaria</h2>
+                    <p id="fit-nueva-descripcion" class="fit-modal-subtitle">Identifique el terreno y agregue las evidencias del recorrido.</p>
+                    </div>
                 </div>
-                <button class="fit-icon-btn" @onclick="CerrarNuevaInspeccion" aria-label="Cerrar">×</button>
+                <button type="button" class="fit-icon-btn" @onclick="CerrarNuevaInspeccion" aria-label="Cerrar registro" disabled="@guardando">×</button>
             </header>
+
+            <div class="fit-modal-body">
+                <div class="fit-modal-steps" aria-label="Etapas del registro">
+                    <span class="@(string.IsNullOrWhiteSpace(codigoTerreno) ? "current" : "complete")"><b>01</b> Terreno</span>
+                    <span class="@(fotosNueva.Count > 0 ? "complete" : string.Empty)"><b>02</b> Evidencias</span>
+                    <span><b>03</b> Registrar</span>
+                </div>
 
             <div class="fit-form-grid">
                 <div class="fit-field">
                     <label>Código del terreno *</label>
-                    <input @bind="codigoTerreno" maxlength="50" placeholder="Ej. TR-001" />
-                    <small>Debe corresponder a un terreno activo en CONATRADEC.</small>
+                    <div class="fit-terreno-actions">
+                        <input @bind="codigoTerreno" maxlength="50" placeholder="Ej. TR-001"
+                               readonly="@(terrenoSeleccionado is not null)" />
+                        @if (PuedeBuscarTerrenos)
+                        {
+                            <button type="button" class="fit-btn fit-btn-secondary"
+                                    @onclick="() => mostrarBuscadorTerreno = !mostrarBuscadorTerreno"
+                                    disabled="@guardando">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                @(mostrarBuscadorTerreno ? "Cerrar búsqueda" : "Buscar terreno")
+                            </button>
+                        }
+                    </div>
+                    <small>Seleccione un terreno activo o introduzca su código como antes.</small>
+                    @if (terrenoSeleccionado is not null)
+                    {
+                        <div class="fit-terreno-seleccionado">
+                            <span>
+                                <i class="fa-solid fa-circle-check"></i>
+                                <strong>@terrenoSeleccionado.CodigoTerreno</strong> ·
+                                @terrenoSeleccionado.PropietarioTexto ·
+                                @terrenoSeleccionado.UbicacionTexto
+                            </span>
+                            <button type="button" @onclick="QuitarTerrenoSeleccionado" disabled="@guardando">Quitar</button>
+                        </div>
+                    }
                 </div>
 
                 <div class="fit-field">
@@ -283,6 +358,13 @@
                     <small>Use entre 3 y 150 caracteres para identificar la inspección.</small>
                 </div>
 
+                @if (mostrarBuscadorTerreno && PuedeBuscarTerrenos)
+                {
+                    <div class="fit-search-slot">
+                        <BuscadorTerrenoFitosanitario OnSeleccionado="SeleccionarTerreno" />
+                    </div>
+                }
+
                 <div class="fit-field full">
                     <label>Observación general</label>
                     <textarea @bind="observacion" maxlength="1000" rows="3"
@@ -290,7 +372,10 @@
                 </div>
 
                 <div class="fit-field full">
-                    <label>Fotografías *</label>
+                    <div class="fit-evidence-heading">
+                        <label>Fotografías *</label>
+                        <span class="fit-evidence-counter"><i class="fa-regular fa-images" aria-hidden="true"></i> @fotosNueva.Count de 40</span>
+                    </div>
                     <label class="fit-file-drop">
                         <i class="fa-solid fa-images"></i>
                         <strong>Seleccionar fotografías</strong>
@@ -302,7 +387,11 @@
 
             @if (fotosNueva.Count > 0)
             {
-                <div class="fit-upload-list">
+                <div class="fit-upload-list" aria-label="Fotografías seleccionadas">
+                    <div class="fit-upload-summary">
+                        <strong><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Evidencias por registrar</strong>
+                        <span>Revise el tipo y la fecha de cada fotografía.</span>
+                    </div>
                     @for (int i = 0; i < fotosNueva.Count; i++)
                     {
                         FotoFitosanitariaCargaWeb foto = fotosNueva[i];
@@ -338,6 +427,7 @@
                     }
                 </div>
             }
+            </div>
 
             <footer>
                 <button class="fit-btn fit-btn-light" @onclick="CerrarNuevaInspeccion" disabled="@guardando">Cancelar</button>
@@ -366,6 +456,9 @@
     private string vistaActual = "mis";
     private string buscar = string.Empty;
     private string estado = string.Empty;
+    private string filtroPropietario = string.Empty;
+    private string filtroDepartamento = string.Empty;
+    private string filtroTipoFotografia = string.Empty;
     private DateTime? fechaDesde;
     private DateTime? fechaHasta;
     private bool cargando;
@@ -374,6 +467,8 @@
     private DateTime? siguienteFechaUtc;
     private int? siguienteId;
     private bool mostrarNueva;
+    private bool mostrarBuscadorTerreno;
+    private TerrenoBusquedaIAItemWeb? terrenoSeleccionado;
     private string codigoTerreno = string.Empty;
     private string nombreInspeccion = string.Empty;
     private string observacion = string.Empty;
@@ -385,6 +480,9 @@
 
     private bool PuedeCrear =>
         AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud);
+
+    private bool PuedeBuscarTerrenos =>
+        AuthState.TienePermisoDirectoLectura("terrenoPage");
 
     private bool PuedeAnalizador =>
         AuthState.TienePermisoDirectoLectura(PermisosWeb.DiagnosticoAnalizador);
@@ -480,6 +578,9 @@
     {
         buscar = string.Empty;
         estado = string.Empty;
+        filtroPropietario = string.Empty;
+        filtroDepartamento = string.Empty;
+        filtroTipoFotografia = string.Empty;
         fechaDesde = null;
         fechaHasta = null;
         await RecargarAsync();
@@ -508,10 +609,10 @@
                 await Servicio.ObtenerBandejaAsync(
                     vistaActual,
                     buscar,
+                    filtroPropietario,
                     null,
-                    null,
-                    null,
-                    null,
+                    filtroDepartamento,
+                    filtroTipoFotografia,
                     estado,
                     fechaDesde,
                     fechaHasta,
@@ -595,6 +696,8 @@
             return;
 
         codigoTerreno = string.Empty;
+        terrenoSeleccionado = null;
+        mostrarBuscadorTerreno = false;
         nombreInspeccion = string.Empty;
         observacion = string.Empty;
         fotosNueva.Clear();
@@ -604,7 +707,26 @@
     private void CerrarNuevaInspeccion()
     {
         if (!guardando)
+        {
             mostrarNueva = false;
+            mostrarBuscadorTerreno = false;
+        }
+    }
+
+    private void SeleccionarTerreno(TerrenoBusquedaIAItemWeb terreno)
+    {
+        if (terreno.TerrenoId <= 0 || string.IsNullOrWhiteSpace(terreno.CodigoTerreno))
+            return;
+
+        terrenoSeleccionado = terreno;
+        codigoTerreno = terreno.CodigoTerreno;
+        mostrarBuscadorTerreno = false;
+    }
+
+    private void QuitarTerrenoSeleccionado()
+    {
+        terrenoSeleccionado = null;
+        codigoTerreno = string.Empty;
     }
 
     private Task SeleccionarFotosAsync(InputFileChangeEventArgs e)
@@ -769,6 +891,14 @@
         string.IsNullOrWhiteSpace(item.CodigoTerreno)
             ? "Terreno sin código"
             : item.CodigoTerreno;
+
+    private static int PorcentajeAvance(InspeccionFitosanitariaBandejaItemWeb item) =>
+        item.TotalFotografias <= 0
+            ? 0
+            : (int)Math.Clamp(
+                Math.Round(100d * item.Finalizadas / item.TotalFotografias),
+                0d,
+                100d);
 
     private static string Tecnico(InspeccionFitosanitariaBandejaItemWeb item) =>
         !string.IsNullOrWhiteSpace(item.TecnicoNombreCompleto)

@@ -696,3 +696,111 @@
     color: #587068;
     font-weight: 700;
 }
+
+/* Ambas ventanas de control comparten cabecera fija y contenido desplazable. */
+.cf-backdrop { z-index: 1400; }
+.cf-audit-modal,
+.cf-operation-modal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: min(94dvh, 1000px);
+    border: 1px solid #dce8de;
+    box-shadow: 0 28px 76px rgba(13, 35, 24, .28);
+}
+
+.cf-audit-modal > .modal-header,
+.cf-operation-modal > .modal-header {
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 20px 24px;
+    border-bottom: 1px solid #dfebdf;
+    background: linear-gradient(115deg, #edf6ec, #fff);
+}
+
+.cf-audit-modal > .modal-header h2,
+.cf-operation-modal > .modal-header h2 {
+    color: #28533d;
+    font-size: clamp(1.2rem, 2vw, 1.55rem);
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.cf-audit-body,
+.cf-operation-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: 20px 24px;
+}
+
+.cf-audit-header-grid article,
+.cf-operation-current {
+    background: #f8fbf7;
+    border-color: #d9e8d9;
+    padding: 15px;
+    min-width: 0;
+}
+
+.cf-audit-header-grid strong,
+.cf-photo-result strong,
+.cf-operation-current strong {
+    overflow-wrap: anywhere;
+}
+
+.cf-operation-tabs button { min-height: 44px; }
+.cf-operation-body .form-control { min-height: 44px; font-size: .95rem; }
+.cf-operation-actions {
+    position: sticky;
+    z-index: 1;
+    bottom: 0;
+    margin: 0 -8px -8px;
+    padding: 13px 8px 8px;
+    border-top: 1px solid #e0e9df;
+    background: #fff;
+}
+
+.cf-modal-actions > .btn-secondary,
+.cf-operation-actions > button { min-height: 44px; }
+.cf-audit-modal button:focus-visible,
+.cf-operation-modal button:focus-visible,
+.cf-operation-modal .form-control:focus-visible {
+    outline: 3px solid #c6a159;
+    outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+    .cf-backdrop { padding: 0; }
+    .cf-audit-modal,
+    .cf-operation-modal {
+        width: 100%;
+        height: 100dvh;
+        max-height: 100dvh;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .cf-audit-modal > .modal-header,
+    .cf-operation-modal > .modal-header {
+        align-items: flex-start;
+        padding: 15px 16px;
+        gap: 12px;
+    }
+
+    .cf-audit-body,
+    .cf-operation-body { padding: 15px 16px; }
+    .cf-modal-actions { justify-content: space-between; }
+    .cf-operation-actions { margin: 0 -8px -8px; }
+}
+
+@media (max-width: 440px) {
+    .cf-audit-modal > .modal-header h2,
+    .cf-operation-modal > .modal-header h2 { font-size: 1.15rem; }
+    .cf-audit-header-grid { grid-template-columns: minmax(0, 1fr); }
+    .cf-operation-actions { flex-direction: column; }
+    .cf-operation-actions > button { width: 100%; }
+    .cf-modal-actions > .btn-secondary { flex: 1 1 auto; }
+}

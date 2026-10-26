@@ -1,0 +1,75 @@
+@implements IDisposable
+
+@if (pendiente is not null)
+{
+    <div class="fcf-backdrop" @onclick="() => Resolver(false)">
+        <section class="fcf-dialog @(esCritica ? "critica" : string.Empty)"
+                 role="alertdialog" aria-modal="true"
+                 aria-labelledby="fcf-titulo" aria-describedby="fcf-mensaje"
+                 @onkeydown="ManejarTecla"
+                 @onclick:stopPropagation="true">
+            <div class="fcf-icon" aria-hidden="true">
+                <i class="fa-solid @(esCritica ? "fa-triangle-exclamation" : "fa-circle-question")"></i>
+            </div>
+            <h2 id="fcf-titulo">@titulo</h2>
+            <p id="fcf-mensaje">@mensaje</p>
+            <div class="fcf-actions">
+                <button type="button" class="fcf-cancelar" @ref="botonCancelar" @onclick="() => Resolver(false)">Cancelar</button>
+                <button type="button" class="fcf-confirmar" @onclick="() => Resolver(true)">
+                    <i class="fa-solid fa-check" aria-hidden="true"></i> Confirmar
+                </button>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private TaskCompletionSource<bool>? pendiente;
+    private string titulo = string.Empty;
+    private string mensaje = string.Empty;
+    private bool esCritica;
+    private bool enfocar;
+    private ElementReference botonCancelar;
+
+    public Task<bool> ConfirmarAsync(string descripcion, string encabezado = "Confirmar acción", bool critica = false)
+    {
+        if (pendiente is not null)
+            return Task.FromResult(false);
+
+        titulo = encabezado;
+        mensaje = descripcion;
+        esCritica = critica;
+        enfocar = true;
+        pendiente = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        StateHasChanged();
+        return pendiente.Task;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (pendiente is not null && enfocar)
+        {
+            enfocar = false;
+            await botonCancelar.FocusAsync();
+        }
+    }
+
+    private void ManejarTecla(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            Resolver(false);
+    }
+
+    private void Resolver(bool confirmar)
+    {
+        TaskCompletionSource<bool>? actual = pendiente;
+        pendiente = null;
+        actual?.TrySetResult(confirmar);
+    }
+
+    public void Dispose()
+    {
+        pendiente?.TrySetResult(false);
+        pendiente = null;
+    }
+}

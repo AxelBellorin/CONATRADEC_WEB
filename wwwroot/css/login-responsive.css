@@ -1,0 +1,155 @@
+/* Ajustes exclusivos del acceso en tabletas y telefonos.
+   Se carga despues de las animaciones para mantener una sola fuente
+   de reglas responsivas del formulario sin alterar el login de escritorio. */
+
+@media (max-width: 900px) {
+    .login-page {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        overflow: clip;
+    }
+
+    .login-panel {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-width: 0;
+        min-height: 100vh;
+        min-height: 100svh;
+        padding: clamp(12px, 2.7vw, 26px);
+    }
+
+    .login-card {
+        width: min(100%, 480px);
+        max-width: 100%;
+        min-width: 0;
+        padding: clamp(18px, 4.5vw, 30px);
+    }
+
+    .login-card form,
+    .login-card .input-with-icon {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .login-card-header {
+        margin-bottom: 18px;
+    }
+
+    .mobile-mascot-logo {
+        display: grid;
+        width: 76px;
+        height: 76px;
+        margin: 0 0 12px;
+    }
+
+    /* El saludo animado se superpone a la mascota solamente cuando aparece.
+       Cuando esta oculto, no reserva espacio encima del formulario. */
+    .login-mascot-greeting-mobile {
+        position: absolute;
+        top: 8px;
+        left: 82px;
+        display: grid;
+        width: min(calc(100% - 82px), 230px);
+        min-height: 54px;
+        margin: 0;
+        transform-origin: center;
+    }
+
+    .login-mascot-greeting-mobile .login-bean-text {
+        font-size: clamp(1rem, 4.5vw, 1.5rem);
+        line-height: 1.05;
+        letter-spacing: 0.02em;
+    }
+
+    .login-mascot-greeting-mobile.is-error .login-bean-text {
+        font-size: clamp(0.92rem, 3.8vw, 1.25rem);
+    }
+
+    .login-card-header .eyebrow {
+        margin: 0 0 5px;
+        font-size: 11px;
+        letter-spacing: 0.11em;
+    }
+
+    .login-card-header h2 {
+        margin: 0 0 7px;
+        font-size: clamp(24px, 6.8vw, 31px);
+        line-height: 1.15;
+        letter-spacing: -0.025em;
+    }
+
+    .login-card-header > p:last-child {
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    .login-card .form-group {
+        gap: 6px;
+        margin-bottom: 15px;
+    }
+
+    .login-card .form-control {
+        min-width: 0;
+        min-height: 50px;
+        font-size: 16px; /* Evita el zoom automatico de Safari al enfocar. */
+    }
+
+    .login-options {
+        margin: 0 0 10px;
+    }
+
+    .login-remember {
+        min-height: 44px;
+        font-size: 13px;
+    }
+
+    .login-remember input {
+        width: 20px;
+        height: 20px;
+    }
+
+    .login-password-toggle {
+        right: 4px;
+        width: 42px;
+        height: 42px;
+    }
+
+    .login-submit {
+        min-height: 50px;
+    }
+
+    .login-note {
+        margin-top: 17px;
+        padding-top: 14px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 359px) {
+    .login-panel {
+        padding: 10px;
+    }
+
+    .login-card {
+        padding: 17px 15px;
+    }
+
+    .mobile-mascot-logo {
+        width: 64px;
+        height: 64px;
+    }
+
+    .login-mascot-greeting-mobile {
+        left: 70px;
+        width: calc(100% - 70px);
+    }
+
+    .login-card-header h2 {
+        font-size: 24px;
+    }
+}

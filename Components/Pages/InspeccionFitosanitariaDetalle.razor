@@ -4,7 +4,6 @@
 @inject ApiClientService ApiClient
 @inject AuthStateService AuthState
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 
 <PageTitle>Detalle de inspección fitosanitaria</PageTitle>
 
@@ -82,11 +81,11 @@ else
         }
 
         <section class="fd-summary">
-            <div><span>Total</span><strong>@detalle.Fotografias.Count</strong></div>
-            <div><span>Pendientes</span><strong>@detalle.Fotografias.Count(x => !EsFinal(x.Estado))</strong></div>
-            <div><span>Finalizadas</span><strong>@detalle.Fotografias.Count(x => EsFinal(x.Estado))</strong></div>
-            <div><span>Error IA</span><strong class="danger">@detalle.Fotografias.Count(x => x.Estado == EstadosFotoFitosanitariaWeb.ErrorIA)</strong></div>
-            <div><span>Publicadas</span><strong>@detalle.Fotografias.Count(x => x.PublicadaAlbum)</strong></div>
+            <div><span><i class="fa-solid fa-images"></i> Total</span><strong>@detalle.Fotografias.Count</strong></div>
+            <div><span><i class="fa-regular fa-clock"></i> Pendientes</span><strong>@detalle.Fotografias.Count(x => !EsFinal(x.Estado))</strong></div>
+            <div><span><i class="fa-solid fa-check"></i> Finalizadas</span><strong>@detalle.Fotografias.Count(x => EsFinal(x.Estado))</strong></div>
+            <div><span><i class="fa-solid fa-triangle-exclamation"></i> Error IA</span><strong class="danger">@detalle.Fotografias.Count(x => x.Estado == EstadosFotoFitosanitariaWeb.ErrorIA)</strong></div>
+            <div><span><i class="fa-solid fa-leaf"></i> Publicadas</span><strong>@detalle.Fotografias.Count(x => x.PublicadaAlbum)</strong></div>
         </section>
 
         @if (!string.IsNullOrWhiteSpace(detalle.Observacion))
@@ -107,26 +106,61 @@ else
                 <div class="fd-photo-list">
                     @foreach (InspeccionFotoWeb foto in detalle.Fotografias.OrderBy(x => x.Orden))
                     {
-                        <button class="fd-photo-row @(fotoSeleccionada?.FotografiaId == foto.FotografiaId ? "active" : string.Empty)"
-                                @onclick="() => SeleccionarFoto(foto)">
-                            <span class="fd-photo-thumb">
-                                @if (!string.IsNullOrWhiteSpace(foto.UrlImagen))
-                                {
-                                    <img src="@foto.UrlImagen" alt="Fotografía @foto.Orden" loading="lazy" />
-                                }
-                                else
-                                {
-                                    <i class="fa-regular fa-image"></i>
-                                }
-                            </span>
-                            <span class="fd-photo-copy">
-                                <strong>Foto @foto.Orden</strong>
-                                <small>@TextoTipo(foto.TipoFotografia)</small>
-                                <em class="fd-mini-status @ClaseEstadoFoto(foto.Estado)">@TextoEstado(foto.Estado)</em>
-                            </span>
-                        </button>
+                        <div class="fd-photo-entry">
+                            @if (PuedeSeleccionarLote)
+                            {
+                                <input type="checkbox" class="fd-photo-toggle"
+                                       aria-label="Seleccionar fotografía @foto.Orden"
+                                       checked="@fotosSeleccionadas.Contains(foto.FotografiaId)"
+                                       @onchange="e => CambiarSeleccion(foto.FotografiaId, e.Value is true)"
+                                       disabled="@ocupado" />
+                            }
+                            <button class="fd-photo-row @(fotoSeleccionada?.FotografiaId == foto.FotografiaId ? "active" : string.Empty)"
+                                    @onclick="() => SeleccionarFoto(foto)">
+                                <span class="fd-photo-thumb">
+                                    @if (!string.IsNullOrWhiteSpace(foto.UrlImagen))
+                                    {
+                                        <img src="@foto.UrlImagen" alt="Fotografía @foto.Orden" loading="lazy" />
+                                    }
+                                    else
+                                    {
+                                        <i class="fa-regular fa-image"></i>
+                                    }
+                                </span>
+                                <span class="fd-photo-copy">
+                                    <strong>Foto @foto.Orden</strong>
+                                    <small>@TextoTipo(foto.TipoFotografia)</small>
+                                    <em class="fd-mini-status @ClaseEstadoFoto(foto.Estado)">@TextoEstado(foto.Estado)</em>
+                                </span>
+                            </button>
+                        </div>
                     }
                 </div>
+
+                @if (PuedeSeleccionarLote && detalle.Fotografias.Count > 0)
+                {
+                    <div class="fd-batch-actions">
+                        <strong>@fotosSeleccionadas.Count seleccionadas</strong>
+                        <div class="fd-batch-buttons">
+                            <button class="fd-btn fd-secondary" @onclick="SeleccionarTodas" disabled="@ocupado">Seleccionar todas</button>
+                            <button class="fd-btn fd-secondary" @onclick="() => fotosSeleccionadas.Clear()" disabled="@(ocupado || fotosSeleccionadas.Count == 0)">Quitar selección</button>
+                        </div>
+                        @if (FotosProcesablesSeleccionadas.Count > 0)
+                        {
+                            <button class="fd-btn fd-primary fd-full" @onclick="PrepararSeleccionIA" disabled="@ocupado">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                Preparar IA (@FotosProcesablesSeleccionadas.Count)
+                            </button>
+                        }
+                        @if (FotosEnviablesSeleccionadas.Count > 0)
+                        {
+                            <button class="fd-btn fd-secondary fd-full" @onclick="EnviarSeleccionadasAsync" disabled="@ocupado">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                Enviar al analizador (@FotosEnviablesSeleccionadas.Count)
+                            </button>
+                        }
+                    </div>
+                }
 
                 @if (PuedeFinalizarEtapaTecnica)
                 {
@@ -502,19 +536,107 @@ else
 @if (mostrarAgregarFotos)
 {
     <div class="fd-modal-backdrop" @onclick="CerrarAgregarFotos">
-        <section class="fd-modal" @onclick:stopPropagation="true">
-            <header><div><span class="fd-kicker">Nueva evidencia</span><h2>Agregar fotografías</h2></div><button @onclick="CerrarAgregarFotos">×</button></header>
+        <section class="fd-modal" role="dialog" aria-modal="true" aria-labelledby="fd-agregar-title" @onclick:stopPropagation="true">
+            <header>
+                <div class="fd-modal-heading">
+                    <span class="fd-modal-heading-icon" aria-hidden="true"><i class="fa-solid fa-camera-retro"></i></span>
+                    <div>
+                        <span class="fd-kicker">Nueva evidencia</span>
+                        <h2 id="fd-agregar-title">Agregar fotografías</h2>
+                        <p>Complete el expediente con fotografías del recorrido.</p>
+                    </div>
+                </div>
+                <button type="button" @onclick="CerrarAgregarFotos" disabled="@ocupado" aria-label="Cerrar fotografías">×</button>
+            </header>
             <div class="fd-modal-body">
-                <label class="fd-file-drop"><i class="fa-solid fa-images"></i><strong>Seleccionar fotografías</strong><span>Hasta completar el máximo de 40 evidencias.</span><InputFile OnChange="SeleccionarFotosAgregarAsync" multiple accept="image/*" /></label>
+                <div class="fd-upload-summary">
+                    <strong><i class="fa-regular fa-images" aria-hidden="true"></i> @fotosAgregar.Count fotografía(s) seleccionada(s)</strong>
+                    <span>Hasta completar el máximo de 40 evidencias.</span>
+                </div>
+                <label class="fd-file-drop"><i class="fa-solid fa-images"></i><strong>Seleccionar fotografías</strong><span>JPG, PNG o WEBP. Revise tipo y fecha antes de guardar.</span><InputFile OnChange="SeleccionarFotosAgregarAsync" multiple accept="image/*" /></label>
                 @foreach (FotoFitosanitariaCargaWeb foto in fotosAgregar)
                 {
-                    <div class="fd-upload-row"><strong>@foto.Archivo.Name</strong><select @bind="foto.TipoFotografia">@foreach (TipoFotografiaIAWeb tipo in tiposFotografia){<option value="@tipo.Codigo">@tipo.Nombre</option>}</select><input type="date" @bind="foto.FechaIdentificacionCampo" max="@DateTime.Today.ToString("yyyy-MM-dd")" /></div>
+                    <div class="fd-upload-row" @key="foto">
+                        <div class="fd-upload-name"><i class="fa-regular fa-image" aria-hidden="true"></i><strong title="@foto.Archivo.Name">@foto.Archivo.Name</strong></div>
+                        <label class="fd-upload-field">Tipo de evidencia
+                            <select @bind="foto.TipoFotografia">@foreach (TipoFotografiaIAWeb tipo in tiposFotografia){<option value="@tipo.Codigo">@tipo.Nombre</option>}</select>
+                        </label>
+                        <label class="fd-upload-field">Fecha en campo
+                            <input type="date" @bind="foto.FechaIdentificacionCampo" max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        </label>
+                    </div>
                 }
             </div>
             <footer><button class="fd-btn fd-secondary" @onclick="CerrarAgregarFotos">Cancelar</button><button class="fd-btn fd-primary" @onclick="GuardarFotosAgregadasAsync" disabled="@ocupado">Agregar fotografías</button></footer>
         </section>
     </div>
 }
+
+@if (mostrarPrepararAnalisis)
+{
+    <div class="fd-modal-backdrop" @onclick="CerrarPrepararAnalisis">
+        <section class="fd-modal fd-modal-ia" role="dialog" aria-modal="true" aria-labelledby="fd-ia-title" @onclick:stopPropagation="true">
+            <header>
+                <div class="fd-modal-heading">
+                    <span class="fd-modal-heading-icon" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                    <div>
+                    <span class="fd-kicker">Preparación del análisis</span>
+                    <h2 id="fd-ia-title">Analizar @preparacionesIA.Count fotografía(s) con IA</h2>
+                    <p>Confirme el contexto de cada evidencia antes de procesarla.</p>
+                    </div>
+                </div>
+                <button type="button" @onclick="CerrarPrepararAnalisis" disabled="@ocupado" aria-label="Cerrar preparación del análisis">×</button>
+            </header>
+            <div class="fd-modal-body">
+                <p class="fd-ia-intro">Revise cada evidencia. Puede agregar un contexto de campo opcional (8 a 500 caracteres). Cada fotografía se procesa por separado, por lo que un error no detiene las demás.</p>
+                @if (!string.IsNullOrWhiteSpace(mensajePreparacion))
+                {
+                    <p class="fd-ia-error" role="alert">@mensajePreparacion</p>
+                }
+                @foreach (PreparacionFotoIAWeb preparacion in preparacionesIA)
+                {
+                    <section class="fd-ia-item" @key="preparacion.FotografiaId">
+                        <div class="fd-ia-item-head">
+                            <strong>Foto @preparacion.Orden · @TextoTipo(preparacion.TipoFotografia)</strong>
+                            <span>@(preparacion.Completada ? "Completada" : preparacion.ConError ? "Con error" : "Pendiente")</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(preparacion.UrlImagen))
+                        {
+                            <img src="@preparacion.UrlImagen" alt="Evidencia @preparacion.Orden para analizar" loading="lazy" />
+                        }
+                        @if (preparacion.RecuperarResultado)
+                        {
+                            <p class="fd-ia-info">Esta fotografía tiene un resultado IA guardado pendiente de recuperar. Se intentará recuperar sin generar un análisis nuevo.</p>
+                        }
+                        else
+                        {
+                            <label class="fd-field">
+                                <span>Contexto adicional (opcional)</span>
+                                <textarea @bind="preparacion.Contexto" rows="3" maxlength="500" disabled="@(ocupado || preparacion.Completada)"
+                                          placeholder="Síntomas o hallazgos específicos de esta fotografía"></textarea>
+                            </label>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(preparacion.Resultado))
+                        {
+                            <p class="@(preparacion.ConError ? "fd-ia-error" : "fd-ia-info")">@preparacion.Resultado</p>
+                        }
+                    </section>
+                }
+            </div>
+            <footer>
+                <button class="fd-btn fd-secondary" @onclick="CerrarPrepararAnalisis" disabled="@ocupado">@(preparacionesIA.All(x => x.Completada) ? "Cerrar" : "Volver al expediente")</button>
+                @if (preparacionesIA.Any(x => !x.Completada))
+                {
+                    <button class="fd-btn fd-primary" @onclick="ProcesarPreparacionesIAAsync" disabled="@ocupado">
+                        @(ocupado ? "Procesando..." : $"Procesar {preparacionesIA.Count(x => !x.Completada)} con IA")
+                    </button>
+                }
+            </footer>
+        </section>
+    </div>
+}
+
+<ConfirmacionFitosanitaria @ref="confirmacion" />
 
 @code {
     [Parameter] public int InspeccionId { get; set; }
@@ -547,6 +669,11 @@ else
     private string respuestaResolucion = string.Empty;
     private bool mostrarAgregarFotos;
     private readonly List<FotoFitosanitariaCargaWeb> fotosAgregar = [];
+    private readonly HashSet<int> fotosSeleccionadas = [];
+    private readonly List<PreparacionFotoIAWeb> preparacionesIA = [];
+    private bool mostrarPrepararAnalisis;
+    private string mensajePreparacion = string.Empty;
+    private ConfirmacionFitosanitaria? confirmacion;
 
     private string ModoActual => (Modo ?? "mis").Trim().ToLowerInvariant();
     private bool EsModoAnalizadorRevisadas => ModoActual == "analizador-revisadas";
@@ -596,6 +723,14 @@ else
                 : "Puedes consultar el expediente, pero solo el responsable asignado puede modificarlo. La reasignación requiere permiso de Control Fitosanitario.";
     private bool PuedeAgregarFotos => detalle is not null && !detalle.EtapaTecnicaFinalizada && !detalle.CerradaDefinitiva && detalle.PuedeGestionarSolicitud && AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud);
     private bool PuedeFinalizarEtapaTecnica => detalle is not null && !detalle.EtapaTecnicaFinalizada && !detalle.CerradaDefinitiva && detalle.PuedeGestionarSolicitud && AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud);
+    private bool PuedeSeleccionarLote => EsModoTecnico && PuedeFinalizarEtapaTecnica;
+    private List<InspeccionFotoWeb> FotosProcesablesSeleccionadas => detalle?.Fotografias
+        .Where(foto => fotosSeleccionadas.Contains(foto.FotografiaId) && PuedeProcesarFoto(foto))
+        .OrderBy(foto => foto.Orden).ToList() ?? [];
+    private List<InspeccionFotoWeb> FotosEnviablesSeleccionadas => detalle?.Fotografias
+        .Where(foto => fotosSeleccionadas.Contains(foto.FotografiaId) &&
+            foto.Estado == EstadosFotoFitosanitariaWeb.PendienteDecisionTecnico)
+        .OrderBy(foto => foto.Orden).ToList() ?? [];
     private string EtapaVisual => EsModoTecnico
         ? "TECNICO"
         : EsModoAnalizador
@@ -620,6 +755,7 @@ else
         try
         {
             detalle = await Servicio.ObtenerDetalleAsync(InspeccionId);
+            fotosSeleccionadas.IntersectWith(detalle.Fotografias.Select(foto => foto.FotografiaId));
             tiposFotografia = (await Servicio.ObtenerTiposFotografiaAsync())
                 .Where(item => item.Activo && !string.IsNullOrWhiteSpace(item.Codigo))
                 .OrderBy(item => item.Orden)
@@ -782,6 +918,148 @@ else
         formularioAccion = string.Empty;
     }
 
+    private void CambiarSeleccion(int fotografiaId, bool seleccionada)
+    {
+        if (!PuedeSeleccionarLote || ocupado)
+            return;
+
+        if (seleccionada)
+            fotosSeleccionadas.Add(fotografiaId);
+        else
+            fotosSeleccionadas.Remove(fotografiaId);
+    }
+
+    private void SeleccionarTodas()
+    {
+        if (!PuedeSeleccionarLote || ocupado || detalle is null)
+            return;
+
+        fotosSeleccionadas.UnionWith(detalle.Fotografias.Select(foto => foto.FotografiaId));
+    }
+
+    private void PrepararSeleccionIA() => AbrirPrepararAnalisis(FotosProcesablesSeleccionadas);
+
+    private void AbrirPrepararAnalisis(IEnumerable<InspeccionFotoWeb> fotos)
+    {
+        if (!PuedeSeleccionarLote || ocupado)
+            return;
+
+        preparacionesIA.Clear();
+        mensajePreparacion = string.Empty;
+        foreach (InspeccionFotoWeb foto in fotos.Where(PuedeProcesarFoto).DistinctBy(x => x.FotografiaId))
+        {
+            preparacionesIA.Add(new PreparacionFotoIAWeb
+            {
+                FotografiaId = foto.FotografiaId,
+                Orden = foto.Orden,
+                TipoFotografia = foto.TipoFotografia,
+                UrlImagen = foto.UrlImagen,
+                RecuperarResultado = foto.Estado == EstadosFotoFitosanitariaWeb.ErrorIA && foto.ResultadoIA is not null
+            });
+        }
+
+        mostrarPrepararAnalisis = preparacionesIA.Count > 0;
+    }
+
+    private void CerrarPrepararAnalisis()
+    {
+        if (!ocupado)
+            mostrarPrepararAnalisis = false;
+    }
+
+    private async Task ProcesarPreparacionesIAAsync()
+    {
+        if (!PuedeSeleccionarLote || !mostrarPrepararAnalisis || ocupado)
+            return;
+
+        List<PreparacionFotoIAWeb> pendientes = preparacionesIA.Where(x => !x.Completada).ToList();
+        if (pendientes.Any(x => !x.RecuperarResultado && !string.IsNullOrWhiteSpace(x.Contexto) &&
+            (x.Contexto.Trim().Length < 8 || x.Contexto.Trim().Length > 500)))
+        {
+            mensajePreparacion = "El contexto de cada fotografía debe estar vacío o contener entre 8 y 500 caracteres.";
+            return;
+        }
+
+        mensajePreparacion = string.Empty;
+        ocupado = true;
+        try
+        {
+            foreach (PreparacionFotoIAWeb foto in pendientes)
+            {
+                foto.ConError = false;
+                foto.Resultado = "Procesando fotografía...";
+                await InvokeAsync(StateHasChanged);
+
+                try
+                {
+                    string contexto = foto.RecuperarResultado
+                        ? "Recuperar resultado IA válido ya almacenado para esta fotografía."
+                        : foto.Contexto.Trim();
+                    InspeccionOperacionMasivaWeb operacion = await Servicio.ProcesarFotoConContextoAsync(
+                        InspeccionId, foto.FotografiaId, contexto);
+                    InspeccionOperacionItemWeb? resultado = operacion.Resultados
+                        .FirstOrDefault(x => x.FotografiaId == foto.FotografiaId);
+
+                    if (resultado?.Exitoso != true &&
+                        !(resultado is null && operacion.TotalExitosas > 0 && operacion.TotalConError == 0))
+                        throw new InvalidOperationException(string.IsNullOrWhiteSpace(resultado?.Mensaje)
+                            ? "No se pudo completar el análisis de esta fotografía."
+                            : resultado.Mensaje);
+
+                    foto.Completada = true;
+                    foto.Resultado = "Análisis completado.";
+                }
+                catch (Exception ex)
+                {
+                    foto.ConError = true;
+                    foto.Resultado = ex.Message;
+                }
+                await InvokeAsync(StateHasChanged);
+            }
+
+            int completadas = preparacionesIA.Count(x => x.Completada);
+            int errores = preparacionesIA.Count(x => x.ConError);
+            detalle = await Servicio.ObtenerDetalleAsync(InspeccionId);
+            fotosSeleccionadas.Clear();
+            int? fotoActual = fotoSeleccionada?.FotografiaId;
+            fotoSeleccionada = detalle.Fotografias.FirstOrDefault(x => x.FotografiaId == fotoActual) ??
+                detalle.Fotografias.OrderBy(x => x.Orden).FirstOrDefault();
+            MostrarMensaje($"Análisis IA: {completadas} completadas y {errores} con error. Cada fotografía conserva su resultado.", errores > 0);
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje($"Los análisis terminaron, pero no fue posible actualizar el expediente: {ex.Message}", true);
+        }
+        finally
+        {
+            ocupado = false;
+        }
+    }
+
+    private Task EnviarSeleccionadasAsync()
+    {
+        int[] ids = FotosEnviablesSeleccionadas.Select(foto => foto.FotografiaId).ToArray();
+        if (!PuedeSeleccionarLote || ids.Length == 0)
+            return Task.CompletedTask;
+
+        return EjecutarAsync(
+            () => Servicio.EnviarAnalizadorAsync(InspeccionId, ids),
+            $"Se enviaron {ids.Length} fotografías al analizador.");
+    }
+
+    private sealed class PreparacionFotoIAWeb
+    {
+        public int FotografiaId { get; init; }
+        public int Orden { get; init; }
+        public string TipoFotografia { get; init; } = string.Empty;
+        public string UrlImagen { get; init; } = string.Empty;
+        public bool RecuperarResultado { get; init; }
+        public string Contexto { get; set; } = string.Empty;
+        public bool Completada { get; set; }
+        public bool ConError { get; set; }
+        public string Resultado { get; set; } = string.Empty;
+    }
+
     private async Task EjecutarAsync(Func<Task> accion, string mensajeExito)
     {
         if (ocupado) return;
@@ -799,7 +1077,12 @@ else
         finally { ocupado = false; }
     }
 
-    private Task ProcesarSeleccionadaAsync() => fotoSeleccionada is null ? Task.CompletedTask : EjecutarAsync(() => Servicio.ProcesarFotosAsync(InspeccionId, new[] { fotoSeleccionada.FotografiaId }), "La fotografía fue enviada a procesamiento IA.");
+    private Task ProcesarSeleccionadaAsync()
+    {
+        if (fotoSeleccionada is not null)
+            AbrirPrepararAnalisis([fotoSeleccionada]);
+        return Task.CompletedTask;
+    }
     private Task EnviarAnalizadorAsync() => fotoSeleccionada is null ? Task.CompletedTask : EjecutarAsync(() => Servicio.EnviarAnalizadorAsync(InspeccionId, new[] { fotoSeleccionada.FotografiaId }), "La fotografía fue enviada al analizador.");
 
     private async Task SolicitarRevisionIAAsync()
@@ -870,9 +1153,9 @@ else
             return;
         }
 
-        bool confirmar = await JS.InvokeAsync<bool>(
-            "confirm",
-            "La inspección será enviada al analizador. Después de continuar no podrá agregar, descartar, volver a evaluar ni modificar fotografías desde la vista del técnico. ¿Desea finalizar y enviar la etapa técnica?");
+        bool confirmar = confirmacion is not null && await confirmacion.ConfirmarAsync(
+            "La inspección será enviada al analizador. Después de continuar no podrá agregar, descartar, volver a evaluar ni modificar fotografías desde la vista del técnico. ¿Desea finalizar y enviar la etapa técnica?",
+            "Finalizar etapa técnica", critica: true);
 
         if (!confirmar)
             return;
@@ -912,9 +1195,9 @@ else
                 return;
             }
 
-            bool confirmar = await JS.InvokeAsync<bool>(
-                "confirm",
-                "La revisión humana está completa. Al finalizar, las fotografías revisadas quedarán enviadas al aprobador y la etapa del analizador se cerrará. ¿Desea continuar?");
+            bool confirmar = confirmacion is not null && await confirmacion.ConfirmarAsync(
+                "La revisión humana está completa. Al finalizar, las fotografías revisadas quedarán enviadas al aprobador y la etapa del analizador se cerrará. ¿Desea continuar?",
+                "Finalizar revisión del analizador", critica: true);
 
             if (!confirmar)
                 return;
@@ -984,9 +1267,9 @@ else
             return;
         }
 
-        bool confirmar = await JS.InvokeAsync<bool>(
-            "confirm",
-            "Se enviará únicamente esta fotografía al aprobador. El analizador dejará de poder modificarla mientras permanezca en aprobación, salvo que sea devuelta. ¿Desea continuar?");
+        bool confirmar = confirmacion is not null && await confirmacion.ConfirmarAsync(
+            "Se enviará únicamente esta fotografía al aprobador. El analizador dejará de poder modificarla mientras permanezca en aprobación, salvo que sea devuelta. ¿Desea continuar?",
+            "Enviar fotografía al aprobador");
 
         if (!confirmar)
             return;
@@ -1077,9 +1360,9 @@ else
         aprobacion.AutorizaPublicacionAlbum = false;
 
         string decisionTexto = TextoTipo(aprobacion.Decision);
-        bool confirmar = await JS.InvokeAsync<bool>(
-            "confirm",
-            $"Registrará la decisión «{decisionTexto}» únicamente para esta fotografía. Una aprobación positiva no la publica automáticamente en el Álbum Botánico; la clasificación oficial y la publicación se gestionan después. ¿Desea continuar?");
+        bool confirmar = confirmacion is not null && await confirmacion.ConfirmarAsync(
+            $"Registrará la decisión «{decisionTexto}» únicamente para esta fotografía. Una aprobación positiva no la publica automáticamente en el Álbum Botánico; la clasificación oficial y la publicación se gestionan después. ¿Desea continuar?",
+            "Registrar decisión del aprobador");
 
         if (!confirmar)
             return;
@@ -1130,9 +1413,9 @@ else
             return;
         }
 
-        bool confirmar = await JS.InvokeAsync<bool>(
-            "confirm",
-            "El cierre definitivo es irreversible y dejará el expediente en modo de solo lectura. Las copias autorizadas podrán publicarse o retirarse del Álbum Botánico después sin modificar el expediente. ¿Desea cerrar definitivamente la inspección?");
+        bool confirmar = confirmacion is not null && await confirmacion.ConfirmarAsync(
+            "El cierre definitivo es irreversible y dejará el expediente en modo de solo lectura. Las copias autorizadas podrán publicarse o retirarse del Álbum Botánico después sin modificar el expediente. ¿Desea cerrar definitivamente la inspección?",
+            "Cerrar expediente definitivamente", critica: true);
 
         if (!confirmar)
             return;
@@ -1221,7 +1504,15 @@ else
         fotosAgregar.Clear();
     }
 
-    private bool PuedeProcesarFoto(InspeccionFotoWeb f) => detalle?.PuedeGestionarSolicitud == true && AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud) && !detalle.EtapaTecnicaFinalizada && f.Estado is EstadosFotoFitosanitariaWeb.Borrador or EstadosFotoFitosanitariaWeb.PendienteIA or EstadosFotoFitosanitariaWeb.ErrorIA;
+    private bool PuedeProcesarFoto(InspeccionFotoWeb f) =>
+        detalle?.PuedeGestionarSolicitud == true &&
+        AuthState.TienePermisoDirectoAgregar(PermisosWeb.DiagnosticoSolicitud) &&
+        !detalle.EtapaTecnicaFinalizada && !detalle.CerradaDefinitiva &&
+        !f.Descartada &&
+        (f.Estado is EstadosFotoFitosanitariaWeb.Borrador or
+            EstadosFotoFitosanitariaWeb.PendienteIA or
+            EstadosFotoFitosanitariaWeb.ErrorIA ||
+         f.Estado == EstadosFotoFitosanitariaWeb.NoConcluyente && f.ResultadoIA is null);
     private bool PuedeAnalizarFoto(InspeccionFotoWeb f) =>
         !AsignadaAOtroAnalizador &&
         PuedeOperarAnalizador &&

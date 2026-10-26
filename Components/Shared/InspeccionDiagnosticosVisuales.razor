@@ -1,6 +1,5 @@
 @using System.Globalization
 @inject ApiClientService ApiClient
-@inject IJSRuntime JS
 
 <section class="vd-root">
     <header class="vd-header">
@@ -381,12 +380,15 @@
     }
 </section>
 
+<ConfirmacionFitosanitaria @ref="confirmacion" />
+
 @code {
     [Parameter] public int InspeccionId { get; set; }
     [Parameter] public int FotografiaId { get; set; }
     [Parameter] public string Etapa { get; set; } = "CONSULTA";
     [Parameter] public bool PuedeGestionar { get; set; }
     [Parameter] public EventCallback OnActualizado { get; set; }
+    private ConfirmacionFitosanitaria? confirmacion;
 
     private static readonly string[] CategoriasDiagnostico =
     [
@@ -839,9 +841,9 @@
         GarantizarPrincipal(finales);
         DiagnosticoVisualLocal? principal = finales.FirstOrDefault(item => item.EsPrincipal) ?? finales.FirstOrDefault();
 
-        bool confirmar = await JS.InvokeAsync<bool>(
-            "confirm",
-            $"Registrará la decisión «{TextoCodigo(decisionAprobador)}» únicamente para esta fotografía. La publicación en el Álbum Botánico seguirá siendo una operación separada. ¿Desea continuar?");
+        bool confirmar = confirmacion is not null && await confirmacion.ConfirmarAsync(
+            $"Registrará la decisión «{TextoCodigo(decisionAprobador)}» únicamente para esta fotografía. La publicación en el Álbum Botánico seguirá siendo una operación separada. ¿Desea continuar?",
+            "Confirmar diagnóstico final");
         if (!confirmar)
             return;
 

@@ -207,12 +207,13 @@
 
 @if (mostrarTipo)
 {
-    <div class="modal-backdrop" @onclick="CerrarTipo">
-        <article class="modal-card fc-modal" @onclick:stopPropagation="true">
+    <div class="modal-backdrop fc-backdrop" @onclick="CerrarTipo">
+        <article class="modal-card fc-modal" role="dialog" aria-modal="true"
+                 aria-labelledby="fc-tipo-title" @onclick:stopPropagation="true">
             <div class="modal-header">
                 <div>
                     <p class="eyebrow">Catálogo IA</p>
-                    <h2>@(tipoEditandoId > 0 ? "Editar tipo de fotografía" : "Nuevo tipo de fotografía")</h2>
+                    <h2 id="fc-tipo-title">@(tipoEditandoId > 0 ? "Editar tipo de fotografía" : "Nuevo tipo de fotografía")</h2>
                 </div>
                 <button class="modal-close" @onclick="CerrarTipo" aria-label="Cerrar">
                     <i class="fa-solid fa-xmark"></i>
